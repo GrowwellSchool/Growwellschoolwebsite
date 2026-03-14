@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
 import { ArrowRight, Award, BookOpen, Users, Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react'
+import CircularGalleryDemo from '../components/ui/circular-gallery-demo'
+import OrbitCarousel from '../components/ui/animated-carousel-demo'
 
 // ─── Hero Carousel ───────────────────────────────────────────────
 const heroSlides = [
@@ -200,74 +202,62 @@ function StatsSection() {
   )
 }
 
-// ─── About / Mission ─────────────────────────────────────────────
-function AboutSection() {
+// ─── Our Journey ───────────────────────────────────────────────────
+function OurJourneySection() {
   const ref = useRef(null)
-  const inView = useInView(ref, { once: true })
+  const inView = useInView(ref, { once: true, amount: 0.2 })
+
+  const milestones = [
+    { year: '2011', text: 'Growwell School established on April 2 by S. Ishwar Pal Singh and Ms Amrit K. Vohi' },
+    { year: '2015', text: 'Recognition as co-educational middle school following CBSE curriculum' },
+    { year: '2020', text: 'Adopted NEP 2020 guidelines, expanding holistic development programs' },
+    { year: '2024', text: 'Progressive addition of classes, now serving Play Class through Grade 9' },
+    { year: '2026', text: 'Continuing to grow — admissions open for Session 2026-27' },
+  ]
+
   return (
-    <section id="about" className="py-20 bg-white" ref={ref}>
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Images mosaic */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7 }}
-            className="relative"
-          >
-            <div className="grid grid-cols-2 gap-4">
-              <div className="img-zoom rounded-2xl overflow-hidden row-span-2 h-80">
-                <img src="/images/activity4.jpg" alt="Students" className="w-full h-full object-cover" />
-              </div>
-              <div className="img-zoom rounded-2xl overflow-hidden h-36">
-                <img src="/images/activity1.jpg" alt="Sports" className="w-full h-full object-cover" />
-              </div>
-              <div className="img-zoom rounded-2xl overflow-hidden h-36">
-                <img src="/images/activity2.jpg" alt="Activities" className="w-full h-full object-cover" />
-              </div>
-            </div>
-            {/* Floating badge */}
-            <div className="absolute -bottom-4 -right-4 bg-school-gold text-school-dark font-heading font-black px-5 py-4 rounded-xl shadow-xl text-center">
-              <div className="text-2xl font-black">15+</div>
-              <div className="text-xs font-bold tracking-wide uppercase">Years of<br/>Excellence</div>
-            </div>
-          </motion.div>
+    <section id="journey" className="py-20 bg-[#f8f9f6] pattern-grid relative" ref={ref}>
+      <div className="max-w-4xl mx-auto px-4 relative">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl lg:text-5xl font-heading font-black text-[#0f172a]">
+            Our Journey
+          </h2>
+        </div>
 
-          {/* Text */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
-            <span className="inline-block bg-green-100 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
-              About Growwell
-            </span>
-            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-4 leading-tight section-title">
-              Cultivating Excellence<br/>Since 2011
-            </h2>
-            <p className="text-gray-600 mb-4 leading-relaxed">
-              Cromwell School Kharar was established on April 2, 2011 by <strong>S. Ishwar Pal Singh</strong> and <strong>Ms. Amrit K. Vohi</strong> with the objective of providing quality education to the budding generation. The school is run by <em>Cromwell Education and Sports Welfare Society</em>.
-            </p>
-            <p className="text-gray-600 mb-6 leading-relaxed">
-              It is a recognised co-educational middle school following the <strong>CBSE curriculum</strong> with English as the medium of instruction. Growwell School is committed to the holistic development of every child.
-            </p>
+        {/* Timeline Line */}
+        <div className="absolute left-1/2 top-32 bottom-0 w-0.5 bg-school-green -translate-x-1/2 hidden md:block" />
 
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              {[
-                { label: 'Mission', text: 'Spiritual, moral, physical and social excellence' },
-                { label: 'Vision', text: 'Sound bodies and trained minds for tomorrow' },
-              ].map((item) => (
-                <div key={item.label} className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-4">
-                  <div className="font-heading font-bold text-school-green text-sm mb-1">{item.label}</div>
-                  <div className="text-gray-600 text-sm">{item.text}</div>
+        <div className="space-y-12">
+          {milestones.map((m, i) => {
+            const isLeft = i % 2 === 0
+            return (
+              <motion.div
+                key={m.year}
+                initial={{ opacity: 0, y: 30, x: isLeft ? -20 : 20 }}
+                animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+                className={`relative flex flex-col md:flex-row items-center ${isLeft ? 'md:flex-row' : 'md:flex-row-reverse'} gap-8`}
+              >
+                {/* Content Box */}
+                <div className={`w-full md:w-[45%] flex ${isLeft ? 'justify-end' : 'justify-start'}`}>
+                  <div className="bg-[#1b5e43] text-white p-6 md:p-8 rounded-sm shadow-xl w-full max-w-sm">
+                    <div className="text-school-gold font-heading font-bold text-2xl md:text-3xl mb-3">
+                      {m.year}
+                    </div>
+                    <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">
+                      {m.text}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            <Link to="/admission" className="btn-primary">
-              Explore Admission <ArrowRight size={18} />
-            </Link>
-          </motion.div>
+                {/* Timeline Node */}
+                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-[3px] border-[#1b5e43] bg-school-gold z-10" />
+
+                {/* Empty Space for alignment */}
+                <div className="hidden md:block w-[45%]" />
+              </motion.div>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -411,34 +401,7 @@ function DeskSection() {
   )
 }
 
-// ─── Photo Strip ─────────────────────────────────────────────────
-function PhotoStrip() {
-  const images = [
-    '/images/activity1.jpg',
-    '/images/activity2.jpg',
-    '/images/activity3.jpg',
-    '/images/activity5.jpg',
-    '/images/activity6.jpg',
-    '/images/activity7.jpg',
-    '/images/activity8.jpg',
-    '/images/activity9.jpg',
-    '/images/activity10.jpg',
-    '/images/activity1.jpg',
-    '/images/activity2.jpg',
-    '/images/activity3.jpg',
-  ]
-  return (
-    <section className="py-0 overflow-hidden bg-school-green">
-      <div className="flex gap-3 py-4">
-        {images.map((src, i) => (
-          <div key={i} className="flex-shrink-0 img-zoom rounded-lg overflow-hidden" style={{ width: '200px', height: '150px' }}>
-            <img src={src} alt="" className="w-full h-full object-cover" />
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
+
 
 // ─── Academic Highlights ─────────────────────────────────────────
 function AcademicSection() {
@@ -532,16 +495,9 @@ function AcademicSection() {
 function GalleryPreview() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
-  const imgs = [
-    { src: '/images/activity6.jpg', span: 'col-span-2 row-span-2' },
-    { src: '/images/activity7.jpg', span: '' },
-    { src: '/images/activity8.jpg', span: '' },
-    { src: '/images/activity9.jpg', span: '' },
-    { src: '/images/activity10.jpg', span: '' },
-    { src: '/images/activity3.jpg', span: '' },
-  ]
+  
   return (
-    <section className="py-20 pattern-zigzag bg-gray-50" ref={ref}>
+    <section className="py-20 pattern-zigzag bg-gray-50 overflow-hidden" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -561,18 +517,8 @@ function GalleryPreview() {
           </Link>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-[180px]">
-          {imgs.map((img, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={inView ? { opacity: 1, scale: 1 } : {}}
-              transition={{ delay: i * 0.08, duration: 0.4 }}
-              className={`img-zoom rounded-2xl overflow-hidden ${img.span}`}
-            >
-              <img src={img.src} alt="" className="w-full h-full object-cover" />
-            </motion.div>
-          ))}
+        <div className="mt-8 relative z-10 w-full overflow-visible rounded-3xl bg-black/5 p-4 shadow-inner">
+          <OrbitCarousel />
         </div>
       </div>
     </section>
@@ -612,16 +558,101 @@ function CTABanner() {
   )
 }
 
+// ─── About Section ──────────────────────────────────────────────────
+function AboutSection() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, amount: 0.2 })
+
+  return (
+    <section className="py-20 bg-white overflow-hidden" ref={ref}>
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Column - Image Collage */}
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6 }}
+            className="relative"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-1 row-span-2">
+                <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-lg">
+                  <img src="/images/activity5.jpg" alt="Students in class" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                </div>
+              </div>
+              <div className="col-span-1">
+                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
+                  <img src="/images/activity4.jpg" alt="Students jumping" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                </div>
+              </div>
+              <div className="col-span-1">
+                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
+                  <img src="/images/activity6.jpg" alt="Students playing" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Excellence Badge */}
+            <div className="absolute -bottom-6 -right-6 lg:-bottom-8 lg:right-0 bg-school-orange text-white p-6 rounded-xl shadow-xl z-10 w-40 h-40 flex flex-col items-center justify-center transform rotate-3 hover:rotate-0 transition-transform">
+              <div className="text-4xl font-black font-heading tracking-tighter mb-1">15+</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-center leading-tight">Years of<br />Excellence</div>
+            </div>
+          </motion.div>
+
+          {/* Right Column - Content */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="lg:pl-8"
+          >
+            <span className="inline-block bg-green-100 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+              About Growwell
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-6 leading-tight">
+              Cultivating Excellence<br />Since 2011
+            </h2>
+            
+            <p className="text-gray-600 mb-5 leading-relaxed">
+              Cromwell School Kharar was established on April 2, 2011 by <strong>S. Ishwar Pal Singh</strong> and <strong>Ms. Amrit K. Vohi</strong> with the objective of providing quality education to the budding generation. The school is run by <em>Cromwell Education and Sports Welfare Society</em>.
+            </p>
+            
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              It is a recognised co-educational middle school following the <strong>CBSE curriculum</strong> with English as the medium of instruction. Growwell School is committed to the holistic development of every child.
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-4 mb-8">
+              <div className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-5">
+                <div className="font-heading font-bold text-school-green mb-2">Mission</div>
+                <div className="text-gray-600 text-sm leading-relaxed">Spiritual, moral, physical and social excellence</div>
+              </div>
+              <div className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-5">
+                <div className="font-heading font-bold text-school-green mb-2">Vision</div>
+                <div className="text-gray-600 text-sm leading-relaxed">Sound bodies and trained minds for tomorrow</div>
+              </div>
+            </div>
+
+            <Link to="/admission" className="btn-primary inline-flex items-center">
+              Explore Admission <ArrowRight size={18} className="ml-2" />
+            </Link>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Page ──────────────────────────────────────────────────────────
 export default function Home() {
   return (
     <>
       <HeroCarousel />
       <NewsTicker />
-      <StatsSection />
       <AboutSection />
+      <StatsSection />
+      <OurJourneySection />
       <ProgramsSection />
-      <PhotoStrip />
+      <CircularGalleryDemo />
       <DeskSection />
       <AcademicSection />
       <GalleryPreview />
