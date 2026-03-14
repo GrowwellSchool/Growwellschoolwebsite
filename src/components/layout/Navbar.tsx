@@ -54,26 +54,11 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-school-green flex items-center justify-center shadow-md">
-                  <svg viewBox="0 0 50 50" className="w-9 h-9" fill="none">
-                    {/* Lotus SVG */}
-                    <circle cx="25" cy="28" r="5" fill="#ffd700"/>
-                    <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ff8c69" transform="rotate(0,25,28)"/>
-                    <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ffb347" transform="rotate(40,25,28)"/>
-                    <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ff8c69" transform="rotate(-40,25,28)"/>
-                    <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ffb347" transform="rotate(80,25,28)"/>
-                    <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ff8c69" transform="rotate(-80,25,28)"/>
-                    <ellipse cx="25" cy="22" rx="3" ry="7" fill="#ff6b6b" transform="rotate(20,25,28)"/>
-                    <ellipse cx="25" cy="22" rx="3" ry="7" fill="#ff6b6b" transform="rotate(-20,25,28)"/>
-                    <ellipse cx="25" cy="22" rx="3" ry="7" fill="#ff6b6b" transform="rotate(60,25,28)"/>
-                    <ellipse cx="25" cy="22" rx="3" ry="7" fill="#ff6b6b" transform="rotate(-60,25,28)"/>
-                    <circle cx="25" cy="28" r="4" fill="#ffd700"/>
-                    <path d="M15 34 Q25 32 35 34" stroke="#5cb85c" strokeWidth="2" fill="none"/>
-                    <path d="M18 36 Q25 33 32 36" stroke="#5cb85c" strokeWidth="2" fill="none"/>
-                  </svg>
-                </div>
-              </div>
+              <img
+                src="/images/logo.png"
+                alt="Growwell School Logo"
+                className="w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-md"
+              />
               <div>
                 <div className="text-school-green font-heading font-black text-xl leading-tight tracking-wide">
                   GROWWELL

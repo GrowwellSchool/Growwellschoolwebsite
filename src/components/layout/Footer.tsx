@@ -18,17 +18,11 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-school-green flex items-center justify-center">
-                <svg viewBox="0 0 50 50" className="w-9 h-9" fill="none">
-                  <circle cx="25" cy="28" r="5" fill="#ffd700"/>
-                  <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ff8c69" transform="rotate(0,25,28)"/>
-                  <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ffb347" transform="rotate(40,25,28)"/>
-                  <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ff8c69" transform="rotate(-40,25,28)"/>
-                  <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ffb347" transform="rotate(80,25,28)"/>
-                  <ellipse cx="25" cy="20" rx="4" ry="9" fill="#ff8c69" transform="rotate(-80,25,28)"/>
-                  <circle cx="25" cy="28" r="4" fill="#ffd700"/>
-                </svg>
-              </div>
+              <img
+                src="/images/logo.png"
+                alt="Growwell School Logo"
+                className="w-14 h-14 object-contain"
+              />
               <div>
                 <div className="text-white font-heading font-black text-lg">GROWWELL</div>
                 <div className="text-school-gold text-xs tracking-widest">SCHOOL</div>
