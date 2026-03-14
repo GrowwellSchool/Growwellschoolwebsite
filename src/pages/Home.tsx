@@ -58,51 +58,35 @@ function HeroCarousel() {
       >
         <img src={slide.img} alt="" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-school-dark/65" />
-        {/* Decorative pattern overlay */}
-        <div className="absolute inset-0 pattern-dots opacity-20" />
       </motion.div>
 
-      {/* Floating geometric shapes */}
-      <div className="absolute top-20 right-20 w-32 h-32 border-4 border-school-gold/40 rounded-full animate-spin-slow hidden lg:block" />
-      <div className="absolute bottom-32 left-16 w-20 h-20 border-4 border-school-lime/30 rounded-full animate-float hidden lg:block" />
-      <div className="absolute top-40 left-1/4 w-12 h-12 bg-school-gold/20 rotate-45 animate-float hidden lg:block" style={{ animationDelay: '1s' }} />
-
-      {/* Lotus corner decoration */}
-      <div className="absolute top-8 right-8 opacity-20 hidden lg:block">
-        <svg viewBox="0 0 100 100" className="w-24 h-24">
-          <circle cx="50" cy="56" r="10" fill="#ffd700"/>
-          {[0, 40, -40, 80, -80, 120, -120, 160].map((r, i) => (
-            <ellipse key={i} cx="50" cy="38" rx="7" ry="16" fill="#ff8c69" transform={`rotate(${r},50,56)`} opacity="0.8"/>
-          ))}
-        </svg>
-      </div>
-
       {/* Content */}
-      <div className="relative h-full max-w-7xl mx-auto px-4 flex flex-col justify-center">
+      <div className="relative h-full max-w-7xl mx-auto px-4 flex flex-col justify-center overflow-hidden">
         <motion.div
           key={active + 'content'}
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="max-w-2xl"
+          initial={{ opacity: 0, x: 200, rotate: 15 }}
+          animate={{ opacity: 1, x: 0, rotate: 0 }}
+          transition={{ duration: 0.8, delay: 0.2, type: 'spring', bounce: 0.4 }}
+          style={{ transformOrigin: 'left center' }}
+          className="max-w-max"
         >
-          <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-6">
+          <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-6 whitespace-nowrap">
             {slide.tag}
           </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-white leading-tight mb-2">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-white leading-tight mb-2 whitespace-nowrap">
             {slide.title}
           </h1>
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-school-gold leading-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-school-gold leading-tight mb-6 whitespace-nowrap">
             {slide.accent}
           </h1>
-          <p className="text-gray-200 text-lg mb-10 max-w-xl">
+          <p className="text-gray-200 text-lg mb-10 max-w-xl whitespace-nowrap">
             {slide.sub}
           </p>
-          <div className="flex flex-wrap gap-4">
-            <Link to="/admission" className="btn-secondary">
+          <div className="flex flex-nowrap gap-4">
+            <Link to="/admission" className="btn-secondary whitespace-nowrap">
               Apply for Admission <ArrowRight size={18} />
             </Link>
-            <Link to="/gallery" className="btn-primary border border-white/30">
+            <Link to="/gallery" className="btn-primary border border-white/30 whitespace-nowrap">
               Explore Gallery <ArrowRight size={18} />
             </Link>
           </div>
