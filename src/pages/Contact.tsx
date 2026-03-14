@@ -240,12 +240,12 @@ function MapSection() {
         <div className="flex-1 bg-school-blue" />
         <div className="flex-1 bg-school-purple" />
       </div>
-      <div className="aspect-video max-h-96 bg-gray-200 relative overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center bg-school-dark/80 text-white text-center p-8">
+      <div className="grid md:grid-cols-2">
+        <div className="flex items-center justify-center bg-school-dark text-white text-center p-12 min-h-[400px]">
           <div>
             <MapPin size={48} className="text-school-gold mx-auto mb-4" />
-            <h3 className="font-heading font-black text-2xl mb-2">Growwell School, Kharar</h3>
-            <p className="text-gray-300 mb-4">Punjab, India — Near Mohali</p>
+            <h3 className="font-heading font-black text-3xl mb-2">Growwell School, Kharar</h3>
+            <p className="text-gray-300 mb-6">Punjab, India — Near Mohali</p>
             <a
               href="https://maps.google.com/?q=Growwell+School+Kharar"
               target="_blank"
@@ -255,6 +255,18 @@ function MapSection() {
               Open in Google Maps
             </a>
           </div>
+        </div>
+        <div className="min-h-[400px] w-full bg-gray-200">
+          <iframe
+            src="https://maps.google.com/maps?q=Growwell%20School%20Kharar&t=&z=15&ie=UTF8&iwloc=&output=embed"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title="Growwell School Map"
+          />
         </div>
       </div>
     </section>
