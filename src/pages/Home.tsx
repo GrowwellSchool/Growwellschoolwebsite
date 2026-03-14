@@ -1,0 +1,631 @@
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { motion, useInView } from 'framer-motion'
+import { ArrowRight, Award, BookOpen, Users, Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react'
+
+// ─── Hero Carousel ───────────────────────────────────────────────
+const heroSlides = [
+  {
+    img: '/images/activity5.jpg',
+    tag: 'Welcome to Growwell School',
+    title: 'Where Every Child',
+    accent: 'Blooms & Grows',
+    sub: 'Purity, Perfection and Beauty — as the Lotus Symbolizes.',
+  },
+  {
+    img: '/images/activity4.jpg',
+    tag: 'Holistic Development',
+    title: 'Nurturing Young',
+    accent: 'Minds & Leaders',
+    sub: 'Blending traditional values with modern innovation.',
+  },
+  {
+    img: '/images/activity6.jpg',
+    tag: 'Vibrant Campus Life',
+    title: 'Learn, Explore &',
+    accent: 'Excel Together',
+    sub: 'Activities, events and learning beyond textbooks.',
+  },
+]
+
+function HeroCarousel() {
+  const [active, setActive] = useState(0)
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setActive((p) => (p + 1) % heroSlides.length)
+    }, 5000)
+    return () => clearInterval(t)
+  }, [])
+
+  const go = (idx: number) => {
+    setActive(idx)
+  }
+
+  const slide = heroSlides[active]
+
+  return (
+    <section className="relative h-[92vh] min-h-[600px] overflow-hidden bg-school-dark">
+      {/* Background image */}
+      <motion.div
+        key={active}
+        initial={{ scale: 1.08, opacity: 0.6 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="absolute inset-0"
+      >
+        <img src={slide.img} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-school-dark/65" />
+        {/* Decorative pattern overlay */}
+        <div className="absolute inset-0 pattern-dots opacity-20" />
+      </motion.div>
+
+      {/* Floating geometric shapes */}
+      <div className="absolute top-20 right-20 w-32 h-32 border-4 border-school-gold/40 rounded-full animate-spin-slow hidden lg:block" />
+      <div className="absolute bottom-32 left-16 w-20 h-20 border-4 border-school-lime/30 rounded-full animate-float hidden lg:block" />
+      <div className="absolute top-40 left-1/4 w-12 h-12 bg-school-gold/20 rotate-45 animate-float hidden lg:block" style={{ animationDelay: '1s' }} />
+
+      {/* Lotus corner decoration */}
+      <div className="absolute top-8 right-8 opacity-20 hidden lg:block">
+        <svg viewBox="0 0 100 100" className="w-24 h-24">
+          <circle cx="50" cy="56" r="10" fill="#ffd700"/>
+          {[0, 40, -40, 80, -80, 120, -120, 160].map((r, i) => (
+            <ellipse key={i} cx="50" cy="38" rx="7" ry="16" fill="#ff8c69" transform={`rotate(${r},50,56)`} opacity="0.8"/>
+          ))}
+        </svg>
+      </div>
+
+      {/* Content */}
+      <div className="relative h-full max-w-7xl mx-auto px-4 flex flex-col justify-center">
+        <motion.div
+          key={active + 'content'}
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="max-w-2xl"
+        >
+          <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-6">
+            {slide.tag}
+          </span>
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-white leading-tight mb-2">
+            {slide.title}
+          </h1>
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-school-gold leading-tight mb-6">
+            {slide.accent}
+          </h1>
+          <p className="text-gray-200 text-lg mb-10 max-w-xl">
+            {slide.sub}
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Link to="/admission" className="btn-secondary">
+              Apply for Admission <ArrowRight size={18} />
+            </Link>
+            <Link to="/gallery" className="btn-primary border border-white/30">
+              Explore Gallery <ArrowRight size={18} />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
+        {heroSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => go(i)}
+            className={`h-2 rounded-full transition-all duration-300 ${i === active ? 'bg-school-gold w-8' : 'bg-white/40 w-2 hover:bg-white/60'}`}
+          />
+        ))}
+      </div>
+
+      {/* Arrows */}
+      <button
+        onClick={() => go((active - 1 + heroSlides.length) % heroSlides.length)}
+        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
+      >
+        <ChevronLeft size={20} />
+      </button>
+      <button
+        onClick={() => go((active + 1) % heroSlides.length)}
+        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
+      >
+        <ChevronRight size={20} />
+      </button>
+
+      {/* Scroll cue */}
+      <div className="absolute bottom-8 right-8 hidden md:flex flex-col items-center gap-2 text-white/50 text-xs">
+        <div className="w-px h-12 bg-white/30" />
+        <span className="rotate-90 tracking-widest text-[10px]">SCROLL</span>
+      </div>
+    </section>
+  )
+}
+
+// ─── Ticker ───────────────────────────────────────────────────────
+function NewsTicker() {
+  const items = [
+    'Session 2026-27 Admissions Now Open',
+    'Annual Sports Day — March 21, 2026',
+    'CBSE Affiliated Co-Educational School',
+    'Play Class to Class II | Kharar, Punjab',
+    'Day Boarding Available',
+    'Holistic Development | Sports | Music | Dance | Yoga',
+  ]
+  const doubled = [...items, ...items]
+  return (
+    <div className="bg-school-green text-white py-3 ticker-wrap border-b-4 border-school-gold">
+      <div className="ticker flex gap-16 items-center">
+        {doubled.map((item, i) => (
+          <span key={i} className="text-sm font-medium whitespace-nowrap flex items-center gap-3">
+            <span className="w-2 h-2 bg-school-gold rounded-full inline-block" />
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Stats ────────────────────────────────────────────────────────
+const stats = [
+  { icon: <Users size={28} />, val: '500+', label: 'Happy Students', color: 'bg-school-green', border: 'border-school-green' },
+  { icon: <BookOpen size={28} />, val: '15+', label: 'Years of Excellence', color: 'bg-school-orange', border: 'border-school-orange' },
+  { icon: <Award size={28} />, val: '30+', label: 'Qualified Teachers', color: 'bg-school-blue', border: 'border-school-blue' },
+  { icon: <Star size={28} />, val: '7+', label: 'Activity Programs', color: 'bg-school-purple', border: 'border-school-purple' },
+]
+
+function StatsSection() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
+  return (
+    <section className="py-12 bg-white pattern-grid relative">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((s, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 30 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: i * 0.12, duration: 0.5 }}
+            className={`bg-white rounded-xl p-6 text-center border-t-4 ${s.border} shadow-md card-hover`}
+          >
+            <div className={`w-14 h-14 ${s.color} text-white rounded-full flex items-center justify-center mx-auto mb-4`}>
+              {s.icon}
+            </div>
+            <div className="text-3xl font-heading font-black text-gray-800 mb-1">{s.val}</div>
+            <div className="text-sm text-gray-500 font-medium">{s.label}</div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ─── About / Mission ─────────────────────────────────────────────
+function AboutSection() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
+  return (
+    <section id="about" className="py-20 bg-white" ref={ref}>
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Images mosaic */}
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7 }}
+            className="relative"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div className="img-zoom rounded-2xl overflow-hidden row-span-2 h-80">
+                <img src="/images/activity4.jpg" alt="Students" className="w-full h-full object-cover" />
+              </div>
+              <div className="img-zoom rounded-2xl overflow-hidden h-36">
+                <img src="/images/activity1.jpg" alt="Sports" className="w-full h-full object-cover" />
+              </div>
+              <div className="img-zoom rounded-2xl overflow-hidden h-36">
+                <img src="/images/activity2.jpg" alt="Activities" className="w-full h-full object-cover" />
+              </div>
+            </div>
+            {/* Floating badge */}
+            <div className="absolute -bottom-4 -right-4 bg-school-gold text-school-dark font-heading font-black px-5 py-4 rounded-xl shadow-xl text-center">
+              <div className="text-2xl font-black">15+</div>
+              <div className="text-xs font-bold tracking-wide uppercase">Years of<br/>Excellence</div>
+            </div>
+          </motion.div>
+
+          {/* Text */}
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.2 }}
+          >
+            <span className="inline-block bg-green-100 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+              About Growwell
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-4 leading-tight section-title">
+              Cultivating Excellence<br/>Since 2011
+            </h2>
+            <p className="text-gray-600 mb-4 leading-relaxed">
+              Cromwell School Kharar was established on April 2, 2011 by <strong>S. Ishwar Pal Singh</strong> and <strong>Ms. Amrit K. Vohi</strong> with the objective of providing quality education to the budding generation. The school is run by <em>Cromwell Education and Sports Welfare Society</em>.
+            </p>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              It is a recognised co-educational middle school following the <strong>CBSE curriculum</strong> with English as the medium of instruction. Growwell School is committed to the holistic development of every child.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              {[
+                { label: 'Mission', text: 'Spiritual, moral, physical and social excellence' },
+                { label: 'Vision', text: 'Sound bodies and trained minds for tomorrow' },
+              ].map((item) => (
+                <div key={item.label} className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-4">
+                  <div className="font-heading font-bold text-school-green text-sm mb-1">{item.label}</div>
+                  <div className="text-gray-600 text-sm">{item.text}</div>
+                </div>
+              ))}
+            </div>
+
+            <Link to="/admission" className="btn-primary">
+              Explore Admission <ArrowRight size={18} />
+            </Link>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Programs ─────────────────────────────────────────────────────
+const programs = [
+  { title: 'Cricket', img: '/images/activity1.jpg', color: 'bg-school-green', desc: 'Develop sportsmanship, teamwork and athletic discipline on the cricket field.' },
+  { title: 'Music', img: '/images/activity10.jpg', color: 'bg-school-blue', desc: 'Cultivate musical talent through vocal training and instrument lessons.' },
+  { title: 'Dance', img: '/images/activity7.jpg', color: 'bg-school-purple', desc: 'Express creativity through classical and contemporary dance forms.' },
+  { title: 'Yoga', img: '/images/activity4.jpg', color: 'bg-school-teal', desc: 'Build mindfulness, flexibility and inner peace with guided yoga sessions.' },
+  { title: 'Day Boarding', img: '/images/activity3.jpg', color: 'bg-school-orange', desc: 'Structured afternoon programs with supervised study and activities.' },
+  { title: 'Sports', img: '/images/activity9.jpg', color: 'bg-school-red', desc: 'Physical excellence through multi-sport training and competition.' },
+]
+
+function ProgramsSection() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
+  return (
+    <section className="py-20 pattern-diagonal bg-gray-50" ref={ref}>
+      <div className="max-w-7xl mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
+          <span className="inline-block bg-orange-100 text-school-orange text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+            Beyond the Classroom
+          </span>
+          <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">
+            Programs & Activities
+          </h2>
+          <p className="text-gray-500 mt-3 max-w-xl mx-auto">
+            We believe learning happens everywhere. Our co-curricular programs build confidence, creativity and character.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {programs.map((p, i) => (
+            <motion.div
+              key={p.title}
+              initial={{ opacity: 0, y: 40 }}
+              animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              className="bg-white rounded-2xl overflow-hidden card-hover shadow-sm group"
+            >
+              <div className="img-zoom h-52 relative">
+                <img src={p.img} alt={p.title} className="w-full h-full object-cover" />
+                <div className={`absolute top-4 left-4 ${p.color} text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded`}>
+                  {p.title}
+                </div>
+              </div>
+              <div className="p-5">
+                <h3 className="font-heading font-bold text-gray-900 text-lg mb-2">{p.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{p.desc}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Director & Principal Desks ──────────────────────────────────
+function DeskSection() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
+  return (
+    <section className="py-20 bg-school-dark text-white" ref={ref}>
+      <div className="max-w-7xl mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          className="text-center mb-14"
+        >
+          <span className="inline-block bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+            Leadership
+          </span>
+          <h2 className="text-3xl lg:text-4xl font-heading font-black">
+            From the Desk of Our Leaders
+          </h2>
+        </motion.div>
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Director */}
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-8 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-school-green/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-school-gold/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+            <Quote size={36} className="text-school-gold mb-4" />
+            <p className="text-gray-300 text-base leading-relaxed mb-6 italic">
+              "At Growwell School, we believe in nurturing young minds and empowering them to reach their full potential. Our dedicated team of educators provides a supportive and inclusive environment, fostering academic excellence, creativity and personal growth. We strive to develop well-rounded individuals equipped to succeed in an ever-changing world."
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-school-gold rounded-full flex items-center justify-center text-school-dark font-heading font-black text-xl">
+                SJ
+              </div>
+              <div>
+                <div className="font-heading font-bold text-white text-lg">Salmali Joshi</div>
+                <div className="text-school-gold text-sm font-medium">Director</div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Principal */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-8 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-school-purple/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-school-orange/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+            <Quote size={36} className="text-school-orange mb-4" />
+            <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-4 italic text-school-gold text-sm">
+              "I alone cannot change the world, but I can cast a stone across the water to create many ripples." — Mother Teresa
+            </div>
+            <p className="text-gray-300 text-base leading-relaxed mb-6 italic">
+              "We at Growwell School are committed to providing a nurturing environment where young minds can flourish. Our lotus logo embodies our philosophy — rising above challenges, blooming in adversity and striving for excellence. We focus on holistic development blending traditional values with modern innovation."
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-school-orange rounded-full flex items-center justify-center text-white font-heading font-black text-xl">
+                AK
+              </div>
+              <div>
+                <div className="font-heading font-bold text-white text-lg">Amit Kaur</div>
+                <div className="text-school-orange text-sm font-medium">Principal</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Photo Strip ─────────────────────────────────────────────────
+function PhotoStrip() {
+  const images = [
+    '/images/activity1.jpg',
+    '/images/activity2.jpg',
+    '/images/activity3.jpg',
+    '/images/activity5.jpg',
+    '/images/activity6.jpg',
+    '/images/activity7.jpg',
+    '/images/activity8.jpg',
+    '/images/activity9.jpg',
+    '/images/activity10.jpg',
+    '/images/activity1.jpg',
+    '/images/activity2.jpg',
+    '/images/activity3.jpg',
+  ]
+  return (
+    <section className="py-0 overflow-hidden bg-school-green">
+      <div className="flex gap-3 py-4">
+        {images.map((src, i) => (
+          <div key={i} className="flex-shrink-0 img-zoom rounded-lg overflow-hidden" style={{ width: '200px', height: '150px' }}>
+            <img src={src} alt="" className="w-full h-full object-cover" />
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ─── Academic Highlights ─────────────────────────────────────────
+function AcademicSection() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
+  return (
+    <section className="py-20 bg-white" ref={ref}>
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="inline-block bg-blue-100 text-school-blue text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+              Academics
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-4 leading-tight">
+              Academic Programme<br />& Curriculum
+            </h2>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Growwell School Kharar offers admission from <strong>Play Class to Class II</strong> in the academic session, adding a class each year progressively until Grade 9. We follow the norms of the <strong>New Education Policy 2020</strong>.
+            </p>
+
+            <div className="space-y-3 mb-8">
+              {[
+                { label: 'CBSE Curriculum', sub: 'National standard of education', color: 'text-school-green', bg: 'bg-green-50' },
+                { label: 'NEP 2020 Compliant', sub: 'Following Punjab Govt norms', color: 'text-school-blue', bg: 'bg-blue-50' },
+                { label: 'English Medium', sub: 'Global communication skills', color: 'text-school-purple', bg: 'bg-purple-50' },
+                { label: 'Co-Educational', sub: 'Inclusive learning environment', color: 'text-school-orange', bg: 'bg-orange-50' },
+              ].map((item) => (
+                <div key={item.label} className={`flex items-center gap-4 ${item.bg} rounded-xl px-4 py-3`}>
+                  <div className={`w-2.5 h-2.5 rounded-full ${item.color.replace('text-', 'bg-')}`} />
+                  <div>
+                    <div className={`font-heading font-bold ${item.color} text-sm`}>{item.label}</div>
+                    <div className="text-gray-500 text-xs">{item.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Age eligibility table */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <div className="bg-school-dark rounded-2xl overflow-hidden shadow-2xl">
+              <div className="bg-school-gold px-6 py-4">
+                <h3 className="font-heading font-black text-school-dark text-lg">Age Eligibility — Session 2026-27</h3>
+                <p className="text-school-dark/70 text-xs mt-1">Age as on 31.03.2026</p>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-school-green/20 text-left">
+                    <th className="px-5 py-3 text-school-lime text-xs font-bold uppercase tracking-wide">Class</th>
+                    <th className="px-5 py-3 text-school-lime text-xs font-bold uppercase tracking-wide">Age Criteria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['Play Class', '2 to 3 years'],
+                    ['Nursery', '3 to 4 years'],
+                    ['K.G.-1', '4 to 5 years'],
+                    ['K.G.-2', '5 to 6 years'],
+                    ['Class I', '6 to 7 years'],
+                    ['Class II', '7 to 8 years'],
+                  ].map(([cls, age], i) => (
+                    <tr key={cls} className={`border-t border-white/10 ${i % 2 === 0 ? 'bg-white/5' : 'bg-transparent'}`}>
+                      <td className="px-5 py-3 text-white font-medium text-sm">{cls}</td>
+                      <td className="px-5 py-3 text-school-gold text-sm font-semibold">{age}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-6 py-5 bg-school-green/10 border-t border-white/10">
+                <Link to="/admission" className="btn-secondary w-full justify-center text-sm">
+                  Start Your Application <ArrowRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Gallery Preview ──────────────────────────────────────────────
+function GalleryPreview() {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
+  const imgs = [
+    { src: '/images/activity6.jpg', span: 'col-span-2 row-span-2' },
+    { src: '/images/activity7.jpg', span: '' },
+    { src: '/images/activity8.jpg', span: '' },
+    { src: '/images/activity9.jpg', span: '' },
+    { src: '/images/activity10.jpg', span: '' },
+    { src: '/images/activity3.jpg', span: '' },
+  ]
+  return (
+    <section className="py-20 pattern-zigzag bg-gray-50" ref={ref}>
+      <div className="max-w-7xl mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4"
+        >
+          <div>
+            <span className="inline-block bg-purple-100 text-school-purple text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+              Gallery
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">
+              Life at Growwell School
+            </h2>
+          </div>
+          <Link to="/gallery" className="btn-primary self-start">
+            View All Photos <ArrowRight size={18} />
+          </Link>
+        </motion.div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-[180px]">
+          {imgs.map((img, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={inView ? { opacity: 1, scale: 1 } : {}}
+              transition={{ delay: i * 0.08, duration: 0.4 }}
+              className={`img-zoom rounded-2xl overflow-hidden ${img.span}`}
+            >
+              <img src={img.src} alt="" className="w-full h-full object-cover" />
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── CTA Banner ───────────────────────────────────────────────────
+function CTABanner() {
+  return (
+    <section className="py-16 bg-school-green relative overflow-hidden">
+      <div className="absolute inset-0 pattern-dots opacity-20" />
+      <div className="absolute right-0 top-0 h-full w-1/3 opacity-10 hidden lg:block">
+        <svg viewBox="0 0 200 200" className="w-full h-full">
+          {[0,45,90,135,180,225,270,315].map((r, i) => (
+            <ellipse key={i} cx="100" cy="70" rx="20" ry="60" fill="#ffd700" transform={`rotate(${r},100,100)`} opacity="0.6"/>
+          ))}
+          <circle cx="100" cy="100" r="20" fill="#ffd700"/>
+        </svg>
+      </div>
+      <div className="max-w-4xl mx-auto px-4 text-center relative">
+        <h2 className="text-3xl lg:text-5xl font-heading font-black text-white mb-4">
+          Admission Open for 2026-27
+        </h2>
+        <p className="text-green-100 text-lg mb-8 max-w-2xl mx-auto">
+          Secure your child's future at Growwell School. Limited seats available. Apply today for Play Class through Class II.
+        </p>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <Link to="/admission" className="btn-secondary">
+            Apply Now <ArrowRight size={18} />
+          </Link>
+          <Link to="/contact" className="bg-white/20 text-white border border-white/40 px-7 py-3 rounded-md font-heading font-semibold hover:bg-white/30 transition-colors flex items-center gap-2">
+            Contact Us
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Page ──────────────────────────────────────────────────────────
+export default function Home() {
+  return (
+    <>
+      <HeroCarousel />
+      <NewsTicker />
+      <StatsSection />
+      <AboutSection />
+      <ProgramsSection />
+      <PhotoStrip />
+      <DeskSection />
+      <AcademicSection />
+      <GalleryPreview />
+      <CTABanner />
+    </>
+  )
+}
