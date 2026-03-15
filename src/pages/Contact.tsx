@@ -43,7 +43,7 @@ function ContactSection() {
               Our Details
             </span>
             <h2 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-6">
-              We're Right Here<br/>in Kharar, Punjab
+              We're Right Here<br />in Kharar, Punjab
             </h2>
             <p className="text-gray-600 mb-8 leading-relaxed">
               Visit us at our school or get in touch through any of the channels below. Our admissions team is available Monday to Saturday during school hours.
@@ -55,7 +55,7 @@ function ContactSection() {
                   icon: <MapPin size={22} />,
                   label: 'Address',
                   value: 'Growwell School, Kharar, Punjab, India',
-                  sub: 'Cromwell Education and Sports Welfare Society',
+                  sub: 'Gromwell Education and Sports Welfare Society',
                   color: 'bg-school-green',
                 },
                 {
@@ -163,7 +163,7 @@ function ContactSection() {
                         type="text"
                         required
                         value={form.name}
-                        onChange={e => setForm({...form, name: e.target.value})}
+                        onChange={e => setForm({ ...form, name: e.target.value })}
                         className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors"
                         placeholder="Your full name"
                       />
@@ -173,7 +173,7 @@ function ContactSection() {
                       <input
                         type="tel"
                         value={form.phone}
-                        onChange={e => setForm({...form, phone: e.target.value})}
+                        onChange={e => setForm({ ...form, phone: e.target.value })}
                         className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors"
                         placeholder="+91 XXXXX XXXXX"
                       />
@@ -185,7 +185,7 @@ function ContactSection() {
                       type="email"
                       required
                       value={form.email}
-                      onChange={e => setForm({...form, email: e.target.value})}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors"
                       placeholder="your@email.com"
                     />
@@ -195,7 +195,7 @@ function ContactSection() {
                     <select
                       required
                       value={form.subject}
-                      onChange={e => setForm({...form, subject: e.target.value})}
+                      onChange={e => setForm({ ...form, subject: e.target.value })}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors bg-white"
                     >
                       <option value="">Select a subject</option>
@@ -212,7 +212,7 @@ function ContactSection() {
                       required
                       rows={5}
                       value={form.message}
-                      onChange={e => setForm({...form, message: e.target.value})}
+                      onChange={e => setForm({ ...form, message: e.target.value })}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors resize-none"
                       placeholder="Write your message here..."
                     />

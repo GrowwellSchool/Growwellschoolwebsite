@@ -374,7 +374,7 @@ function DeskSection() {
                 AK
               </div>
               <div>
-                <div className="font-heading font-bold text-white text-lg">Amit Kaur</div>
+                <div className="font-heading font-bold text-white text-lg">Amrit Kaur</div>
                 <div className="text-school-orange text-sm font-medium">Principal</div>
               </div>
             </div>
@@ -479,7 +479,7 @@ function AcademicSection() {
 function GalleryPreview() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
-  
+
   return (
     <section className="py-20 pattern-zigzag bg-gray-50 overflow-hidden" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
@@ -516,10 +516,10 @@ function CTABanner() {
       <div className="absolute inset-0 pattern-dots opacity-20" />
       <div className="absolute right-0 top-0 h-full w-1/3 opacity-10 hidden lg:block">
         <svg viewBox="0 0 200 200" className="w-full h-full">
-          {[0,45,90,135,180,225,270,315].map((r, i) => (
-            <ellipse key={i} cx="100" cy="70" rx="20" ry="60" fill="#ffd700" transform={`rotate(${r},100,100)`} opacity="0.6"/>
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((r, i) => (
+            <ellipse key={i} cx="100" cy="70" rx="20" ry="60" fill="#ffd700" transform={`rotate(${r},100,100)`} opacity="0.6" />
           ))}
-          <circle cx="100" cy="100" r="20" fill="#ffd700"/>
+          <circle cx="100" cy="100" r="20" fill="#ffd700" />
         </svg>
       </div>
       <div className="max-w-4xl mx-auto px-4 text-center relative">
@@ -596,11 +596,11 @@ function AboutSection() {
             <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-6 leading-tight">
               Cultivating Excellence<br />Since 2011
             </h2>
-            
+
             <p className="text-gray-600 mb-5 leading-relaxed">
-              Cromwell School Kharar was established on April 2, 2011 by <strong>S. Ishwar Pal Singh</strong> and <strong>Ms. Amrit K. Vohi</strong> with the objective of providing quality education to the budding generation. The school is run by <em>Cromwell Education and Sports Welfare Society</em>.
+              Gromwell School Kharar was established on April 2, 2011 by <strong>S. Ishwar Pal Singh</strong> and <strong>Ms. Amrit K. Vohi</strong> with the objective of providing quality education to the budding generation. The school is run by <em>Growwell Education and Sports Welfare Society</em>.
             </p>
-            
+
             <p className="text-gray-600 mb-8 leading-relaxed">
               It is a recognised co-educational middle school following the <strong>CBSE curriculum</strong> with English as the medium of instruction. Growwell School is committed to the holistic development of every child.
             </p>

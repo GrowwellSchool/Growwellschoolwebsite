@@ -9,7 +9,7 @@ const blogs = [
     id: 1,
     title: 'The Importance of Holistic Education in the Early Years',
     excerpt: 'Research shows that the foundation laid in the first 8 years of a child\'s life shapes their learning, behaviour and health outcomes for a lifetime. Holistic education integrates academic, emotional and physical growth.',
-    author: 'Amit Kaur, Principal',
+    author: 'Amrit Kaur, Principal',
     date: 'January 15, 2026',
     cat: 'Education',
     img: '/images/activity4.jpg',
