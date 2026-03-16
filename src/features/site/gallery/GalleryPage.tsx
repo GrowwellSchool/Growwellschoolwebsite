@@ -1,4 +1,7 @@
+'use client'
+
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { X, ZoomIn } from 'lucide-react'
 
@@ -43,17 +46,18 @@ function PageHero() {
   )
 }
 
-export default function Gallery() {
+export default function GalleryPage() {
   const [activecat, setActivecat] = useState('all')
-  const [lightbox, setLightbox] = useState<typeof galleryItems[0] | null>(null)
+  const [lightbox, setLightbox] = useState<(typeof galleryItems)[number] | null>(null)
   const ref = useRef(null)
   useInView(ref, { once: true })
 
-  const filtered = activecat === 'all' ? galleryItems : galleryItems.filter(g => g.cat === activecat)
+  const filtered = activecat === 'all' ? galleryItems : galleryItems.filter((g) => g.cat === activecat)
 
-  // Count per category
   const catCounts: Record<string, number> = { all: galleryItems.length }
-  galleryItems.forEach(g => { catCounts[g.cat] = (catCounts[g.cat] || 0) + 1 })
+  galleryItems.forEach((g) => {
+    catCounts[g.cat] = (catCounts[g.cat] || 0) + 1
+  })
 
   return (
     <>
@@ -61,7 +65,6 @@ export default function Gallery() {
 
       <section className="py-16 bg-white" ref={ref}>
         <div className="max-w-7xl mx-auto px-4">
-          {/* Category filter */}
           <div className="flex flex-wrap justify-center gap-3 mb-12">
             {categories.map((cat) => (
               <button
@@ -75,14 +78,14 @@ export default function Gallery() {
               >
                 {cat.label}
                 <span className={`text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold
-                  ${activecat === cat.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  ${activecat === cat.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}
+                >
                   {catCounts[cat.id] || 0}
                 </span>
               </button>
             ))}
           </div>
 
-          {/* Grid */}
           <motion.div layout className="columns-1 sm:columns-2 lg:columns-3 gap-5 space-y-5">
             <AnimatePresence>
               {filtered.map((item, i) => (
@@ -95,15 +98,28 @@ export default function Gallery() {
                   transition={{ delay: i * 0.05, duration: 0.4 }}
                   className="break-inside-avoid mb-5 bg-white rounded-2xl overflow-hidden shadow-md card-hover group cursor-pointer"
                   onClick={() => setLightbox(item)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') setLightbox(item)
+                  }}
+                  aria-label={`Open ${item.title}`}
                 >
                   <div className="img-zoom relative">
-                    <img src={item.src} alt={item.title} className="w-full object-cover" />
+                    <Image
+                      src={item.src}
+                      alt={item.title}
+                      width={1200}
+                      height={800}
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="w-full h-auto object-cover"
+                    />
                     <div className="absolute inset-0 bg-school-dark/0 group-hover:bg-school-dark/40 transition-all duration-300 flex items-center justify-center">
                       <ZoomIn size={32} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </div>
                     <div className="absolute top-3 left-3">
                       <span className="bg-school-green text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded">
-                        {categories.find(c => c.id === item.cat)?.label}
+                        {categories.find((c) => c.id === item.cat)?.label}
                       </span>
                     </div>
                   </div>
@@ -118,7 +134,6 @@ export default function Gallery() {
         </div>
       </section>
 
-      {/* Lightbox */}
       <AnimatePresence>
         {lightbox && (
           <motion.div
@@ -127,21 +142,35 @@ export default function Gallery() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
             onClick={() => setLightbox(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${lightbox.title} preview`}
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               className="relative max-w-3xl w-full bg-school-dark rounded-2xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
-              <img src={lightbox.src} alt={lightbox.title} className="w-full max-h-[70vh] object-contain" />
+              <Image
+                src={lightbox.src}
+                alt={lightbox.title}
+                width={1600}
+                height={1000}
+                sizes="90vw"
+                className="w-full max-h-[70vh] object-contain"
+              />
               <div className="p-5 flex items-start justify-between">
                 <div>
                   <h3 className="font-heading font-bold text-white text-lg">{lightbox.title}</h3>
                   <p className="text-gray-400 text-sm mt-1">{lightbox.desc}</p>
                 </div>
-                <button onClick={() => setLightbox(null)} className="ml-4 w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors flex-shrink-0">
+                <button
+                  onClick={() => setLightbox(null)}
+                  className="ml-4 w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors flex-shrink-0"
+                  aria-label="Close"
+                >
                   <X size={18} />
                 </button>
               </div>
@@ -152,3 +181,4 @@ export default function Gallery() {
     </>
   )
 }
+

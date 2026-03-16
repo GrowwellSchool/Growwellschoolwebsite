@@ -1,31 +1,31 @@
-import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Phone, Mail } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { Menu, X, Phone, Mail } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
-  { name: 'Home', path: '/' },
-  { name: 'Admission', path: '/admission' },
-  { name: 'Gallery', path: '/gallery' },
-  { name: 'Events', path: '/events' },
-  { name: 'Blogs', path: '/blogs' },
-  { name: 'Contact Us', path: '/contact' },
-]
+  { name: "Home", path: "/" },
+  { name: "Admission", path: "/admission" },
+  { name: "Gallery", path: "/gallery" },
+  { name: "Events", path: "/events" },
+  { name: "Blogs", path: "/blogs" },
+  { name: "Contact Us", path: "/contact" },
+];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const location = useLocation()
+  const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 60)
-    window.addEventListener('scroll', handler)
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-
-  useEffect(() => {
-    setIsOpen(false)
-  }, [location])
+    const handler = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", handler);
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   return (
     <>
@@ -37,7 +37,10 @@ export default function Navbar() {
               <Phone size={14} />
               <span>81960-51999</span>
             </a>
-            <a href="mailto:info@growwellschool.in" className="flex items-center gap-2 hover:text-school-yellow transition-colors">
+            <a
+              href="mailto:info@growwellschool.in"
+              className="flex items-center gap-2 hover:text-school-yellow transition-colors"
+            >
               <Mail size={14} />
               <span>info@growwellschool.in</span>
             </a>
@@ -49,15 +52,20 @@ export default function Navbar() {
       </div>
 
       {/* Main navbar */}
-      <nav className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-lg border-b-4 border-school-gold' : 'bg-white border-b-4 border-school-gold'}`}>
+      <nav
+        className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? "bg-white shadow-lg border-b-4 border-school-gold" : "bg-white border-b-4 border-school-gold"}`}
+      >
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3">
-              <img
+            <Link href="/" className="flex items-center gap-3">
+              <Image
                 src="/images/logo.png"
                 alt="Growwell School Logo"
+                width={64}
+                height={64}
                 className="w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-md"
+                priority
               />
               <div>
                 <div className="text-school-green font-heading font-black text-xl leading-tight tracking-wide">
@@ -74,20 +82,21 @@ export default function Navbar() {
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
-                  to={link.path}
+                  href={link.path}
                   className={`px-4 py-2 rounded-md font-medium text-sm font-heading transition-all duration-200 relative group
-                    ${location.pathname === link.path
-                      ? 'text-white bg-school-green'
-                      : 'text-gray-700 hover:text-school-green hover:bg-green-50'
+                    ${
+                      pathname === link.path
+                        ? "text-white bg-school-green"
+                        : "text-gray-700 hover:text-school-green hover:bg-green-50"
                     }`}
                 >
                   {link.name}
-                  {location.pathname !== link.path && (
+                  {pathname !== link.path && (
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-school-gold group-hover:w-4/5 transition-all duration-300 rounded-full" />
                   )}
                 </Link>
               ))}
-              <Link to="/admission" className="ml-3 btn-secondary text-sm py-2 px-5 rounded-md">
+              <Link href="/admission" className="ml-3 btn-secondary text-sm py-2 px-5 rounded-md">
                 Apply Now
               </Link>
             </div>
@@ -96,6 +105,7 @@ export default function Navbar() {
             <button
               className="md:hidden p-2 rounded-md text-school-green border border-school-green"
               onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? "Close menu" : "Open menu"}
             >
               {isOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -107,7 +117,7 @@ export default function Navbar() {
           {isOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
+              animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.25 }}
               className="md:hidden overflow-hidden bg-white border-t-2 border-school-gold"
@@ -116,17 +126,23 @@ export default function Navbar() {
                 {navLinks.map((link) => (
                   <Link
                     key={link.path}
-                    to={link.path}
+                    href={link.path}
+                    onClick={() => setIsOpen(false)}
                     className={`px-4 py-3 rounded-md font-heading font-medium text-base
-                      ${location.pathname === link.path
-                        ? 'bg-school-green text-white'
-                        : 'text-gray-700 bg-gray-50 hover:bg-green-50 hover:text-school-green'
+                      ${
+                        pathname === link.path
+                          ? "bg-school-green text-white"
+                          : "text-gray-700 bg-gray-50 hover:bg-green-50 hover:text-school-green"
                       }`}
                   >
                     {link.name}
                   </Link>
                 ))}
-                <Link to="/admission" className="btn-secondary text-center justify-center mt-2">
+                <Link
+                  href="/admission"
+                  onClick={() => setIsOpen(false)}
+                  className="btn-secondary text-center justify-center mt-2"
+                >
                   Apply Now
                 </Link>
               </div>
@@ -135,5 +151,5 @@ export default function Navbar() {
         </AnimatePresence>
       </nav>
     </>
-  )
+  );
 }

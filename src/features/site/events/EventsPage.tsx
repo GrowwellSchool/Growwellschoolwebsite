@@ -1,7 +1,10 @@
+'use client'
+
 import { useRef } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
 import { motion, useInView } from 'framer-motion'
 import { Calendar, MapPin, Clock, ArrowRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
 const upcomingEvents = [
   {
@@ -61,7 +64,7 @@ const upcomingEvents = [
     img: '/images/activity7.jpg',
     cat: 'Cultural',
     catColor: 'bg-school-purple',
-    desc: 'Students dress as Krishna and Radha, perform devotional songs and skits celebrating Lord Krishna\'s birth.',
+    desc: "Students dress as Krishna and Radha, perform devotional songs and skits celebrating Lord Krishna's birth.",
     highlight: false,
   },
   {
@@ -80,7 +83,7 @@ const upcomingEvents = [
 
 const pastHighlights = [
   { img: '/images/activity5.jpg', title: 'Rope Way Activity', year: 'May 2024', desc: 'Students built confidence and motor skills on the rope climbing challenge.' },
-  { img: '/images/activity8.jpg', title: 'Birthday Celebrations', year: '2025', desc: 'A warm tradition of celebrating each child\'s birthday with the school family.' },
+  { img: '/images/activity8.jpg', title: 'Birthday Celebrations', year: '2025', desc: "A warm tradition of celebrating each child's birthday with the school family." },
   { img: '/images/activity9.jpg', title: 'Agility Training Day', year: '2025', desc: 'Physical fitness training with hurdle obstacles for all age groups.' },
   { img: '/images/activity2.jpg', title: 'Peace Day March', year: '2025', desc: 'Students led a peace march promoting values of harmony and friendship.' },
 ]
@@ -119,8 +122,7 @@ function UpcomingSection() {
           <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">Events Calendar 2026</h2>
         </motion.div>
 
-        {/* Featured event */}
-        {upcomingEvents.filter(e => e.highlight).map((event) => (
+        {upcomingEvents.filter((e) => e.highlight).map((event) => (
           <motion.div
             key={event.id}
             initial={{ opacity: 0, y: 40 }}
@@ -128,17 +130,13 @@ function UpcomingSection() {
             transition={{ duration: 0.6 }}
             className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8 grid lg:grid-cols-2"
           >
-            <div className="img-zoom h-64 lg:h-auto">
-              <img src={event.img} alt={event.title} className="w-full h-full object-cover" />
+            <div className="img-zoom h-64 lg:h-auto relative">
+              <Image src={event.img} alt={event.title} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
             </div>
             <div className="p-8 lg:p-10 flex flex-col justify-center">
               <div className="flex gap-3 mb-4">
-                <span className={`${event.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}>
-                  {event.cat}
-                </span>
-                <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">
-                  Featured
-                </span>
+                <span className={`${event.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}>{event.cat}</span>
+                <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">Featured</span>
               </div>
               <h3 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-3">{event.title}</h3>
               <p className="text-gray-600 leading-relaxed mb-6">{event.desc}</p>
@@ -153,16 +151,15 @@ function UpcomingSection() {
                   <MapPin size={16} className="text-school-green" /> {event.venue}
                 </div>
               </div>
-              <Link to="/contact" className="btn-primary self-start">
+              <Link href="/contact" className="btn-primary self-start">
                 Register / Enquire <ArrowRight size={16} />
               </Link>
             </div>
           </motion.div>
         ))}
 
-        {/* Grid of events */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {upcomingEvents.filter(e => !e.highlight).map((event, i) => (
+          {upcomingEvents.filter((e) => !e.highlight).map((event, i) => (
             <motion.div
               key={event.id}
               initial={{ opacity: 0, y: 40 }}
@@ -170,13 +167,11 @@ function UpcomingSection() {
               transition={{ delay: i * 0.1, duration: 0.5 }}
               className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
             >
-              <div className="img-zoom h-48">
-                <img src={event.img} alt={event.title} className="w-full h-full object-cover" />
+              <div className="img-zoom h-48 relative">
+                <Image src={event.img} alt={event.title} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
               </div>
               <div className="p-5">
-                <span className={`${event.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}>
-                  {event.cat}
-                </span>
+                <span className={`${event.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}>{event.cat}</span>
                 <h3 className="font-heading font-bold text-gray-800 text-lg mt-3 mb-2">{event.title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed mb-4">{event.desc}</p>
                 <div className="space-y-1.5 border-t border-gray-100 pt-4">
@@ -196,7 +191,7 @@ function UpcomingSection() {
   )
 }
 
-function PastHighlights() {
+function PastHighlightsSection() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
   return (
@@ -212,14 +207,14 @@ function PastHighlights() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {pastHighlights.map((item, i) => (
             <motion.div
-              key={i}
+              key={item.title}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={inView ? { opacity: 1, scale: 1 } : {}}
               transition={{ delay: i * 0.1, duration: 0.4 }}
               className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden card-hover group"
             >
-              <div className="img-zoom h-44">
-                <img src={item.img} alt={item.title} className="w-full h-full object-cover" />
+              <div className="img-zoom h-44 relative">
+                <Image src={item.img} alt={item.title} fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-cover" />
               </div>
               <div className="p-4">
                 <div className="text-school-gold text-xs font-bold mb-1">{item.year}</div>
@@ -234,12 +229,13 @@ function PastHighlights() {
   )
 }
 
-export default function Events() {
+export default function EventsPage() {
   return (
     <>
       <PageHero />
       <UpcomingSection />
-      <PastHighlights />
+      <PastHighlightsSection />
     </>
   )
 }
+

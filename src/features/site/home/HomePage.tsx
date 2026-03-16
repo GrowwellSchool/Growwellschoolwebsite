@@ -1,11 +1,13 @@
+'use client'
+
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
+import Image from 'next/image'
 import { motion, useInView } from 'framer-motion'
 import { ArrowRight, Award, BookOpen, Users, Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react'
-import CircularGalleryDemo from '../components/ui/circular-gallery-demo'
-import OrbitCarousel from '../components/ui/animated-carousel-demo'
+import CircularGalleryDemo from '@/components/ui/circular-gallery-demo'
+import OrbitCarousel from '@/components/ui/animated-carousel-demo'
 
-// ─── Hero Carousel ───────────────────────────────────────────────
 const heroSlides = [
   {
     img: '/images/activity5.jpg',
@@ -48,7 +50,6 @@ function HeroCarousel() {
 
   return (
     <section className="relative h-[92vh] min-h-[600px] overflow-hidden bg-school-dark">
-      {/* Background image */}
       <motion.div
         key={active}
         initial={{ scale: 1.08, opacity: 0.6 }}
@@ -56,11 +57,12 @@ function HeroCarousel() {
         transition={{ duration: 0.8 }}
         className="absolute inset-0"
       >
-        <img src={slide.img} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-school-dark/65" />
+        <div className="relative w-full h-full">
+          <Image src={slide.img} alt={slide.tag} fill sizes="100vw" className="object-cover" priority />
+          <div className="absolute inset-0 bg-school-dark/65" />
+        </div>
       </motion.div>
 
-      {/* Content */}
       <div className="relative h-full max-w-7xl mx-auto px-4 flex flex-col justify-center overflow-hidden">
         <motion.div
           key={active + 'content'}
@@ -79,46 +81,44 @@ function HeroCarousel() {
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-school-gold leading-tight mb-6 whitespace-nowrap">
             {slide.accent}
           </h1>
-          <p className="text-gray-200 text-lg mb-10 max-w-xl whitespace-nowrap">
-            {slide.sub}
-          </p>
+          <p className="text-gray-200 text-lg mb-10 max-w-xl whitespace-nowrap">{slide.sub}</p>
           <div className="flex flex-nowrap gap-4">
-            <Link to="/admission" className="btn-secondary whitespace-nowrap">
+            <Link href="/admission" className="btn-secondary whitespace-nowrap">
               Apply for Admission <ArrowRight size={18} />
             </Link>
-            <Link to="/gallery" className="btn-primary border border-white/30 whitespace-nowrap">
+            <Link href="/gallery" className="btn-primary border border-white/30 whitespace-nowrap">
               Explore Gallery <ArrowRight size={18} />
             </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* Dots */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
-        {heroSlides.map((_, i) => (
+        {heroSlides.map((s, i) => (
           <button
-            key={i}
+            key={s.img}
             onClick={() => go(i)}
+            aria-label={`Go to slide ${i + 1}`}
             className={`h-2 rounded-full transition-all duration-300 ${i === active ? 'bg-school-gold w-8' : 'bg-white/40 w-2 hover:bg-white/60'}`}
           />
         ))}
       </div>
 
-      {/* Arrows */}
       <button
         onClick={() => go((active - 1 + heroSlides.length) % heroSlides.length)}
+        aria-label="Previous slide"
         className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
       >
         <ChevronLeft size={20} />
       </button>
       <button
         onClick={() => go((active + 1) % heroSlides.length)}
+        aria-label="Next slide"
         className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
       >
         <ChevronRight size={20} />
       </button>
 
-      {/* Scroll cue */}
       <div className="absolute bottom-8 right-8 hidden md:flex flex-col items-center gap-2 text-white/50 text-xs">
         <div className="w-px h-12 bg-white/30" />
         <span className="rotate-90 tracking-widest text-[10px]">SCROLL</span>
@@ -127,7 +127,6 @@ function HeroCarousel() {
   )
 }
 
-// ─── Ticker ───────────────────────────────────────────────────────
 function NewsTicker() {
   const items = [
     'Session 2026-27 Admissions Now Open',
@@ -139,11 +138,11 @@ function NewsTicker() {
   ]
   const doubled = [...items, ...items]
   return (
-    <div className="bg-school-green text-white py-3 ticker-wrap border-b-4 border-school-gold">
+    <div className="bg-school-green text-white py-3 ticker-wrap border-b-4 border-school-gold" aria-label="School announcements">
       <div className="ticker flex gap-16 items-center">
         {doubled.map((item, i) => (
           <span key={i} className="text-sm font-medium whitespace-nowrap flex items-center gap-3">
-            <span className="w-2 h-2 bg-school-gold rounded-full inline-block" />
+            <span className="w-2 h-2 bg-school-gold rounded-full inline-block" aria-hidden="true" />
             {item}
           </span>
         ))}
@@ -152,7 +151,6 @@ function NewsTicker() {
   )
 }
 
-// ─── Stats ────────────────────────────────────────────────────────
 const stats = [
   { icon: <Users size={28} />, val: '500+', label: 'Happy Students', color: 'bg-school-green', border: 'border-school-green' },
   { icon: <BookOpen size={28} />, val: '15+', label: 'Years of Excellence', color: 'bg-school-orange', border: 'border-school-orange' },
@@ -168,7 +166,7 @@ function StatsSection() {
       <div ref={ref} className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((s, i) => (
           <motion.div
-            key={i}
+            key={s.label}
             initial={{ opacity: 0, y: 30 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: i * 0.12, duration: 0.5 }}
@@ -186,7 +184,6 @@ function StatsSection() {
   )
 }
 
-// ─── Our Journey ───────────────────────────────────────────────────
 function OurJourneySection() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, amount: 0.2 })
@@ -203,12 +200,9 @@ function OurJourneySection() {
     <section id="journey" className="py-20 bg-[#f8f9f6] pattern-grid relative" ref={ref}>
       <div className="max-w-4xl mx-auto px-4 relative">
         <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-heading font-black text-[#0f172a]">
-            Our Journey
-          </h2>
+          <h2 className="text-4xl lg:text-5xl font-heading font-black text-[#0f172a]">Our Journey</h2>
         </div>
 
-        {/* Timeline Line */}
         <div className="absolute left-1/2 top-32 bottom-0 w-0.5 bg-school-green -translate-x-1/2 hidden md:block" />
 
         <div className="space-y-12">
@@ -222,22 +216,14 @@ function OurJourneySection() {
                 transition={{ duration: 0.5, delay: i * 0.15 }}
                 className={`relative flex flex-col md:flex-row items-center ${isLeft ? 'md:flex-row' : 'md:flex-row-reverse'} gap-8`}
               >
-                {/* Content Box */}
                 <div className={`w-full md:w-[45%] flex ${isLeft ? 'justify-end' : 'justify-start'}`}>
                   <div className="bg-[#1b5e43] text-white p-6 md:p-8 rounded-sm shadow-xl w-full max-w-sm">
-                    <div className="text-school-gold font-heading font-bold text-2xl md:text-3xl mb-3">
-                      {m.year}
-                    </div>
-                    <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">
-                      {m.text}
-                    </p>
+                    <div className="text-school-gold font-heading font-bold text-2xl md:text-3xl mb-3">{m.year}</div>
+                    <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">{m.text}</p>
                   </div>
                 </div>
 
-                {/* Timeline Node */}
                 <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-[3px] border-[#1b5e43] bg-school-gold z-10" />
-
-                {/* Empty Space for alignment */}
                 <div className="hidden md:block w-[45%]" />
               </motion.div>
             )
@@ -248,7 +234,6 @@ function OurJourneySection() {
   )
 }
 
-// ─── Programs ─────────────────────────────────────────────────────
 const programs = [
   { title: 'Cricket', img: '/images/activity1.jpg', color: 'bg-school-green', desc: 'Develop sportsmanship, teamwork and athletic discipline on the cricket field.' },
   { title: 'Music', img: '/images/activity10.jpg', color: 'bg-school-blue', desc: 'Cultivate musical talent through vocal training and instrument lessons.' },
@@ -273,9 +258,7 @@ function ProgramsSection() {
           <span className="inline-block bg-orange-100 text-school-orange text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
             Beyond the Classroom
           </span>
-          <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">
-            Programs & Activities
-          </h2>
+          <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">Programs & Activities</h2>
           <p className="text-gray-500 mt-3 max-w-xl mx-auto">
             We believe learning happens everywhere. Our co-curricular programs build confidence, creativity and character.
           </p>
@@ -291,7 +274,7 @@ function ProgramsSection() {
               className="bg-white rounded-2xl overflow-hidden card-hover shadow-sm group"
             >
               <div className="img-zoom h-52 relative">
-                <img src={p.img} alt={p.title} className="w-full h-full object-cover" />
+                <Image src={p.img} alt={p.title} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
                 <div className={`absolute top-4 left-4 ${p.color} text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded`}>
                   {p.title}
                 </div>
@@ -308,28 +291,20 @@ function ProgramsSection() {
   )
 }
 
-// ─── Director & Principal Desks ──────────────────────────────────
 function DeskSection() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
   return (
     <section className="py-20 bg-school-dark text-white" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          className="text-center mb-14"
-        >
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} className="text-center mb-14">
           <span className="inline-block bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
             Leadership
           </span>
-          <h2 className="text-3xl lg:text-4xl font-heading font-black">
-            From the Desk of Our Leaders
-          </h2>
+          <h2 className="text-3xl lg:text-4xl font-heading font-black">From the Desk of Our Leaders</h2>
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Director */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
@@ -353,7 +328,6 @@ function DeskSection() {
             </div>
           </motion.div>
 
-          {/* Principal */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
@@ -385,9 +359,6 @@ function DeskSection() {
   )
 }
 
-
-
-// ─── Academic Highlights ─────────────────────────────────────────
 function AcademicSection() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
@@ -404,7 +375,8 @@ function AcademicSection() {
               Academics
             </span>
             <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-4 leading-tight">
-              Academic Programme<br />& Curriculum
+              Academic Programme
+              <br />& Curriculum
             </h2>
             <p className="text-gray-600 mb-6 leading-relaxed">
               Growwell School Kharar offers admission from <strong>Play Class to Class II</strong> in the academic session, adding a class each year progressively until Grade 9. We follow the norms of the <strong>New Education Policy 2020</strong>.
@@ -428,7 +400,6 @@ function AcademicSection() {
             </div>
           </motion.div>
 
-          {/* Age eligibility table */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
@@ -463,7 +434,7 @@ function AcademicSection() {
                 </tbody>
               </table>
               <div className="px-6 py-5 bg-school-green/10 border-t border-white/10">
-                <Link to="/admission" className="btn-secondary w-full justify-center text-sm">
+                <Link href="/admission" className="btn-secondary w-full justify-center text-sm">
                   Start Your Application <ArrowRight size={16} />
                 </Link>
               </div>
@@ -475,7 +446,6 @@ function AcademicSection() {
   )
 }
 
-// ─── Gallery Preview ──────────────────────────────────────────────
 function GalleryPreview() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
@@ -492,11 +462,9 @@ function GalleryPreview() {
             <span className="inline-block bg-purple-100 text-school-purple text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
               Gallery
             </span>
-            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">
-              Life at Growwell School
-            </h2>
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">Life at Growwell School</h2>
           </div>
-          <Link to="/gallery" className="btn-primary self-start">
+          <Link href="/gallery" className="btn-primary self-start">
             View All Photos <ArrowRight size={18} />
           </Link>
         </motion.div>
@@ -509,13 +477,12 @@ function GalleryPreview() {
   )
 }
 
-// ─── CTA Banner ───────────────────────────────────────────────────
 function CTABanner() {
   return (
     <section className="py-16 bg-school-green relative overflow-hidden">
       <div className="absolute inset-0 pattern-dots opacity-20" />
       <div className="absolute right-0 top-0 h-full w-1/3 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 200 200" className="w-full h-full">
+        <svg viewBox="0 0 200 200" className="w-full h-full" aria-hidden="true">
           {[0, 45, 90, 135, 180, 225, 270, 315].map((r, i) => (
             <ellipse key={i} cx="100" cy="70" rx="20" ry="60" fill="#ffd700" transform={`rotate(${r},100,100)`} opacity="0.6" />
           ))}
@@ -523,17 +490,18 @@ function CTABanner() {
         </svg>
       </div>
       <div className="max-w-4xl mx-auto px-4 text-center relative">
-        <h2 className="text-3xl lg:text-5xl font-heading font-black text-white mb-4">
-          Admission Open for 2026-27
-        </h2>
+        <h2 className="text-3xl lg:text-5xl font-heading font-black text-white mb-4">Admission Open for 2026-27</h2>
         <p className="text-green-100 text-lg mb-8 max-w-2xl mx-auto">
           Secure your child's future at Growwell School. Limited seats available. Apply today for Play Class through Class II.
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
-          <Link to="/admission" className="btn-secondary">
+          <Link href="/admission" className="btn-secondary">
             Apply Now <ArrowRight size={18} />
           </Link>
-          <Link to="/contact" className="bg-white/20 text-white border border-white/40 px-7 py-3 rounded-md font-heading font-semibold hover:bg-white/30 transition-colors flex items-center gap-2">
+          <Link
+            href="/contact"
+            className="bg-white/20 text-white border border-white/40 px-7 py-3 rounded-md font-heading font-semibold hover:bg-white/30 transition-colors flex items-center gap-2"
+          >
             Contact Us
           </Link>
         </div>
@@ -542,16 +510,14 @@ function CTABanner() {
   )
 }
 
-// ─── About Section ──────────────────────────────────────────────────
 function AboutSection() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, amount: 0.2 })
 
   return (
-    <section className="py-20 bg-white overflow-hidden" ref={ref}>
+    <section id="about" className="py-20 bg-white overflow-hidden" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Column - Image Collage */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
@@ -560,30 +526,50 @@ function AboutSection() {
           >
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-1 row-span-2">
-                <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-lg">
-                  <img src="/images/activity5.jpg" alt="Students in class" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-lg relative">
+                  <Image
+                    src="/images/activity5.jpg"
+                    alt="Students learning on campus"
+                    fill
+                    sizes="(min-width: 1024px) 25vw, 45vw"
+                    className="object-cover hover:scale-105 transition-transform duration-500"
+                  />
                 </div>
               </div>
               <div className="col-span-1">
-                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
-                  <img src="/images/activity4.jpg" alt="Students jumping" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg relative">
+                  <Image
+                    src="/images/activity4.jpg"
+                    alt="Students participating in activities"
+                    fill
+                    sizes="(min-width: 1024px) 25vw, 45vw"
+                    className="object-cover hover:scale-105 transition-transform duration-500"
+                  />
                 </div>
               </div>
               <div className="col-span-1">
-                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
-                  <img src="/images/activity6.jpg" alt="Students playing" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg relative">
+                  <Image
+                    src="/images/activity6.jpg"
+                    alt="Students playing on the school grounds"
+                    fill
+                    sizes="(min-width: 1024px) 25vw, 45vw"
+                    className="object-cover hover:scale-105 transition-transform duration-500"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Excellence Badge */}
             <div className="absolute -bottom-6 -right-6 lg:-bottom-8 lg:right-0 bg-school-orange text-white p-6 rounded-xl shadow-xl z-10 w-40 h-40 flex flex-col items-center justify-center transform rotate-3 hover:rotate-0 transition-transform">
               <div className="text-4xl font-black font-heading tracking-tighter mb-1">15+</div>
-              <div className="text-xs font-bold uppercase tracking-wider text-center leading-tight">Years of<br />Excellence</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-center leading-tight">
+                Years of
+                <br />
+                Excellence
+              </div>
             </div>
           </motion.div>
 
-          {/* Right Column - Content */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
@@ -594,7 +580,9 @@ function AboutSection() {
               About Growwell
             </span>
             <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-6 leading-tight">
-              Cultivating Excellence<br />Since 2011
+              Cultivating Excellence
+              <br />
+              Since 2011
             </h2>
 
             <p className="text-gray-600 mb-5 leading-relaxed">
@@ -616,7 +604,7 @@ function AboutSection() {
               </div>
             </div>
 
-            <Link to="/admission" className="btn-primary inline-flex items-center">
+            <Link href="/admission" className="btn-primary inline-flex items-center">
               Explore Admission <ArrowRight size={18} className="ml-2" />
             </Link>
           </motion.div>
@@ -626,8 +614,7 @@ function AboutSection() {
   )
 }
 
-// ─── Page ──────────────────────────────────────────────────────────
-export default function Home() {
+export default function HomePage() {
   return (
     <>
       <HeroCarousel />

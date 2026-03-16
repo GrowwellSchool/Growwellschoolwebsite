@@ -1,3 +1,6 @@
+'use client'
+
+import type React from 'react'
 import { useRef, useState } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Phone, Mail, MapPin, Clock, Send, MessageSquare } from 'lucide-react'
@@ -14,7 +17,7 @@ function PageHero() {
           </span>
           <h1 className="text-4xl lg:text-6xl font-heading font-black mb-4">Contact Us</h1>
           <p className="text-gray-300 text-lg max-w-xl mx-auto">
-            We'd love to hear from you. Reach out for admissions, enquiries or just to say hello.
+            We&apos;d love to hear from you. Reach out for admissions, enquiries or just to say hello.
           </p>
         </motion.div>
       </div>
@@ -37,13 +40,14 @@ function ContactSection() {
     <section className="py-20 bg-gray-50 pattern-diagonal" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-12">
-          {/* Info cards */}
           <motion.div initial={{ opacity: 0, x: -40 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ duration: 0.6 }}>
             <span className="inline-block bg-green-100 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
               Our Details
             </span>
             <h2 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-6">
-              We're Right Here<br />in Kharar, Punjab
+              We&apos;re Right Here
+              <br />
+              in Kharar, Punjab
             </h2>
             <p className="text-gray-600 mb-8 leading-relaxed">
               Visit us at our school or get in touch through any of the channels below. Our admissions team is available Monday to Saturday during school hours.
@@ -106,27 +110,8 @@ function ContactSection() {
                 </motion.div>
               ))}
             </div>
-
-            {/* Social links */}
-            <div className="mt-8 bg-school-dark rounded-2xl p-6 text-white">
-              <h3 className="font-heading font-bold mb-4">Follow Us</h3>
-              <div className="flex gap-3">
-                {[
-                  { label: 'Facebook', bg: 'bg-blue-600' },
-                  { label: 'Instagram', bg: 'bg-pink-600' },
-                  { label: 'YouTube', bg: 'bg-red-600' },
-                  { label: 'Website', bg: 'bg-school-green' },
-                ].map((s) => (
-                  <a key={s.label} href="#" className={`${s.bg} text-white text-xs font-bold px-3 py-2 rounded-lg hover:opacity-90 transition-opacity`}>
-                    {s.label}
-                  </a>
-                ))}
-              </div>
-              <div className="mt-3 text-gray-400 text-sm">www.growwellschool.in</div>
-            </div>
           </motion.div>
 
-          {/* Form */}
           <motion.div initial={{ opacity: 0, x: 40 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ duration: 0.6, delay: 0.2 }}>
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
               <div className="flex items-center gap-3 mb-8">
@@ -135,21 +120,17 @@ function ContactSection() {
                 </div>
                 <div>
                   <h3 className="font-heading font-black text-gray-900 text-xl">Send Us a Message</h3>
-                  <p className="text-gray-500 text-sm">We'll get back to you shortly</p>
+                  <p className="text-gray-500 text-sm">We&apos;ll get back to you shortly</p>
                 </div>
               </div>
 
               {sent ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-12"
-                >
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-12">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Send size={24} className="text-school-green" />
                   </div>
                   <h3 className="font-heading font-black text-gray-900 text-xl mb-2">Message Sent!</h3>
-                  <p className="text-gray-500 text-sm">Thank you for reaching out. We'll contact you within 24 hours.</p>
+                  <p className="text-gray-500 text-sm">Thank you for reaching out. We&apos;ll contact you within 24 hours.</p>
                   <button onClick={() => setSent(false)} className="mt-6 text-school-green font-medium text-sm hover:underline">
                     Send another message
                   </button>
@@ -158,44 +139,56 @@ function ContactSection() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Full Name *</label>
+                      <label htmlFor="contact-name" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                        Full Name *
+                      </label>
                       <input
+                        id="contact-name"
                         type="text"
                         required
                         value={form.name}
-                        onChange={e => setForm({ ...form, name: e.target.value })}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
                         className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors"
                         placeholder="Your full name"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Phone Number</label>
+                      <label htmlFor="contact-phone" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                        Phone Number
+                      </label>
                       <input
+                        id="contact-phone"
                         type="tel"
                         value={form.phone}
-                        onChange={e => setForm({ ...form, phone: e.target.value })}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
                         className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors"
                         placeholder="+91 XXXXX XXXXX"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Email Address *</label>
+                    <label htmlFor="contact-email" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                      Email Address *
+                    </label>
                     <input
+                      id="contact-email"
                       type="email"
                       required
                       value={form.email}
-                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors"
                       placeholder="your@email.com"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Subject *</label>
+                    <label htmlFor="contact-subject" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                      Subject *
+                    </label>
                     <select
+                      id="contact-subject"
                       required
                       value={form.subject}
-                      onChange={e => setForm({ ...form, subject: e.target.value })}
+                      onChange={(e) => setForm({ ...form, subject: e.target.value })}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors bg-white"
                     >
                       <option value="">Select a subject</option>
@@ -207,12 +200,15 @@ function ContactSection() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Message *</label>
+                    <label htmlFor="contact-message" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                      Message *
+                    </label>
                     <textarea
+                      id="contact-message"
                       required
                       rows={5}
                       value={form.message}
-                      onChange={e => setForm({ ...form, message: e.target.value })}
+                      onChange={(e) => setForm({ ...form, message: e.target.value })}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-school-green transition-colors resize-none"
                       placeholder="Write your message here..."
                     />
@@ -273,7 +269,7 @@ function MapSection() {
   )
 }
 
-export default function Contact() {
+export default function ContactPage() {
   return (
     <>
       <PageHero />
@@ -282,3 +278,4 @@ export default function Contact() {
     </>
   )
 }
+

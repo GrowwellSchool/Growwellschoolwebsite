@@ -1,4 +1,7 @@
+'use client'
+
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { motion, useInView } from 'framer-motion'
 import { Calendar, User, ArrowRight, BookOpen, Tag } from 'lucide-react'
 
@@ -8,7 +11,7 @@ const blogs = [
   {
     id: 1,
     title: 'The Importance of Holistic Education in the Early Years',
-    excerpt: 'Research shows that the foundation laid in the first 8 years of a child\'s life shapes their learning, behaviour and health outcomes for a lifetime. Holistic education integrates academic, emotional and physical growth.',
+    excerpt: "Research shows that the foundation laid in the first 8 years of a child's life shapes their learning, behaviour and health outcomes for a lifetime. Holistic education integrates academic, emotional and physical growth.",
     author: 'Amrit Kaur, Principal',
     date: 'January 15, 2026',
     cat: 'Education',
@@ -32,7 +35,7 @@ const blogs = [
   {
     id: 3,
     title: 'Annual Sports Day 2025 — A Recap of Our Athletic Stars',
-    excerpt: 'This year\'s Sports Day was a spectacular celebration of energy, discipline and school spirit. From hurdle races to team relays, every student gave their absolute best on the field.',
+    excerpt: "This year's Sports Day was a spectacular celebration of energy, discipline and school spirit. From hurdle races to team relays, every student gave their absolute best on the field.",
     author: 'School Team',
     date: 'March 25, 2025',
     cat: 'Events',
@@ -43,8 +46,8 @@ const blogs = [
   },
   {
     id: 4,
-    title: '5 Tips for Parents — Supporting Your Child\'s Learning at Home',
-    excerpt: 'The home environment plays a powerful role in a child\'s academic success. Here are five practical and research-backed strategies every parent can adopt to make learning joyful at home.',
+    title: "5 Tips for Parents — Supporting Your Child's Learning at Home",
+    excerpt: "The home environment plays a powerful role in a child's academic success. Here are five practical and research-backed strategies every parent can adopt to make learning joyful at home.",
     author: 'Salmali Joshi, Director',
     date: 'December 5, 2025',
     cat: 'Parenting',
@@ -67,7 +70,7 @@ const blogs = [
   },
   {
     id: 6,
-    title: 'NEP 2020 — What It Means for Your Child\'s Future',
+    title: "NEP 2020 — What It Means for Your Child's Future",
     excerpt: 'The National Education Policy 2020 is the most comprehensive reform in Indian education in decades. We break down what it means for young learners at the foundational and preparatory stages.',
     author: 'Academic Committee',
     date: 'October 10, 2025',
@@ -99,15 +102,13 @@ function PageHero() {
   )
 }
 
-export default function Blogs() {
+export default function BlogsPage() {
   const [activeCat, setActiveCat] = useState('All')
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
 
-  const featured = blogs.find(b => b.featured)
-  const filtered = activeCat === 'All'
-    ? blogs.filter(b => !b.featured)
-    : blogs.filter(b => b.cat === activeCat && !b.featured)
+  const featured = blogs.find((b) => b.featured)
+  const filtered = activeCat === 'All' ? blogs.filter((b) => !b.featured) : blogs.filter((b) => b.cat === activeCat && !b.featured)
 
   return (
     <>
@@ -115,42 +116,41 @@ export default function Blogs() {
 
       <section className="py-20 bg-white" ref={ref}>
         <div className="max-w-7xl mx-auto px-4">
-          {/* Featured post */}
           {featured && (
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               className="grid lg:grid-cols-2 bg-school-dark rounded-3xl overflow-hidden shadow-2xl mb-16 group"
             >
-              <div className="img-zoom h-64 lg:h-auto min-h-[300px]">
-                <img src={featured.img} alt={featured.title} className="w-full h-full object-cover" />
+              <div className="img-zoom h-64 lg:h-auto min-h-[300px] relative">
+                <Image src={featured.img} alt={featured.title} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
               </div>
               <div className="p-8 lg:p-12 flex flex-col justify-center">
                 <div className="flex gap-2 mb-4">
-                  <span className={`${featured.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}>
-                    {featured.cat}
-                  </span>
-                  <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">
-                    Featured
-                  </span>
+                  <span className={`${featured.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}>{featured.cat}</span>
+                  <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">Featured</span>
                 </div>
-                <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-4 leading-tight">
-                  {featured.title}
-                </h2>
+                <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-4 leading-tight">{featured.title}</h2>
                 <p className="text-gray-400 leading-relaxed mb-6 text-sm">{featured.excerpt}</p>
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-6">
-                  <span className="flex items-center gap-1.5"><User size={13} className="text-school-gold" />{featured.author}</span>
-                  <span className="flex items-center gap-1.5"><Calendar size={13} className="text-school-gold" />{featured.date}</span>
-                  <span className="flex items-center gap-1.5"><BookOpen size={13} className="text-school-gold" />{featured.readTime}</span>
+                  <span className="flex items-center gap-1.5">
+                    <User size={13} className="text-school-gold" />
+                    {featured.author}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Calendar size={13} className="text-school-gold" />
+                    {featured.date}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen size={13} className="text-school-gold" />
+                    {featured.readTime}
+                  </span>
                 </div>
-                <button className="btn-secondary self-start text-sm">
-                  Read Full Article <ArrowRight size={16} />
-                </button>
+                <button className="btn-secondary self-start text-sm">Read Full Article <ArrowRight size={16} /></button>
               </div>
             </motion.div>
           )}
 
-          {/* Filter */}
           <div className="flex flex-wrap gap-2 mb-10">
             {blogCategories.map((cat) => (
               <button
@@ -165,7 +165,6 @@ export default function Blogs() {
             ))}
           </div>
 
-          {/* Blog grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
             {filtered.map((blog, i) => (
               <motion.article
@@ -176,25 +175,19 @@ export default function Blogs() {
                 className="bg-white border border-gray-100 rounded-2xl overflow-hidden card-hover shadow-sm group"
               >
                 <div className="img-zoom h-48 relative">
-                  <img src={blog.img} alt={blog.title} className="w-full h-full object-cover" />
-                  <span className={`absolute top-3 left-3 ${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}>
-                    {blog.cat}
-                  </span>
-                  <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded backdrop-blur-sm">
-                    {blog.readTime}
-                  </span>
+                  <Image src={blog.img} alt={blog.title} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
+                  <span className={`absolute top-3 left-3 ${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}>{blog.cat}</span>
+                  <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded backdrop-blur-sm">{blog.readTime}</span>
                 </div>
                 <div className="p-6">
-                  <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">
-                    {blog.title}
-                  </h3>
+                  <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">{blog.title}</h3>
                   <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-3">{blog.excerpt}</p>
                   <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                     <div className="text-xs text-gray-400">
                       <div className="font-medium text-gray-600">{blog.author}</div>
                       <div>{blog.date}</div>
                     </div>
-                    <button className="text-school-green hover:text-school-dark transition-colors">
+                    <button className="text-school-green hover:text-school-dark transition-colors" aria-label="Read article">
                       <ArrowRight size={18} />
                     </button>
                   </div>
@@ -212,7 +205,6 @@ export default function Blogs() {
         </div>
       </section>
 
-      {/* Newsletter CTA */}
       <section className="py-16 bg-school-green pattern-dots">
         <div className="max-w-2xl mx-auto px-4 text-center">
           <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-3">Stay Updated</h2>
@@ -221,12 +213,14 @@ export default function Blogs() {
             <input
               type="email"
               placeholder="Your email address"
+              aria-label="Email address"
               className="flex-1 px-4 py-3 rounded-lg text-gray-800 font-medium outline-none focus:ring-2 focus:ring-school-gold"
             />
-            <button className="btn-secondary px-5">Subscribe</button>
+            <button className="btn-secondary px-5" aria-label="Subscribe">Subscribe</button>
           </div>
         </div>
       </section>
     </>
   )
 }
+

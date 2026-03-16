@@ -1,4 +1,7 @@
+'use client'
+
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Sun, Moon } from 'lucide-react';
 
@@ -124,11 +127,15 @@ export default function OrbitCarousel() {
                     style={{ borderRadius: `${borderRadius}px` }}
                   >
                     {/* Image */}
-                    <img
-                      src={image.url}
-                      alt={image.label}
-                      className="w-full h-full object-cover"
-                    />
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={image.url}
+                        alt={image.label}
+                        fill
+                        sizes="250px"
+                        className="object-cover"
+                      />
+                    </div>
 
                     {/* Overlay Label */}
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">

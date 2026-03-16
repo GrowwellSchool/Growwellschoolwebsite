@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
+import Image from 'next/image'
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube, ArrowRight } from 'lucide-react'
 
 export default function Footer() {
@@ -18,9 +19,11 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <img
+              <Image
                 src="/images/logo.png"
                 alt="Growwell School Logo"
+                width={56}
+                height={56}
                 className="w-14 h-14 object-contain"
               />
               <div>
@@ -32,13 +35,25 @@ export default function Footer() {
               Purity, perfection and beauty as the flower lotus symbolizes. Continuous process driven improvement of a student's skills, knowledge and intellectual capabilities.
             </p>
             <div className="flex gap-3">
-              <a href="#" className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-500 transition-colors">
+              <a
+                href="#"
+                aria-label="Facebook"
+                className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-500 transition-colors"
+              >
                 <Facebook size={16} />
               </a>
-              <a href="#" className="w-9 h-9 bg-pink-600 rounded-full flex items-center justify-center hover:bg-pink-500 transition-colors">
+              <a
+                href="#"
+                aria-label="Instagram"
+                className="w-9 h-9 bg-pink-600 rounded-full flex items-center justify-center hover:bg-pink-500 transition-colors"
+              >
                 <Instagram size={16} />
               </a>
-              <a href="#" className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors">
+              <a
+                href="#"
+                aria-label="YouTube"
+                className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
+              >
                 <Youtube size={16} />
               </a>
             </div>
@@ -58,7 +73,7 @@ export default function Footer() {
                 { name: 'Contact Us', path: '/contact' },
               ].map((link) => (
                 <li key={link.path}>
-                  <Link to={link.path} className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
+                  <Link href={link.path} className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
                     <ArrowRight size={13} className="text-school-gold" />
                     {link.name}
                   </Link>
