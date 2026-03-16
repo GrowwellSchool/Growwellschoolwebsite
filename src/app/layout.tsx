@@ -18,13 +18,36 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Growwell School, Kharar",
-    default: "Growwell School, Kharar",
+    template: "%s | Growwell School",
+    default: "Growwell School | Growing To The Optimum",
   },
   description:
-    "Growwell School, Kharar — CBSE affiliated co-educational school. Admissions open for session 2026-27.",
+    "Growwell School, Kharar — CBSE affiliated co-educational school focused on holistic learning. Admissions open for session 2026-27.",
+  applicationName: "Growwell School",
+  keywords: [
+    "Growwell School",
+    "Growwell School Kharar",
+    "CBSE school in Kharar",
+    "Best school in Kharar",
+    "Admissions 2026-27",
+    "Co-educational school",
+  ],
+  openGraph: {
+    title: "Growwell School | Growing To The Optimum",
+    description:
+      "Growwell School, Kharar — CBSE affiliated co-educational school focused on holistic learning. Admissions open for session 2026-27.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Growwell School | Growing To The Optimum",
+    description:
+      "Growwell School, Kharar — CBSE affiliated co-educational school focused on holistic learning. Admissions open for session 2026-27.",
+  },
   icons: {
-    icon: "/favicon.svg",
+    icon: [{ url: "/images/logo.png", type: "image/png" }],
+    apple: [{ url: "/images/logo.png", type: "image/png" }],
+    shortcut: [{ url: "/images/logo.png", type: "image/png" }],
   },
 };
 
