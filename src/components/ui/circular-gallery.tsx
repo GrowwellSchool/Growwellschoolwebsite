@@ -27,10 +27,11 @@ interface CircularGalleryProps extends HTMLAttributes<HTMLDivElement> {
   radius?: number;
   /** Controls the speed of auto-rotation when not scrolling. */
   autoRotateSpeed?: number;
+  fit?: "cover" | "contain";
 }
 
 const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
-  ({ items, className, radius = 600, autoRotateSpeed = 0.02, ...props }, ref) => {
+  ({ items, className, radius = 600, autoRotateSpeed = 0.02, fit = "cover", ...props }, ref) => {
     const [rotation, setRotation] = useState(0);
     const [isScrolling, setIsScrolling] = useState(false);
     const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,14 +124,38 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                 }}
               >
                 <div className="relative w-full h-full rounded-lg shadow-2xl overflow-hidden group border border-border bg-card/70 dark:bg-card/30 backdrop-blur-lg">
-                  <Image
-                    src={item.photo.url}
-                    alt={item.photo.text}
-                    fill
-                    sizes="300px"
-                    className="object-cover"
-                    style={{ objectPosition: item.photo.pos || "center" }}
-                  />
+                  {item.photo.url ? (
+                    fit === "contain" ? (
+                      <>
+                        <Image
+                          src={item.photo.url}
+                          alt=""
+                          fill
+                          sizes="300px"
+                          className="object-cover scale-110 blur-2xl"
+                          style={{ objectPosition: item.photo.pos || "center" }}
+                          aria-hidden
+                        />
+                        <Image
+                          src={item.photo.url}
+                          alt={item.photo.text}
+                          fill
+                          sizes="300px"
+                          className="object-contain"
+                          style={{ objectPosition: item.photo.pos || "center" }}
+                        />
+                      </>
+                    ) : (
+                      <Image
+                        src={item.photo.url}
+                        alt={item.photo.text}
+                        fill
+                        sizes="300px"
+                        className="object-cover"
+                        style={{ objectPosition: item.photo.pos || "center" }}
+                      />
+                    )
+                  ) : null}
                   {/* Replaced text-primary-foreground with text-white for consistent color */}
                   <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent text-white">
                     <h2 className="text-xl font-bold">{item.common}</h2>

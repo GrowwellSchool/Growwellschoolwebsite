@@ -1,92 +1,35 @@
-'use client'
+"use client";
 
-import { useState, useRef } from 'react'
-import Image from 'next/image'
-import { motion, useInView } from 'framer-motion'
-import { Calendar, User, ArrowRight, BookOpen, Tag } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { motion, useInView } from "framer-motion";
+import { Calendar, User, ArrowRight, BookOpen, Tag } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const blogCategories = ['All', 'Education', 'Parenting', 'Events', 'Health & Wellness', 'School Life']
+const BLOGS_PAGE_KEY = "blogs.page";
 
-const blogs = [
-  {
-    id: 1,
-    title: 'The Importance of Holistic Education in the Early Years',
-    excerpt: "Research shows that the foundation laid in the first 8 years of a child's life shapes their learning, behaviour and health outcomes for a lifetime. Holistic education integrates academic, emotional and physical growth.",
-    author: 'Amrit Kaur, Principal',
-    date: 'January 15, 2026',
-    cat: 'Education',
-    img: '/images/activity4.jpg',
-    featured: true,
-    readTime: '5 min read',
-    catColor: 'bg-school-green',
-  },
-  {
-    id: 2,
-    title: 'How Sports Build Character — Not Just Physical Fitness',
-    excerpt: 'When children participate in sports at school, they learn far more than how to run or score. They develop resilience, leadership, teamwork and the ability to handle both success and failure gracefully.',
-    author: 'Sports Department',
-    date: 'February 10, 2026',
-    cat: 'Health & Wellness',
-    img: '/images/activity1.jpg',
-    featured: false,
-    readTime: '4 min read',
-    catColor: 'bg-school-orange',
-  },
-  {
-    id: 3,
-    title: 'Annual Sports Day 2025 — A Recap of Our Athletic Stars',
-    excerpt: "This year's Sports Day was a spectacular celebration of energy, discipline and school spirit. From hurdle races to team relays, every student gave their absolute best on the field.",
-    author: 'School Team',
-    date: 'March 25, 2025',
-    cat: 'Events',
-    img: '/images/activity9.jpg',
-    featured: false,
-    readTime: '3 min read',
-    catColor: 'bg-school-blue',
-  },
-  {
-    id: 4,
-    title: "5 Tips for Parents — Supporting Your Child's Learning at Home",
-    excerpt: "The home environment plays a powerful role in a child's academic success. Here are five practical and research-backed strategies every parent can adopt to make learning joyful at home.",
-    author: 'Salmali Joshi, Director',
-    date: 'December 5, 2025',
-    cat: 'Parenting',
-    img: '/images/activity2.jpg',
-    featured: false,
-    readTime: '6 min read',
-    catColor: 'bg-school-purple',
-  },
-  {
-    id: 5,
-    title: 'Yoga in Schools — Why We Made It a Core Practice',
-    excerpt: 'At Growwell School, yoga is not just an extra-curricular activity — it is a core practice. We believe that mindfulness and physical wellness are as important as mathematics and English.',
-    author: 'Wellness Team',
-    date: 'November 20, 2025',
-    cat: 'Health & Wellness',
-    img: '/images/activity4.jpg',
-    featured: false,
-    readTime: '4 min read',
-    catColor: 'bg-school-teal',
-  },
-  {
-    id: 6,
-    title: "NEP 2020 — What It Means for Your Child's Future",
-    excerpt: 'The National Education Policy 2020 is the most comprehensive reform in Indian education in decades. We break down what it means for young learners at the foundational and preparatory stages.',
-    author: 'Academic Committee',
-    date: 'October 10, 2025',
-    cat: 'Education',
-    img: '/images/activity10.jpg',
-    featured: false,
-    readTime: '7 min read',
-    catColor: 'bg-school-green',
-  },
-]
+type BlogFit = "cover" | "contain";
+type BlogItem = {
+  id: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  date: string;
+  cat: string;
+  img: string;
+  featured: boolean;
+  readTime: string;
+  catColor: string;
+};
 
 function PageHero() {
   return (
     <section className="relative bg-school-dark text-white py-24 overflow-hidden">
       <div className="absolute inset-0 pattern-dots opacity-20" />
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-white" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+      <div
+        className="absolute bottom-0 left-0 right-0 h-20 bg-white"
+        style={{ clipPath: "ellipse(55% 100% at 50% 100%)" }}
+      />
       <div className="relative max-w-7xl mx-auto px-4 text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
           <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-5">
@@ -99,16 +42,131 @@ function PageHero() {
         </motion.div>
       </div>
     </section>
-  )
+  );
 }
 
 export default function BlogsPage() {
-  const [activeCat, setActiveCat] = useState('All')
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true })
+  const [activeCat, setActiveCat] = useState("All");
+  const [fit, setFit] = useState<BlogFit>("cover");
+  const [blogs, setBlogs] = useState<BlogItem[]>([]);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
 
-  const featured = blogs.find((b) => b.featured)
-  const filtered = activeCat === 'All' ? blogs.filter((b) => !b.featured) : blogs.filter((b) => b.cat === activeCat && !b.featured)
+  const addVersion = useMemo(() => {
+    return (url: string, version: string) => {
+      const trimmed = url.trim();
+      if (trimmed.length === 0) return "";
+      const base = trimmed.split("?")[0];
+      if (!base.startsWith("http")) return base;
+      return `${base}?v=${encodeURIComponent(version)}`;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
+      const version =
+        typeof versionFromValue === "string" || typeof versionFromValue === "number"
+          ? String(versionFromValue)
+          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
+            ? String(versionFromRow)
+            : String(Date.now());
+
+      const nextFit: BlogFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const itemsRaw =
+        typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+          ? ((raw as { items: unknown[] }).items as unknown[])
+          : [];
+
+      const nextBlogs = itemsRaw
+        .map((row, idx) => {
+          const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+          const id =
+            typeof obj?.id === "string"
+              ? obj.id.trim()
+              : typeof obj?.id === "number"
+                ? String(obj.id)
+                : `blog-${idx + 1}`;
+          const title = typeof obj?.title === "string" ? obj.title : "";
+          const excerpt = typeof obj?.excerpt === "string" ? obj.excerpt : "";
+          const author = typeof obj?.author === "string" ? obj.author : "";
+          const date = typeof obj?.date === "string" ? obj.date : "";
+          const cat = typeof obj?.cat === "string" ? obj.cat : "";
+          const img = typeof obj?.img === "string" ? addVersion(obj.img, version) : "";
+          const featured = Boolean(obj?.featured);
+          const readTime = typeof obj?.readTime === "string" ? obj.readTime : "";
+          const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
+          return { id, title, excerpt, author, date, cat, img, featured, readTime, catColor } satisfies BlogItem;
+        })
+        .filter((b) => b.title.trim().length > 0);
+
+      if (cancelled) return;
+      setFit(nextFit);
+      setBlogs(nextBlogs);
+    };
+
+    const load = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await supabase
+          .from("site_settings")
+          .select("value, updated_at")
+          .eq("key", BLOGS_PAGE_KEY)
+          .maybeSingle();
+        if (cancelled || error) return;
+        if (!data?.value) {
+          setBlogs([]);
+          return;
+        }
+        applySetting(data.value as unknown, String(data.updated_at ?? Date.now()));
+      } catch {
+        return;
+      }
+    };
+
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel("blogs-page")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${BLOGS_PAGE_KEY}` },
+        (payload) => {
+          if (cancelled) return;
+          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
+          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
+          const version =
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
+          applySetting(row?.value, version);
+        },
+      )
+      .subscribe();
+
+    load();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [addVersion]);
+
+  const blogCategories = useMemo(() => {
+    const set = new Set<string>();
+    blogs.forEach((b) => {
+      const c = b.cat.trim();
+      if (c.length > 0) set.add(c);
+    });
+    return ["All", ...Array.from(set)];
+  }, [blogs]);
+
+  const selectedCat = blogCategories.includes(activeCat) ? activeCat : "All";
+
+  const featured = blogs.find((b) => b.featured);
+  const filtered =
+    selectedCat === "All"
+      ? blogs.filter((b) => !b.featured)
+      : blogs.filter((b) => b.cat === selectedCat && !b.featured);
 
   return (
     <>
@@ -123,14 +181,28 @@ export default function BlogsPage() {
               className="grid lg:grid-cols-2 bg-school-dark rounded-3xl overflow-hidden shadow-2xl mb-16 group"
             >
               <div className="img-zoom h-64 lg:h-auto min-h-[300px] relative">
-                <Image src={featured.img} alt={featured.title} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
+                <Image
+                  src={featured.img}
+                  alt={featured.title}
+                  fill
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className={fit === "contain" ? "object-contain" : "object-cover"}
+                />
               </div>
               <div className="p-8 lg:p-12 flex flex-col justify-center">
                 <div className="flex gap-2 mb-4">
-                  <span className={`${featured.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}>{featured.cat}</span>
-                  <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">Featured</span>
+                  <span
+                    className={`${featured.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}
+                  >
+                    {featured.cat}
+                  </span>
+                  <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">
+                    Featured
+                  </span>
                 </div>
-                <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-4 leading-tight">{featured.title}</h2>
+                <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-4 leading-tight">
+                  {featured.title}
+                </h2>
                 <p className="text-gray-400 leading-relaxed mb-6 text-sm">{featured.excerpt}</p>
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-6">
                   <span className="flex items-center gap-1.5">
@@ -146,7 +218,9 @@ export default function BlogsPage() {
                     {featured.readTime}
                   </span>
                 </div>
-                <button className="btn-secondary self-start text-sm">Read Full Article <ArrowRight size={16} /></button>
+                <button className="btn-secondary self-start text-sm">
+                  Read Full Article <ArrowRight size={16} />
+                </button>
               </div>
             </motion.div>
           )}
@@ -157,7 +231,7 @@ export default function BlogsPage() {
                 key={cat}
                 onClick={() => setActiveCat(cat)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-heading font-semibold transition-all border
-                  ${activeCat === cat ? 'bg-school-green text-white border-school-green' : 'bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green'}`}
+                  ${selectedCat === cat ? "bg-school-green text-white border-school-green" : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"}`}
               >
                 <Tag size={12} />
                 {cat}
@@ -175,19 +249,36 @@ export default function BlogsPage() {
                 className="bg-white border border-gray-100 rounded-2xl overflow-hidden card-hover shadow-sm group"
               >
                 <div className="img-zoom h-48 relative">
-                  <Image src={blog.img} alt={blog.title} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
-                  <span className={`absolute top-3 left-3 ${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}>{blog.cat}</span>
-                  <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded backdrop-blur-sm">{blog.readTime}</span>
+                  <Image
+                    src={blog.img}
+                    alt={blog.title}
+                    fill
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    className={fit === "contain" ? "object-contain" : "object-cover"}
+                  />
+                  <span
+                    className={`absolute top-3 left-3 ${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
+                  >
+                    {blog.cat}
+                  </span>
+                  <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded backdrop-blur-sm">
+                    {blog.readTime}
+                  </span>
                 </div>
                 <div className="p-6">
-                  <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">{blog.title}</h3>
+                  <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">
+                    {blog.title}
+                  </h3>
                   <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-3">{blog.excerpt}</p>
                   <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                     <div className="text-xs text-gray-400">
                       <div className="font-medium text-gray-600">{blog.author}</div>
                       <div>{blog.date}</div>
                     </div>
-                    <button className="text-school-green hover:text-school-dark transition-colors" aria-label="Read article">
+                    <button
+                      className="text-school-green hover:text-school-dark transition-colors"
+                      aria-label="Read article"
+                    >
                       <ArrowRight size={18} />
                     </button>
                   </div>
@@ -208,7 +299,9 @@ export default function BlogsPage() {
       <section className="py-16 bg-school-green pattern-dots">
         <div className="max-w-2xl mx-auto px-4 text-center">
           <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-3">Stay Updated</h2>
-          <p className="text-green-100 mb-6">Get the latest news, event updates and educational insights delivered to your inbox.</p>
+          <p className="text-green-100 mb-6">
+            Get the latest news, event updates and educational insights delivered to your inbox.
+          </p>
           <div className="flex gap-3 max-w-md mx-auto">
             <input
               type="email"
@@ -216,11 +309,12 @@ export default function BlogsPage() {
               aria-label="Email address"
               className="flex-1 px-4 py-3 rounded-lg text-gray-800 font-medium outline-none focus:ring-2 focus:ring-school-gold"
             />
-            <button className="btn-secondary px-5" aria-label="Subscribe">Subscribe</button>
+            <button className="btn-secondary px-5" aria-label="Subscribe">
+              Subscribe
+            </button>
           </div>
         </div>
       </section>
     </>
-  )
+  );
 }
-

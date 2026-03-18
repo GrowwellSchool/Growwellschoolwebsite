@@ -1,36 +1,35 @@
-'use client'
+"use client";
 
-import { useState, useRef } from 'react'
-import Image from 'next/image'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { X, ZoomIn } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { motion, useInView, AnimatePresence } from "framer-motion";
+import { X, ZoomIn } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const categories = [
-  { id: 'all', label: 'All Activities' },
-  { id: 'sports', label: 'Sports & Fitness' },
-  { id: 'cultural', label: 'Cultural Events' },
-  { id: 'classroom', label: 'Classroom Life' },
-  { id: 'celebrations', label: 'Celebrations' },
-]
+const GALLERY_PAGE_KEY = "gallery.page";
 
-const galleryItems = [
-  { id: 1, src: '/images/activity1.jpg', cat: 'sports', title: 'Hurdle Jumping', desc: 'Students showcasing athletic skills at sports day 2025' },
-  { id: 2, src: '/images/activity2.jpg', cat: 'cultural', title: 'Peace March', desc: 'Young student leading with a message of peace' },
-  { id: 3, src: '/images/activity3.jpg', cat: 'celebrations', title: 'Winter Wonderland', desc: 'Students enjoying artificial snow on Christmas' },
-  { id: 4, src: '/images/activity4.jpg', cat: 'classroom', title: 'Yoga Session', desc: 'Mindfulness and yoga practice in the courtyard' },
-  { id: 5, src: '/images/activity5.jpg', cat: 'sports', title: 'Rope Way Activity', desc: 'Building confidence with rope climbing — May 2024' },
-  { id: 6, src: '/images/activity6.jpg', cat: 'cultural', title: 'Independence Day', desc: 'Students celebrating Independence Day with patriotic artwork' },
-  { id: 7, src: '/images/activity7.jpg', cat: 'cultural', title: 'Janmashtami', desc: 'Students dressed as Krishna and Radha for Janmashtami' },
-  { id: 8, src: '/images/activity8.jpg', cat: 'celebrations', title: 'Birthday Celebration', desc: 'School birthday celebrations with the whole class' },
-  { id: 9, src: '/images/activity9.jpg', cat: 'sports', title: 'Agility Training', desc: 'Building athletic skills with hurdle training' },
-  { id: 10, src: '/images/activity10.jpg', cat: 'cultural', title: 'Annual Function', desc: 'Student delivering speech at the annual function' },
-]
+type GalleryFit = "cover" | "contain";
+type GalleryItem = { id: string; src: string; cat: string; title: string; desc: string; fit: GalleryFit };
+type GalleryCategory = { id: string; label: string; fit: GalleryFit };
+
+const BADGE_COLORS: { bg: string; text: string }[] = [
+  { bg: "bg-school-green", text: "text-white" },
+  { bg: "bg-school-gold", text: "text-school-dark" },
+  { bg: "bg-school-orange", text: "text-white" },
+  { bg: "bg-school-blue", text: "text-white" },
+  { bg: "bg-school-purple", text: "text-white" },
+  { bg: "bg-school-teal", text: "text-white" },
+  { bg: "bg-school-red", text: "text-white" },
+];
 
 function PageHero() {
   return (
     <section className="relative bg-school-dark text-white py-24 overflow-hidden">
       <div className="absolute inset-0 pattern-dots opacity-20" />
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-white" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+      <div
+        className="absolute bottom-0 left-0 right-0 h-20 bg-white"
+        style={{ clipPath: "ellipse(55% 100% at 50% 100%)" }}
+      />
       <div className="relative max-w-7xl mx-auto px-4 text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
           <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-5">
@@ -43,21 +42,146 @@ function PageHero() {
         </motion.div>
       </div>
     </section>
-  )
+  );
 }
 
 export default function GalleryPage() {
-  const [activecat, setActivecat] = useState('all')
-  const [lightbox, setLightbox] = useState<(typeof galleryItems)[number] | null>(null)
-  const ref = useRef(null)
-  useInView(ref, { once: true })
+  const [categories, setCategories] = useState<GalleryCategory[]>([
+    { id: "all", label: "All Activities", fit: "cover" },
+  ]);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [activecat, setActivecat] = useState("all");
+  const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
+  const ref = useRef(null);
+  useInView(ref, { once: true });
 
-  const filtered = activecat === 'all' ? galleryItems : galleryItems.filter((g) => g.cat === activecat)
+  useEffect(() => {
+    let cancelled = false;
 
-  const catCounts: Record<string, number> = { all: galleryItems.length }
-  galleryItems.forEach((g) => {
-    catCounts[g.cat] = (catCounts[g.cat] || 0) + 1
-  })
+    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
+      const version =
+        typeof versionFromValue === "string" || typeof versionFromValue === "number"
+          ? String(versionFromValue)
+          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
+            ? String(versionFromRow)
+            : String(Date.now());
+
+      const addVersion = (url: string) => {
+        const trimmed = url.trim();
+        if (trimmed.length === 0) return "";
+        const base = trimmed.split("?")[0];
+        if (!base.startsWith("http")) return base;
+        return `${base}?v=${encodeURIComponent(version)}`;
+      };
+
+      const sections =
+        typeof raw === "object" && raw && Array.isArray((raw as { sections?: unknown }).sections)
+          ? ((raw as { sections: unknown[] }).sections as unknown[])
+          : [];
+
+      const mappedCats: GalleryCategory[] = [{ id: "all", label: "All Activities", fit: "cover" }];
+      const mappedItems: GalleryItem[] = [];
+
+      sections.forEach((s) => {
+        const obj = typeof s === "object" && s ? (s as Record<string, unknown>) : null;
+        const id = typeof obj?.id === "string" ? obj.id.trim() : "";
+        if (id.length === 0) return;
+        const label =
+          typeof obj?.label === "string" ? obj.label.trim() : typeof obj?.title === "string" ? obj.title.trim() : "";
+        const fit: GalleryFit = obj?.fit === "contain" ? "contain" : "cover";
+        mappedCats.push({ id, label: label.length > 0 ? label : "Section", fit });
+
+        const itemsRaw = Array.isArray(obj?.items)
+          ? (obj?.items as unknown[])
+          : Array.isArray(obj?.images)
+            ? (obj?.images as unknown[])
+            : [];
+        itemsRaw.forEach((it, idx) => {
+          const io = typeof it === "object" && it ? (it as Record<string, unknown>) : null;
+          const iid = typeof io?.id === "string" ? io.id.trim() : `${id}-${idx + 1}`;
+          const srcRaw =
+            typeof io?.src === "string"
+              ? io.src
+              : typeof io?.url === "string"
+                ? io.url
+                : typeof io?.image === "string"
+                  ? io.image
+                  : "";
+          const src = addVersion(String(srcRaw));
+          if (src.trim().length === 0) return;
+          const title = typeof io?.title === "string" ? io.title : typeof io?.common === "string" ? io.common : "";
+          const desc = typeof io?.desc === "string" ? io.desc : typeof io?.details === "string" ? io.details : "";
+          mappedItems.push({ id: iid, src, cat: id, title: String(title), desc: String(desc), fit });
+        });
+      });
+
+      if (cancelled) return;
+      setCategories(mappedCats);
+      setGalleryItems(mappedItems);
+      setActivecat((prev) => (prev !== "all" && !mappedCats.some((c) => c.id === prev) ? "all" : prev));
+      setLightbox((prev) => (prev && !mappedItems.some((i) => i.id === prev.id) ? null : prev));
+    };
+
+    const load = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await supabase
+          .from("site_settings")
+          .select("value, updated_at")
+          .eq("key", GALLERY_PAGE_KEY)
+          .maybeSingle();
+        if (cancelled || error || !data?.value) return;
+        const value = data.value as unknown;
+        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
+        applySetting(value, version);
+      } catch {
+        return;
+      }
+    };
+
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel("gallery-page")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${GALLERY_PAGE_KEY}` },
+        (payload) => {
+          if (cancelled) return;
+          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
+          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
+          const version =
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
+          applySetting(row?.value, version);
+        },
+      )
+      .subscribe();
+
+    load();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const filtered = activecat === "all" ? galleryItems : galleryItems.filter((g) => g.cat === activecat);
+
+  const catCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: galleryItems.length };
+    galleryItems.forEach((g) => {
+      counts[g.cat] = (counts[g.cat] || 0) + 1;
+    });
+    return counts;
+  }, [galleryItems]);
+
+  const badgeClassByCategory = useMemo(() => {
+    const ids = categories.map((c) => c.id).filter((id) => id !== "all");
+    const map = new Map<string, { bg: string; text: string }>();
+    ids.forEach((id, idx) => {
+      map.set(id, BADGE_COLORS[idx % BADGE_COLORS.length] ?? BADGE_COLORS[0]!);
+    });
+    return map;
+  }, [categories]);
 
   return (
     <>
@@ -71,14 +195,16 @@ export default function GalleryPage() {
                 key={cat.id}
                 onClick={() => setActivecat(cat.id)}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-heading font-semibold text-sm transition-all duration-200 border-2
-                  ${activecat === cat.id
-                    ? 'bg-school-green text-white border-school-green shadow-lg scale-105'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green'
+                  ${
+                    activecat === cat.id
+                      ? "bg-school-green text-white border-school-green shadow-lg scale-105"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"
                   }`}
               >
                 {cat.label}
-                <span className={`text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold
-                  ${activecat === cat.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}
+                <span
+                  className={`text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold
+                  ${activecat === cat.id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}
                 >
                   {catCounts[cat.id] || 0}
                 </span>
@@ -101,24 +227,53 @@ export default function GalleryPage() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') setLightbox(item)
+                    if (e.key === "Enter" || e.key === " ") setLightbox(item);
                   }}
                   aria-label={`Open ${item.title}`}
                 >
                   <div className="img-zoom relative">
-                    <Image
-                      src={item.src}
-                      alt={item.title}
-                      width={1200}
-                      height={800}
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                      className="w-full h-auto object-cover"
-                    />
+                    {item.fit === "contain" ? (
+                      <>
+                        <div
+                          className="absolute inset-0 scale-110 blur-2xl"
+                          aria-hidden
+                          style={{
+                            backgroundImage: `url(${item.src})`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }}
+                        />
+                        <Image
+                          src={item.src}
+                          alt={item.title}
+                          width={1200}
+                          height={800}
+                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          className="relative w-full h-auto object-contain"
+                        />
+                      </>
+                    ) : (
+                      <Image
+                        src={item.src}
+                        alt={item.title}
+                        width={1200}
+                        height={800}
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="w-full h-auto object-cover"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-school-dark/0 group-hover:bg-school-dark/40 transition-all duration-300 flex items-center justify-center">
-                      <ZoomIn size={32} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <ZoomIn
+                        size={32}
+                        className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      />
                     </div>
                     <div className="absolute top-3 left-3">
-                      <span className="bg-school-green text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded">
+                      <span
+                        className={`${badgeClassByCategory.get(item.cat)?.bg ?? "bg-school-green"} ${
+                          badgeClassByCategory.get(item.cat)?.text ?? "text-white"
+                        } text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
+                      >
                         {categories.find((c) => c.id === item.cat)?.label}
                       </span>
                     </div>
@@ -179,6 +334,5 @@ export default function GalleryPage() {
         )}
       </AnimatePresence>
     </>
-  )
+  );
 }
-

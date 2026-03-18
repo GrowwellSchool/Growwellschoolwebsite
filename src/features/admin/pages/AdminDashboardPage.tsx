@@ -1,0 +1,4210 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import {
+  Award,
+  BookOpen,
+  Calendar,
+  FileText,
+  Image as ImageIcon,
+  LogOut,
+  ShieldCheck,
+  Star,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+
+type AdminSectionKey = "hero" | "about" | "programs" | "memories" | "life" | "gallery" | "events" | "blogs";
+
+type AdminNavItem = {
+  key: AdminSectionKey;
+  label: string;
+  icon: LucideIcon;
+};
+
+const HOME_HERO_IMAGES_KEY = "home.heroImages";
+const HOME_NOTIFICATIONS_KEY = "home.notifications";
+const HOME_PROGRAMS_KEY = "home.programs";
+const HOME_ABOUT_KEY = "home.about";
+const HOME_MEMORIES_KEY = "home.memories";
+const HOME_LIFE_KEY = "home.life";
+const GALLERY_PAGE_KEY = "gallery.page";
+const EVENTS_PAGE_KEY = "events.page";
+const BLOGS_PAGE_KEY = "blogs.page";
+const SITE_SETTINGS_TABLE = "site_settings";
+const STORAGE_BUCKET = "site-assets";
+const HERO_FOLDER = "home/hero";
+const PROGRAMS_FOLDER = "home/programs";
+const ABOUT_FOLDER = "home/about";
+const MEMORIES_FOLDER = "home/memories";
+const LIFE_FOLDER = "home/life";
+const GALLERY_FOLDER = "gallery/sections";
+const EVENTS_FOLDER = "events";
+const BLOGS_FOLDER = "blogs";
+type HeroImageFit = "cover" | "contain";
+
+function AdminNav({
+  mobile = false,
+  userEmail,
+  navItems,
+  active,
+  onSelect,
+  onSignOut,
+  signingOut,
+}: {
+  mobile?: boolean;
+  userEmail?: string;
+  navItems: AdminNavItem[];
+  active: AdminSectionKey;
+  onSelect: (key: AdminSectionKey) => void;
+  onSignOut: () => void;
+  signingOut: boolean;
+}) {
+  return (
+    <div
+      className={`${
+        mobile ? "h-full" : "hidden lg:flex lg:sticky lg:top-28 lg:h-[calc(100vh-7rem)]"
+      } bg-white border rounded-3xl shadow-xl flex flex-col`}
+    >
+      <div className="px-6 py-5 border-b">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="text-green-600" />
+          <div>
+            <div className="font-bold">Admin</div>
+            <div className="text-xs text-gray-500">{userEmail ?? "Signed in"}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3 flex-1 overflow-y-auto min-h-0">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = item.key === active;
+
+          return (
+            <button
+              key={item.key}
+              onClick={() => onSelect(item.key)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${
+                isActive ? "bg-green-600 text-white" : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Icon size={18} />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="p-4">
+        <button
+          onClick={onSignOut}
+          disabled={signingOut}
+          className="w-full flex items-center justify-center gap-2 bg-red-500 text-white py-2 rounded-lg"
+        >
+          <LogOut size={16} />
+          {signingOut ? "Signing out..." : "Logout"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function HeroImagesEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [serverImages, setServerImages] = useState<string[]>(["", "", ""]);
+  const [images, setImages] = useState<string[]>(["", "", ""]);
+  const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
+  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null]);
+  const [fit, setFit] = useState<HeroImageFit>("cover");
+  const [serverFit, setServerFit] = useState<HeroImageFit>("cover");
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => {
+        if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_HERO_IMAGES_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const candidate = Array.isArray(raw)
+        ? raw
+        : typeof raw === "object" && raw && Array.isArray((raw as { images?: unknown }).images)
+          ? (raw as { images: unknown[] }).images
+          : null;
+
+      const urls = [0, 1, 2].map((i) => {
+        const value = candidate?.[i];
+        if (typeof value !== "string") return "";
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed.split("?")[0] : "";
+      });
+
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+
+      setServerImages([urls[0] ?? "", urls[1] ?? "", urls[2] ?? ""]);
+      setImages([urls[0] ?? "", urls[1] ?? "", urls[2] ?? ""]);
+      setFit(loadedFit);
+      setServerFit(loadedFit);
+      setDisplayVersion(Date.now());
+      setFiles([null, null, null]);
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return [null, null, null];
+      });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load hero images" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const dirty = files.some(Boolean) || fit !== serverFit || images.join("|") !== serverImages.join("|");
+
+  const onPickFile = (index: number, file: File | null) => {
+    setMessage(null);
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = file ? URL.createObjectURL(file) : null;
+      return next;
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setMessage(null);
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = null;
+      return next;
+    });
+
+    setImages((prev) => {
+      const next = [...prev];
+      next[index] = "";
+      return next;
+    });
+  };
+
+  const onDropFile = (index: number, file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    onPickFile(index, file);
+  };
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const nextUrls = [...images];
+      const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(HERO_FOLDER, { limit: 100 });
+
+      for (let i = 0; i < 3; i += 1) {
+        const file = files[i];
+        const isRemoving = images[i].trim().length === 0 && serverImages[i].trim().length > 0;
+        const shouldTouchStorage = Boolean(file) || isRemoving;
+        if (!shouldTouchStorage) continue;
+
+        const base = `slide-${i + 1}`;
+        const toDelete =
+          folderItems
+            ?.filter((item) => item.name === base || item.name.startsWith(`${base}.`))
+            .map((item) => `${HERO_FOLDER}/${item.name}`) ?? [];
+        if (toDelete.length > 0) {
+          await supabase.storage.from(STORAGE_BUCKET).remove(toDelete);
+        }
+      }
+
+      for (let i = 0; i < 3; i += 1) {
+        const file = files[i];
+        if (!file) continue;
+
+        const path = `${HERO_FOLDER}/slide-${i + 1}`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextUrls[i] = data.publicUrl;
+      }
+
+      const { error: upsertError } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert(
+          { key: HOME_HERO_IMAGES_KEY, value: { images: nextUrls, fit, version: Date.now() } },
+          { onConflict: "key" },
+        );
+
+      if (upsertError) {
+        setMessage({ type: "error", text: upsertError.message });
+        return;
+      }
+
+      setImages(nextUrls);
+      setServerImages(nextUrls);
+      setServerFit(fit);
+      setDisplayVersion(Date.now());
+      setFiles([null, null, null]);
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return [null, null, null];
+      });
+      setMessage({ type: "success", text: "Hero images updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save hero images" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Hero Images</div>
+          <div className="text-sm text-gray-500">
+            Upload exactly 3 images. Changes reflect on the Home page hero slider.
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-3 gap-4">
+        {[0, 1, 2].map((i) => {
+          const src = previews[i] || (images[i] ? `${images[i]}?v=${displayVersion}` : "");
+          const hasAny = Boolean(files[i] || previews[i] || images[i]);
+          return (
+            <div key={i} className="border rounded-2xl overflow-hidden">
+              <div className="relative aspect-[16/10] bg-gray-100">
+                {src ? (
+                  <Image
+                    src={src}
+                    alt={`Hero image ${i + 1}`}
+                    fill
+                    sizes="(min-width: 768px) 33vw, 100vw"
+                    className={fit === "contain" ? "object-contain bg-school-dark" : "object-cover"}
+                    unoptimized={src.startsWith("blob:")}
+                  />
+                ) : null}
+              </div>
+
+              <div className="p-4">
+                <div className="font-semibold mb-2">Image {i + 1}</div>
+
+                <label
+                  className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none ${
+                    dragOverIndex === i
+                      ? "border-school-green bg-school-green/5"
+                      : "border-gray-200 hover:border-school-green/60"
+                  }`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverIndex(i);
+                  }}
+                  onDragLeave={() => setDragOverIndex((v) => (v === i ? null : v))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverIndex(null);
+                    onDropFile(i, e.dataTransfer.files?.[0] ?? null);
+                  }}
+                >
+                  <div className="font-semibold text-gray-800">Drag & drop an image here</div>
+                  <div className="text-xs text-gray-500 mt-1">or click to upload</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3 mt-3">
+                  <div className="text-xs text-gray-500 truncate">
+                    {previews[i] ? "Preview (not saved)" : images[i] ? "Saved" : "Empty"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    disabled={!hasAny || saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function HomeNotificationsEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [serverText, setServerText] = useState("");
+  const [text, setText] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_NOTIFICATIONS_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const candidate = Array.isArray(raw)
+        ? raw
+        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+          ? (raw as { items: unknown[] }).items
+          : [];
+
+      const nextLines = candidate.map((v) => (typeof v === "string" ? v.trim() : "")).filter((v) => v.length > 0);
+
+      const next = nextLines.join("\n");
+      setServerText(next);
+      setText(next);
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load notifications" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const dirty = text.trim() !== serverText.trim();
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const items = text
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      const { error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert({ key: HOME_NOTIFICATIONS_KEY, value: { items, version: Date.now() } }, { onConflict: "key" });
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const next = items.join("\n");
+      setServerText(next);
+      setText(next);
+      setMessage({ type: "success", text: "Notifications updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save notifications" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Notifications</div>
+          <div className="text-sm text-gray-500">One notification per line. Appears in the Home page ticker.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={8}
+        placeholder="Type notifications here..."
+        className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+        disabled={loading || saving}
+      />
+    </div>
+  );
+}
+
+type ProgramItem = { title: string; details: string; image: string };
+type ProgramImageFit = "cover" | "contain";
+
+type AboutFit = "cover" | "contain";
+
+function AboutEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [serverImages, setServerImages] = useState<string[]>(["", "", ""]);
+  const [images, setImages] = useState<string[]>(["", "", ""]);
+  const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
+  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null]);
+  const [fit, setFit] = useState<AboutFit>("cover");
+  const [serverFit, setServerFit] = useState<AboutFit>("cover");
+  const [details, setDetails] = useState("");
+  const [serverDetails, setServerDetails] = useState("");
+  const [mission, setMission] = useState("");
+  const [serverMission, setServerMission] = useState("");
+  const [vision, setVision] = useState("");
+  const [serverVision, setServerVision] = useState("");
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => {
+        if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_ABOUT_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const candidate = Array.isArray(raw)
+        ? raw
+        : typeof raw === "object" && raw && Array.isArray((raw as { images?: unknown }).images)
+          ? (raw as { images: unknown[] }).images
+          : [];
+
+      const urls = [0, 1, 2].map((i) => {
+        const value = candidate?.[i];
+        if (typeof value !== "string") return "";
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed.split("?")[0] : "";
+      });
+
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const loadedDetails =
+        typeof raw === "object" && raw && typeof (raw as { details?: unknown }).details === "string"
+          ? String((raw as { details: string }).details)
+          : "";
+      const loadedMission =
+        typeof raw === "object" && raw && typeof (raw as { mission?: unknown }).mission === "string"
+          ? String((raw as { mission: string }).mission)
+          : "";
+      const loadedVision =
+        typeof raw === "object" && raw && typeof (raw as { vision?: unknown }).vision === "string"
+          ? String((raw as { vision: string }).vision)
+          : "";
+
+      setServerImages([urls[0] ?? "", urls[1] ?? "", urls[2] ?? ""]);
+      setImages([urls[0] ?? "", urls[1] ?? "", urls[2] ?? ""]);
+      setFit(loadedFit);
+      setServerFit(loadedFit);
+
+      setDetails(loadedDetails);
+      setServerDetails(loadedDetails);
+      setMission(loadedMission);
+      setServerMission(loadedMission);
+      setVision(loadedVision);
+      setServerVision(loadedVision);
+
+      setDisplayVersion(Date.now());
+      setFiles([null, null, null]);
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return [null, null, null];
+      });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load about content" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const dirty =
+    files.some(Boolean) ||
+    fit !== serverFit ||
+    images.join("|") !== serverImages.join("|") ||
+    details.trim() !== serverDetails.trim() ||
+    mission.trim() !== serverMission.trim() ||
+    vision.trim() !== serverVision.trim();
+
+  const onPickFile = (index: number, file: File | null) => {
+    setMessage(null);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setMessage(null);
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = null;
+      return next;
+    });
+
+    setImages((prev) => {
+      const next = [...prev];
+      next[index] = "";
+      return next;
+    });
+  };
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const nextUrls = [...images];
+      const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(ABOUT_FOLDER, { limit: 100 });
+
+      for (let i = 0; i < 3; i += 1) {
+        const file = files[i];
+        const isRemoving = images[i].trim().length === 0 && serverImages[i].trim().length > 0;
+        const shouldTouchStorage = Boolean(file) || isRemoving;
+        if (!shouldTouchStorage) continue;
+
+        const base = `image-${i + 1}`;
+        const toDelete =
+          folderItems
+            ?.filter((item) => item.name === base || item.name.startsWith(`${base}.`))
+            .map((item) => `${ABOUT_FOLDER}/${item.name}`) ?? [];
+        if (toDelete.length > 0) {
+          await supabase.storage.from(STORAGE_BUCKET).remove(toDelete);
+        }
+      }
+
+      for (let i = 0; i < 3; i += 1) {
+        const file = files[i];
+        if (!file) continue;
+
+        const path = `${ABOUT_FOLDER}/image-${i + 1}`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextUrls[i] = data.publicUrl;
+      }
+
+      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+        {
+          key: HOME_ABOUT_KEY,
+          value: {
+            images: nextUrls,
+            fit,
+            details: details.trim(),
+            mission: mission.trim(),
+            vision: vision.trim(),
+            version: Date.now(),
+          },
+        },
+        { onConflict: "key" },
+      );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      setImages(nextUrls);
+      setServerImages(nextUrls);
+      setServerFit(fit);
+      setServerDetails(details);
+      setServerMission(mission);
+      setServerVision(vision);
+      setDisplayVersion(Date.now());
+      setFiles([null, null, null]);
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return [null, null, null];
+      });
+      setMessage({ type: "success", text: "About section updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save about section" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">About Section</div>
+          <div className="text-sm text-gray-500">Upload 3 images and edit details, mission and vision.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
+        {[0, 1, 2].map((i) => {
+          const base = previews[i] || images[i];
+          const src = base ? (base.startsWith("blob:") ? base : `${base.split("?")[0]}?v=${displayVersion}`) : "";
+          const hasAny = Boolean(files[i] || previews[i] || images[i]);
+          return (
+            <div key={i} className="border rounded-2xl overflow-hidden">
+              <div className="relative aspect-[16/10] bg-gray-100">
+                {src ? (
+                  fit === "contain" ? (
+                    <>
+                      <Image
+                        src={src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 768px) 33vw, 100vw"
+                        className="object-cover scale-110 blur-2xl"
+                        aria-hidden
+                        unoptimized={src.startsWith("blob:")}
+                      />
+                      <Image
+                        src={src}
+                        alt={`About image ${i + 1}`}
+                        fill
+                        sizes="(min-width: 768px) 33vw, 100vw"
+                        className="object-contain"
+                        unoptimized={src.startsWith("blob:")}
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={src}
+                      alt={`About image ${i + 1}`}
+                      fill
+                      sizes="(min-width: 768px) 33vw, 100vw"
+                      className="object-cover"
+                      unoptimized={src.startsWith("blob:")}
+                    />
+                  )
+                ) : null}
+              </div>
+
+              <div className="p-4">
+                <div className="font-semibold mb-2">Image {i + 1}</div>
+
+                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                  <div className="font-semibold text-gray-800">Click to upload</div>
+                  <div className="text-xs text-gray-500 mt-1">or drag & drop</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3 mt-3">
+                  <div className="text-xs text-gray-500 truncate">
+                    {previews[i] ? "Preview" : images[i] ? "Saved" : "Empty"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    disabled={!hasAny || saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-gray-700">Details</div>
+          <textarea
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            rows={8}
+            className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+            disabled={saving || loading}
+          />
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <div className="text-sm font-semibold text-gray-700">Mission</div>
+            <textarea
+              value={mission}
+              onChange={(e) => setMission(e.target.value)}
+              rows={4}
+              className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+              disabled={saving || loading}
+            />
+          </div>
+          <div className="space-y-3">
+            <div className="text-sm font-semibold text-gray-700">Vision</div>
+            <textarea
+              value={vision}
+              onChange={(e) => setVision(e.target.value)}
+              rows={4}
+              className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+              disabled={saving || loading}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgramsActivitiesEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [serverItems, setServerItems] = useState<ProgramItem[]>(
+    Array.from({ length: 6 }, () => ({ title: "", details: "", image: "" })),
+  );
+  const [items, setItems] = useState<ProgramItem[]>(
+    Array.from({ length: 6 }, () => ({ title: "", details: "", image: "" })),
+  );
+  const [files, setFiles] = useState<(File | null)[]>(Array.from({ length: 6 }, () => null));
+  const [previews, setPreviews] = useState<(string | null)[]>(Array.from({ length: 6 }, () => null));
+  const [fit, setFit] = useState<ProgramImageFit>("cover");
+  const [serverFit, setServerFit] = useState<ProgramImageFit>("cover");
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => {
+        if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const normalizeSix = (raw: unknown): ProgramItem[] => {
+    const candidate =
+      typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+        ? ((raw as { items: unknown[] }).items as unknown[])
+        : Array.isArray(raw)
+          ? (raw as unknown[])
+          : [];
+
+    const normalized = candidate.slice(0, 6).map((row) => {
+      const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+      const title = typeof obj?.title === "string" ? obj.title.trim() : "";
+      const details =
+        typeof obj?.details === "string" ? obj.details.trim() : typeof obj?.desc === "string" ? obj.desc.trim() : "";
+      const image =
+        typeof obj?.image === "string"
+          ? obj.image.trim().split("?")[0]
+          : typeof obj?.img === "string"
+            ? obj.img.trim().split("?")[0]
+            : "";
+      return { title, details, image };
+    });
+
+    return Array.from({ length: 6 }, (_, i) => normalized[i] ?? { title: "", details: "", image: "" });
+  };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_PROGRAMS_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const next = normalizeSix(raw);
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      setServerItems(next);
+      setItems(next);
+      setFit(loadedFit);
+      setServerFit(loadedFit);
+      setFiles(Array.from({ length: 6 }, () => null));
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return Array.from({ length: 6 }, () => null);
+      });
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load programs" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const dirty =
+    files.some(Boolean) ||
+    fit !== serverFit ||
+    items.some(
+      (it, i) =>
+        it.title !== serverItems[i]?.title ||
+        it.details !== serverItems[i]?.details ||
+        it.image !== serverItems[i]?.image,
+    );
+
+  const onPickFile = (index: number, file: File | null) => {
+    setMessage(null);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setMessage(null);
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = null;
+      return next;
+    });
+
+    setItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], image: "" };
+      return next;
+    });
+  };
+
+  const updateItem = (index: number, patch: Partial<ProgramItem>) => {
+    setItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const nextItems: ProgramItem[] = items.map((it) => ({
+        title: it.title.trim(),
+        details: it.details.trim(),
+        image: it.image.trim(),
+      }));
+
+      const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(PROGRAMS_FOLDER, { limit: 200 });
+
+      for (let i = 0; i < 6; i += 1) {
+        const file = files[i];
+        const isRemoving = nextItems[i].image.length === 0 && serverItems[i]?.image?.trim().length > 0;
+        const shouldTouchStorage = Boolean(file) || isRemoving;
+        if (!shouldTouchStorage) continue;
+
+        const base = `item-${i + 1}`;
+        const toDelete =
+          folderItems
+            ?.filter((item) => item.name === base || item.name.startsWith(`${base}.`))
+            .map((item) => `${PROGRAMS_FOLDER}/${item.name}`) ?? [];
+        if (toDelete.length > 0) {
+          await supabase.storage.from(STORAGE_BUCKET).remove(toDelete);
+        }
+      }
+
+      for (let i = 0; i < 6; i += 1) {
+        const file = files[i];
+        if (!file) continue;
+
+        const path = `${PROGRAMS_FOLDER}/item-${i + 1}`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextItems[i] = { ...nextItems[i], image: data.publicUrl };
+      }
+
+      const { error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert(
+          { key: HOME_PROGRAMS_KEY, value: { items: nextItems, fit, version: Date.now() } },
+          { onConflict: "key" },
+        );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      setServerItems(nextItems);
+      setItems(nextItems);
+      setServerFit(fit);
+      setFiles(Array.from({ length: 6 }, () => null));
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return Array.from({ length: 6 }, () => null);
+      });
+      setDisplayVersion(Date.now());
+      setMessage({ type: "success", text: "Programs updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save programs" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Programs & Activities</div>
+          <div className="text-sm text-gray-500">Update 6 cards: image, title and details.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((it, i) => {
+          const src = previews[i] || (it.image ? `${it.image.split("?")[0]}?v=${displayVersion}` : "");
+          const hasAny = Boolean(files[i] || previews[i] || it.image);
+          return (
+            <div key={i} className="border rounded-2xl overflow-hidden">
+              <div className="relative aspect-[16/10] bg-gray-100">
+                {src ? (
+                  fit === "contain" ? (
+                    <>
+                      <Image
+                        src={src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-cover scale-110 blur-2xl"
+                        aria-hidden
+                        unoptimized={src.startsWith("blob:")}
+                      />
+                      <Image
+                        src={src}
+                        alt={it.title || `Program ${i + 1}`}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-contain"
+                        unoptimized={src.startsWith("blob:")}
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={src}
+                      alt={it.title || `Program ${i + 1}`}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover"
+                      unoptimized={src.startsWith("blob:")}
+                    />
+                  )
+                ) : null}
+              </div>
+
+              <div className="p-4 space-y-3">
+                <div className="font-semibold">Item {i + 1}</div>
+
+                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                  <div className="font-semibold text-gray-800">Click to upload image</div>
+                  <div className="text-xs text-gray-500 mt-1">Recommended: wide image</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-gray-500 truncate">
+                    {previews[i] ? "Preview" : it.image ? "Saved" : "Empty"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    disabled={!hasAny || saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <input
+                  value={it.title}
+                  onChange={(e) => updateItem(i, { title: e.target.value })}
+                  placeholder="Title"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+
+                <textarea
+                  value={it.details}
+                  onChange={(e) => updateItem(i, { details: e.target.value })}
+                  placeholder="Details"
+                  rows={3}
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type MemoriesFit = "cover" | "contain";
+type MemoriesItem = {
+  common: string;
+  binomial: string;
+  url: string;
+  text: string;
+  pos: string;
+  by: string;
+};
+
+function MemoriesEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const emptyItems = useMemo(
+    (): MemoriesItem[] =>
+      Array.from({ length: 10 }, () => ({
+        common: "",
+        binomial: "",
+        url: "",
+        text: "",
+        pos: "50% 50%",
+        by: "",
+      })),
+    [],
+  );
+
+  const [serverItems, setServerItems] = useState<MemoriesItem[]>(emptyItems);
+  const [items, setItems] = useState<MemoriesItem[]>(emptyItems);
+  const [files, setFiles] = useState<(File | null)[]>(Array.from({ length: 10 }, () => null));
+  const [previews, setPreviews] = useState<(string | null)[]>(Array.from({ length: 10 }, () => null));
+  const [fit, setFit] = useState<MemoriesFit>("cover");
+  const [serverFit, setServerFit] = useState<MemoriesFit>("cover");
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => {
+        if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const normalizeTen = useCallback(
+    (raw: unknown): { items: MemoriesItem[]; fit: MemoriesFit } => {
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const candidate = Array.isArray(raw)
+        ? raw
+        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+          ? ((raw as { items: unknown[] }).items as unknown[])
+          : [];
+
+      const mapped = candidate.slice(0, 10).map((row) => {
+        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+        const common =
+          typeof obj?.common === "string" ? obj.common.trim() : typeof obj?.title === "string" ? obj.title.trim() : "";
+        const binomial =
+          typeof obj?.binomial === "string"
+            ? obj.binomial.trim()
+            : typeof obj?.subtitle === "string"
+              ? obj.subtitle.trim()
+              : "";
+
+        const photo = typeof obj?.photo === "object" && obj.photo ? (obj.photo as Record<string, unknown>) : null;
+        const url =
+          typeof photo?.url === "string"
+            ? String(photo.url).trim().split("?")[0]
+            : typeof obj?.url === "string"
+              ? String(obj.url).trim().split("?")[0]
+              : "";
+        const text =
+          typeof photo?.text === "string" ? String(photo.text) : typeof obj?.text === "string" ? String(obj.text) : "";
+        const pos =
+          typeof photo?.pos === "string"
+            ? String(photo.pos)
+            : typeof obj?.pos === "string"
+              ? String(obj.pos)
+              : "50% 50%";
+        const by = typeof photo?.by === "string" ? String(photo.by) : typeof obj?.by === "string" ? String(obj.by) : "";
+
+        return { common, binomial, url, text, pos, by };
+      });
+
+      return {
+        fit: loadedFit,
+        items: Array.from({ length: 10 }, (_, i) => mapped[i] ?? emptyItems[i]),
+      };
+    },
+    [emptyItems],
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_MEMORIES_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const normalized = normalizeTen(raw);
+      setServerItems(normalized.items);
+      setItems(normalized.items);
+      setFit(normalized.fit);
+      setServerFit(normalized.fit);
+      setFiles(Array.from({ length: 10 }, () => null));
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return Array.from({ length: 10 }, () => null);
+      });
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load memories" });
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeTen]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const dirty =
+    files.some(Boolean) ||
+    fit !== serverFit ||
+    items.some((it, i) => {
+      const s = serverItems[i];
+      return (
+        it.common !== s?.common ||
+        it.binomial !== s?.binomial ||
+        it.url !== s?.url ||
+        it.text !== s?.text ||
+        it.pos !== s?.pos ||
+        it.by !== s?.by
+      );
+    });
+
+  const updateItem = (index: number, patch: Partial<MemoriesItem>) => {
+    setItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
+  const onPickFile = (index: number, file: File | null) => {
+    setMessage(null);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setMessage(null);
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = null;
+      return next;
+    });
+
+    updateItem(index, { url: "" });
+  };
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const nextItems = items.map((it) => ({
+        common: it.common.trim(),
+        binomial: it.binomial.trim(),
+        url: it.url.trim(),
+        text: it.text.trim(),
+        pos: it.pos.trim(),
+        by: it.by.trim(),
+      }));
+
+      const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(MEMORIES_FOLDER, { limit: 300 });
+
+      for (let i = 0; i < 10; i += 1) {
+        const file = files[i];
+        const isRemoving = nextItems[i].url.length === 0 && serverItems[i]?.url?.trim().length > 0;
+        const shouldTouchStorage = Boolean(file) || isRemoving;
+        if (!shouldTouchStorage) continue;
+
+        const base = `item-${i + 1}`;
+        const toDelete =
+          folderItems
+            ?.filter((item) => item.name === base || item.name.startsWith(`${base}.`))
+            .map((item) => `${MEMORIES_FOLDER}/${item.name}`) ?? [];
+        if (toDelete.length > 0) {
+          await supabase.storage.from(STORAGE_BUCKET).remove(toDelete);
+        }
+      }
+
+      for (let i = 0; i < 10; i += 1) {
+        const file = files[i];
+        if (!file) continue;
+
+        const path = `${MEMORIES_FOLDER}/item-${i + 1}`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextItems[i] = { ...nextItems[i], url: data.publicUrl };
+      }
+
+      const payloadItems = nextItems.map((it) => ({
+        common: it.common,
+        binomial: it.binomial,
+        photo: {
+          url: it.url,
+          text: it.text || it.common,
+          pos: it.pos || "50% 50%",
+          by: it.by,
+        },
+      }));
+
+      const { error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert(
+          { key: HOME_MEMORIES_KEY, value: { items: payloadItems, fit, version: Date.now() } },
+          { onConflict: "key" },
+        );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      setServerItems(nextItems);
+      setItems(nextItems);
+      setServerFit(fit);
+      setFiles(Array.from({ length: 10 }, () => null));
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return Array.from({ length: 10 }, () => null);
+      });
+      setDisplayVersion(Date.now());
+      setMessage({ type: "success", text: "Memories updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save memories" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Memories at Growwell</div>
+          <div className="text-sm text-gray-500">Upload up to 10 images for the circular gallery.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((it, i) => {
+          const base = previews[i] || it.url;
+          const src = base ? (base.startsWith("blob:") ? base : `${base.split("?")[0]}?v=${displayVersion}`) : "";
+          const hasAny = Boolean(files[i] || previews[i] || it.url);
+
+          return (
+            <div key={i} className="border rounded-2xl overflow-hidden">
+              <div className="relative aspect-[16/10] bg-gray-100">
+                {src ? (
+                  fit === "contain" ? (
+                    <>
+                      <Image
+                        src={src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-cover scale-110 blur-2xl"
+                        aria-hidden
+                        unoptimized={src.startsWith("blob:")}
+                        style={{ objectPosition: it.pos || "50% 50%" }}
+                      />
+                      <Image
+                        src={src}
+                        alt={it.text || it.common || `Memory ${i + 1}`}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-contain"
+                        unoptimized={src.startsWith("blob:")}
+                        style={{ objectPosition: it.pos || "50% 50%" }}
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={src}
+                      alt={it.text || it.common || `Memory ${i + 1}`}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover"
+                      unoptimized={src.startsWith("blob:")}
+                      style={{ objectPosition: it.pos || "50% 50%" }}
+                    />
+                  )
+                ) : null}
+              </div>
+
+              <div className="p-4 space-y-3">
+                <div className="font-semibold">Item {i + 1}</div>
+
+                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                  <div className="font-semibold text-gray-800">Click to upload image</div>
+                  <div className="text-xs text-gray-500 mt-1">Required to show this item</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-gray-500 truncate">
+                    {previews[i] ? "Preview" : it.url ? "Saved" : "Empty"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    disabled={!hasAny || saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <input
+                  value={it.common}
+                  onChange={(e) => updateItem(i, { common: e.target.value })}
+                  placeholder="Title"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+                <input
+                  value={it.binomial}
+                  onChange={(e) => updateItem(i, { binomial: e.target.value })}
+                  placeholder="Subtitle"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+                <textarea
+                  value={it.text}
+                  onChange={(e) => updateItem(i, { text: e.target.value })}
+                  placeholder="Text"
+                  rows={2}
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+                <input
+                  value={it.by}
+                  onChange={(e) => updateItem(i, { by: e.target.value })}
+                  placeholder="Photo by"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+                <input
+                  value={it.pos}
+                  onChange={(e) => updateItem(i, { pos: e.target.value })}
+                  placeholder="Object Position (e.g. 50% 50%)"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type LifeFit = "cover" | "contain";
+type LifeItem = { label: string; url: string };
+
+function LifeEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const emptyItems = useMemo((): LifeItem[] => Array.from({ length: 6 }, () => ({ label: "", url: "" })), []);
+  const [serverItems, setServerItems] = useState<LifeItem[]>(emptyItems);
+  const [items, setItems] = useState<LifeItem[]>(emptyItems);
+  const [files, setFiles] = useState<(File | null)[]>(Array.from({ length: 6 }, () => null));
+  const [previews, setPreviews] = useState<(string | null)[]>(Array.from({ length: 6 }, () => null));
+  const [fit, setFit] = useState<LifeFit>("cover");
+  const [serverFit, setServerFit] = useState<LifeFit>("cover");
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => {
+        if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const normalizeSix = useCallback(
+    (raw: unknown): { items: LifeItem[]; fit: LifeFit } => {
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const candidate = Array.isArray(raw)
+        ? raw
+        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+          ? ((raw as { items: unknown[] }).items as unknown[])
+          : [];
+
+      const mapped = candidate.slice(0, 6).map((row) => {
+        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+        const url =
+          typeof obj?.url === "string"
+            ? String(obj.url).trim().split("?")[0]
+            : typeof obj?.image === "string"
+              ? String(obj.image).trim().split("?")[0]
+              : "";
+        const label =
+          typeof obj?.label === "string"
+            ? String(obj.label).trim()
+            : typeof obj?.title === "string"
+              ? String(obj.title).trim()
+              : "";
+        return { url, label };
+      });
+
+      return { fit: loadedFit, items: Array.from({ length: 6 }, (_, i) => mapped[i] ?? emptyItems[i]) };
+    },
+    [emptyItems],
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_LIFE_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const normalized = normalizeSix(raw);
+      setServerItems(normalized.items);
+      setItems(normalized.items);
+      setFit(normalized.fit);
+      setServerFit(normalized.fit);
+      setFiles(Array.from({ length: 6 }, () => null));
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return Array.from({ length: 6 }, () => null);
+      });
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load Life section" });
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeSix]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const dirty =
+    files.some(Boolean) ||
+    fit !== serverFit ||
+    items.some((it, i) => it.url !== serverItems[i]?.url || it.label !== serverItems[i]?.label);
+
+  const updateItem = (index: number, patch: Partial<LifeItem>) => {
+    setItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
+  const onPickFile = (index: number, file: File | null) => {
+    setMessage(null);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setMessage(null);
+
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = [...prev];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+      next[index] = null;
+      return next;
+    });
+
+    updateItem(index, { url: "" });
+  };
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const nextItems = items.map((it) => ({ url: it.url.trim(), label: it.label.trim() }));
+      const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(LIFE_FOLDER, { limit: 200 });
+
+      for (let i = 0; i < 6; i += 1) {
+        const file = files[i];
+        const isRemoving = nextItems[i].url.length === 0 && serverItems[i]?.url?.trim().length > 0;
+        const shouldTouchStorage = Boolean(file) || isRemoving;
+        if (!shouldTouchStorage) continue;
+
+        const base = `item-${i + 1}`;
+        const toDelete =
+          folderItems
+            ?.filter((item) => item.name === base || item.name.startsWith(`${base}.`))
+            .map((item) => `${LIFE_FOLDER}/${item.name}`) ?? [];
+        if (toDelete.length > 0) {
+          await supabase.storage.from(STORAGE_BUCKET).remove(toDelete);
+        }
+      }
+
+      for (let i = 0; i < 6; i += 1) {
+        const file = files[i];
+        if (!file) continue;
+
+        const path = `${LIFE_FOLDER}/item-${i + 1}`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextItems[i] = { ...nextItems[i], url: data.publicUrl };
+      }
+
+      const payloadItems = nextItems.filter((it) => it.url.trim().length > 0);
+
+      const { error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert(
+          { key: HOME_LIFE_KEY, value: { items: payloadItems, fit, version: Date.now() } },
+          { onConflict: "key" },
+        );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const normalized = normalizeSix({ items: payloadItems, fit });
+      setServerItems(normalized.items);
+      setItems(normalized.items);
+      setServerFit(fit);
+      setFiles(Array.from({ length: 6 }, () => null));
+      setPreviews((prev) => {
+        prev.forEach((p) => {
+          if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return Array.from({ length: 6 }, () => null);
+      });
+      setDisplayVersion(Date.now());
+      setMessage({ type: "success", text: "Life section updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save Life section" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Life at Growwell School</div>
+          <div className="text-sm text-gray-500">Upload images for the 3D carousel (up to 6).</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((it, i) => {
+          const base = previews[i] || it.url;
+          const src = base ? (base.startsWith("blob:") ? base : `${base.split("?")[0]}?v=${displayVersion}`) : "";
+          const hasAny = Boolean(files[i] || previews[i] || it.url);
+
+          return (
+            <div key={i} className="border rounded-2xl overflow-hidden">
+              <div className="relative aspect-[16/10] bg-gray-100">
+                {src ? (
+                  fit === "contain" ? (
+                    <>
+                      <Image
+                        src={src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-cover scale-110 blur-2xl"
+                        aria-hidden
+                        unoptimized={src.startsWith("blob:")}
+                      />
+                      <Image
+                        src={src}
+                        alt={it.label || `Life ${i + 1}`}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-contain"
+                        unoptimized={src.startsWith("blob:")}
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={src}
+                      alt={it.label || `Life ${i + 1}`}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover"
+                      unoptimized={src.startsWith("blob:")}
+                    />
+                  )
+                ) : null}
+              </div>
+
+              <div className="p-4 space-y-3">
+                <div className="font-semibold">Item {i + 1}</div>
+
+                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                  <div className="font-semibold text-gray-800">Click to upload image</div>
+                  <div className="text-xs text-gray-500 mt-1">Required to show this item</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-gray-500 truncate">
+                    {previews[i] ? "Preview" : it.url ? "Saved" : "Empty"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    disabled={!hasAny || saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <input
+                  value={it.label}
+                  onChange={(e) => updateItem(i, { label: e.target.value })}
+                  placeholder="Label"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type GalleryFit = "cover" | "contain";
+type GalleryImage = { id: string; url: string; path: string; title: string; desc: string; w?: number; h?: number };
+type GallerySection = {
+  id: string;
+  title: string;
+  subtitle: string;
+  details: string;
+  fit: GalleryFit;
+  images: GalleryImage[];
+};
+
+function GalleryEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [serverSections, setServerSections] = useState<GallerySection[]>([]);
+  const [sections, setSections] = useState<GallerySection[]>([]);
+
+  const [newFiles, setNewFiles] = useState<Record<string, File>>({});
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const makeId = () => {
+    const cryptoObj = globalThis.crypto as { randomUUID?: () => string } | undefined;
+    if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const readImageSize = async (file: File): Promise<{ w: number; h: number } | null> => {
+    try {
+      if ("createImageBitmap" in globalThis) {
+        const bitmap = await createImageBitmap(file);
+        const w = bitmap.width;
+        const h = bitmap.height;
+        bitmap.close();
+        if (w > 0 && h > 0) return { w, h };
+      }
+    } catch {
+      return null;
+    }
+
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new window.Image();
+      const result = await new Promise<{ w: number; h: number } | null>((resolve) => {
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+      URL.revokeObjectURL(url);
+      if (result && result.w > 0 && result.h > 0) return result;
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const normalize = useCallback((raw: unknown): GallerySection[] => {
+    const candidate =
+      typeof raw === "object" && raw && Array.isArray((raw as { sections?: unknown }).sections)
+        ? ((raw as { sections: unknown[] }).sections as unknown[])
+        : [];
+
+    const next = candidate
+      .map((s) => {
+        const obj = typeof s === "object" && s ? (s as Record<string, unknown>) : null;
+        const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : makeId();
+        const title =
+          typeof obj?.label === "string" ? String(obj.label) : typeof obj?.title === "string" ? obj.title : "";
+        const subtitle = typeof obj?.subtitle === "string" ? obj.subtitle : "";
+        const details = typeof obj?.details === "string" ? obj.details : "";
+        const fit: GalleryFit = obj?.fit === "contain" ? "contain" : "cover";
+
+        const imagesRaw = Array.isArray(obj?.items)
+          ? (obj?.items as unknown[])
+          : Array.isArray(obj?.images)
+            ? (obj?.images as unknown[])
+            : [];
+        const images = imagesRaw
+          .map((img) => {
+            const io = typeof img === "object" && img ? (img as Record<string, unknown>) : null;
+            const iid = typeof io?.id === "string" && io.id.trim().length > 0 ? io.id.trim() : makeId();
+            const url =
+              typeof io?.src === "string"
+                ? String(io.src).trim()
+                : typeof io?.url === "string"
+                  ? io.url.trim()
+                  : typeof io?.image === "string"
+                    ? String(io.image).trim()
+                    : "";
+            const path =
+              typeof io?.path === "string" && io.path.trim().length > 0
+                ? io.path.trim()
+                : `${GALLERY_FOLDER}/${id}/${iid}`;
+            const imageTitle = typeof io?.title === "string" ? String(io.title) : "";
+            const imageDesc =
+              typeof io?.desc === "string"
+                ? String(io.desc)
+                : typeof io?.details === "string"
+                  ? String(io.details)
+                  : "";
+            const w = typeof io?.w === "number" ? io.w : undefined;
+            const h = typeof io?.h === "number" ? io.h : undefined;
+            return { id: iid, url, path, title: imageTitle, desc: imageDesc, w, h };
+          })
+          .filter((img) => img.url.length > 0);
+
+        return { id, title, subtitle, details, fit, images };
+      })
+      .filter(
+        (s) =>
+          s.images.length > 0 ||
+          s.title.trim().length > 0 ||
+          s.subtitle.trim().length > 0 ||
+          s.details.trim().length > 0,
+      );
+
+    return next;
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", GALLERY_PAGE_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const next = normalize(raw);
+      setServerSections(next);
+      setSections(next);
+
+      setPreviews((prev) => {
+        Object.values(prev).forEach((p) => {
+          if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return {};
+      });
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load gallery page" });
+    } finally {
+      setLoading(false);
+    }
+  }, [normalize]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const updateSection = (sectionId: string, patch: Partial<GallerySection>) => {
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...patch } : s)));
+  };
+
+  const removeSection = (sectionId: string) => {
+    setSections((prev) => prev.filter((s) => s.id !== sectionId));
+  };
+
+  const addSection = () => {
+    const id = makeId();
+    setSections((prev) => [...prev, { id, title: "", subtitle: "", details: "", fit: "cover", images: [] }]);
+  };
+
+  const addImages = (sectionId: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const entries: { img: GalleryImage; file: File; preview: string; size: { w: number; h: number } | null }[] = [];
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files.item(i);
+      if (!file) continue;
+      if (!file.type.startsWith("image/")) continue;
+      const imageId = makeId();
+      const path = `${GALLERY_FOLDER}/${sectionId}/${imageId}`;
+      const preview = URL.createObjectURL(file);
+      entries.push({ img: { id: imageId, url: "", path, title: "", desc: "" }, file, preview, size: null });
+    }
+
+    if (entries.length === 0) return;
+
+    setSections((prev) =>
+      prev.map((s) => (s.id === sectionId ? { ...s, images: [...s.images, ...entries.map((e) => e.img)] } : s)),
+    );
+
+    setNewFiles((prev) => {
+      const next = { ...prev };
+      entries.forEach((e) => {
+        next[e.img.id] = e.file;
+      });
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const next = { ...prev };
+      entries.forEach((e) => {
+        next[e.img.id] = e.preview;
+      });
+      return next;
+    });
+
+    Promise.all(entries.map((e) => readImageSize(e.file))).then((sizes) => {
+      setSections((prev) =>
+        prev.map((s) => {
+          if (s.id !== sectionId) return s;
+          const nextImages = s.images.map((img) => {
+            const idx = entries.findIndex((e) => e.img.id === img.id);
+            if (idx < 0) return img;
+            const size = sizes[idx];
+            return size ? { ...img, w: size.w, h: size.h } : img;
+          });
+          return { ...s, images: nextImages };
+        }),
+      );
+    });
+  };
+
+  const removeImage = (sectionId: string, imageId: string) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === sectionId ? { ...s, images: s.images.filter((img) => img.id !== imageId) } : s)),
+    );
+
+    setNewFiles((prev) => {
+      if (!prev[imageId]) return prev;
+      const next = { ...prev };
+      delete next[imageId];
+      return next;
+    });
+
+    setPreviews((prev) => {
+      const url = prev[imageId];
+      if (!url) return prev;
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      const next = { ...prev };
+      delete next[imageId];
+      return next;
+    });
+  };
+
+  const updateImage = (sectionId: string, imageId: string, patch: Partial<GalleryImage>) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId
+          ? { ...s, images: s.images.map((img) => (img.id === imageId ? { ...img, ...patch } : img)) }
+          : s,
+      ),
+    );
+  };
+
+  const dirty = useMemo(() => {
+    if (Object.keys(newFiles).length > 0) return true;
+    const a = JSON.stringify(serverSections);
+    const b = JSON.stringify(sections);
+    return a !== b;
+  }, [newFiles, serverSections, sections]);
+
+  const save = async () => {
+    if (!dirty) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const serverPaths = new Set(
+        serverSections.flatMap((s) => s.images.map((img) => img.path).filter((p) => p.trim().length > 0)),
+      );
+      const nextPaths = new Set(
+        sections.flatMap((s) => s.images.map((img) => img.path).filter((p) => p.trim().length > 0)),
+      );
+      const toRemove = Array.from(serverPaths).filter((p) => !nextPaths.has(p));
+      if (toRemove.length > 0) {
+        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
+      }
+
+      const nextSections: GallerySection[] = sections.map((s) => ({
+        ...s,
+        title: s.title.trim(),
+        subtitle: s.subtitle.trim(),
+        details: s.details.trim(),
+        images: s.images.map((img) => ({
+          ...img,
+          url: img.url.trim(),
+          path: img.path.trim(),
+          title: img.title.trim(),
+          desc: img.desc.trim(),
+        })),
+      }));
+
+      for (const section of nextSections) {
+        for (let i = 0; i < section.images.length; i += 1) {
+          const img = section.images[i];
+          const file = newFiles[img.id];
+          if (!file) continue;
+
+          const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(img.path, file, {
+            upsert: true,
+            contentType: file.type,
+          });
+          if (uploadError) {
+            setMessage({ type: "error", text: uploadError.message });
+            return;
+          }
+
+          const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(img.path);
+          section.images[i] = { ...img, url: data.publicUrl };
+        }
+      }
+
+      const cleaned = nextSections
+        .map((s) => ({ ...s, images: s.images.filter((img) => img.url.trim().length > 0) }))
+        .filter((s) => s.images.length > 0);
+
+      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+        {
+          key: GALLERY_PAGE_KEY,
+          value: {
+            sections: cleaned.map((s) => ({
+              id: s.id,
+              label: s.title,
+              subtitle: s.subtitle,
+              details: s.details,
+              fit: s.fit,
+              items: s.images.map((img) => ({
+                id: img.id,
+                src: img.url,
+                title: img.title,
+                desc: img.desc,
+                path: img.path,
+                w: img.w,
+                h: img.h,
+              })),
+            })),
+            version: Date.now(),
+          },
+        },
+        { onConflict: "key" },
+      );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+      setPreviews({});
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+      const normalized = normalize({ sections: cleaned.map((s) => ({ ...s, label: s.title, items: s.images })) });
+      setServerSections(normalized);
+      setSections(normalized);
+      setMessage({ type: "success", text: "Gallery updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save gallery" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Gallery Page</div>
+          <div className="text-sm text-gray-500">Create sections and add unlimited images.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={addSection}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            Add Section
+          </button>
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="space-y-6">
+        {sections.map((section) => (
+          <div key={section.id} className="border rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="font-semibold">{section.title.trim() || "Untitled Section"}</div>
+              <button
+                type="button"
+                onClick={() => removeSection(section.id)}
+                disabled={saving || loading}
+                className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+              >
+                Remove Section
+              </button>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-4 mb-4">
+              <input
+                value={section.title}
+                onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                placeholder="Title"
+                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                disabled={saving || loading}
+              />
+              <input
+                value={section.subtitle}
+                onChange={(e) => updateSection(section.id, { subtitle: e.target.value })}
+                placeholder="Subtitle"
+                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                disabled={saving || loading}
+              />
+              <textarea
+                value={section.details}
+                onChange={(e) => updateSection(section.id, { details: e.target.value })}
+                placeholder="Details"
+                rows={4}
+                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                disabled={saving || loading}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+              <div className="flex items-center rounded-xl border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => updateSection(section.id, { fit: "cover" })}
+                  disabled={saving || loading}
+                  className={`px-4 py-2 text-sm ${section.fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+                >
+                  Cover
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSection(section.id, { fit: "contain" })}
+                  disabled={saving || loading}
+                  className={`px-4 py-2 text-sm ${section.fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+                >
+                  Contain
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <label className="inline-flex items-center gap-2 border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 cursor-pointer">
+                Add Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => addImages(section.id, e.target.files)}
+                  className="hidden"
+                  disabled={saving || loading}
+                />
+              </label>
+              <div className="text-xs text-gray-500">{section.images.length} images</div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {section.images.map((img) => {
+                const base = previews[img.id] || img.url;
+                const src = base ? (base.startsWith("blob:") ? base : `${base.split("?")[0]}?v=${displayVersion}`) : "";
+                return (
+                  <div key={img.id} className="border rounded-xl overflow-hidden">
+                    <div className="relative aspect-[16/10] bg-gray-100">
+                      {src ? (
+                        section.fit === "contain" ? (
+                          <>
+                            <Image
+                              src={src}
+                              alt=""
+                              fill
+                              sizes="(min-width: 1024px) 25vw, 50vw"
+                              className="object-cover scale-110 blur-2xl"
+                              aria-hidden
+                              unoptimized={src.startsWith("blob:")}
+                            />
+                            <Image
+                              src={src}
+                              alt="Gallery image"
+                              fill
+                              sizes="(min-width: 1024px) 25vw, 50vw"
+                              className="object-contain"
+                              unoptimized={src.startsWith("blob:")}
+                            />
+                          </>
+                        ) : (
+                          <Image
+                            src={src}
+                            alt="Gallery image"
+                            fill
+                            sizes="(min-width: 1024px) 25vw, 50vw"
+                            className="object-cover"
+                            unoptimized={src.startsWith("blob:")}
+                          />
+                        )
+                      ) : null}
+                    </div>
+                    <div className="p-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] text-gray-500 truncate">
+                          {previews[img.id] ? "Preview" : img.url ? "Saved" : "New"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeImage(section.id, img.id)}
+                          disabled={saving || loading}
+                          className="text-[10px] border px-2 py-1 rounded hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <input
+                        value={img.title}
+                        onChange={(e) => updateImage(section.id, img.id, { title: e.target.value })}
+                        placeholder="Title"
+                        className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      />
+                      <textarea
+                        value={img.desc}
+                        onChange={(e) => updateImage(section.id, img.id, { desc: e.target.value })}
+                        placeholder="Details"
+                        rows={2}
+                        className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type EventsCalendarItem = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  img: string;
+  path: string;
+  cat: string;
+  catColor: string;
+  desc: string;
+  highlight: boolean;
+};
+
+type EventsMomentItem = { id: string; img: string; path: string; title: string; year: string; desc: string };
+
+function EventsEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [serverCalendar, setServerCalendar] = useState<EventsCalendarItem[]>([]);
+  const [serverMoments, setServerMoments] = useState<EventsMomentItem[]>([]);
+  const [calendar, setCalendar] = useState<EventsCalendarItem[]>([]);
+  const [moments, setMoments] = useState<EventsMomentItem[]>([]);
+
+  const [newFiles, setNewFiles] = useState<Record<string, File>>({});
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const makeId = () => {
+    const cryptoObj = globalThis.crypto as { randomUUID?: () => string } | undefined;
+    if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const keyFor = (kind: "calendar" | "moments", id: string) => `${kind}:${id}`;
+
+  const baseUrl = (value: unknown) => {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return "";
+    return trimmed.split("?")[0] ?? "";
+  };
+
+  const normalize = useCallback((raw: unknown): { calendar: EventsCalendarItem[]; moments: EventsMomentItem[] } => {
+    const calendarRaw =
+      typeof raw === "object" && raw && Array.isArray((raw as { calendar?: unknown }).calendar)
+        ? ((raw as { calendar: unknown[] }).calendar as unknown[])
+        : [];
+    const momentsRaw =
+      typeof raw === "object" && raw && Array.isArray((raw as { moments?: unknown }).moments)
+        ? ((raw as { moments: unknown[] }).moments as unknown[])
+        : [];
+
+    const nextCalendar = calendarRaw.map((row) => {
+      const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+      const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : makeId();
+      const title = typeof obj?.title === "string" ? obj.title : "";
+      const date = typeof obj?.date === "string" ? obj.date : "";
+      const time = typeof obj?.time === "string" ? obj.time : "";
+      const venue = typeof obj?.venue === "string" ? obj.venue : "";
+      const img = baseUrl(obj?.img);
+      const path =
+        typeof obj?.path === "string" && obj.path.trim().length > 0
+          ? obj.path.trim()
+          : `${EVENTS_FOLDER}/calendar/${id}`;
+      const cat = typeof obj?.cat === "string" ? obj.cat : "";
+      const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
+      const desc = typeof obj?.desc === "string" ? obj.desc : "";
+      const highlight = Boolean(obj?.highlight);
+      return { id, title, date, time, venue, img, path, cat, catColor, desc, highlight } satisfies EventsCalendarItem;
+    });
+
+    const nextMoments = momentsRaw.map((row) => {
+      const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+      const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : makeId();
+      const img = baseUrl(obj?.img);
+      const path =
+        typeof obj?.path === "string" && obj.path.trim().length > 0
+          ? obj.path.trim()
+          : `${EVENTS_FOLDER}/moments/${id}`;
+      const title = typeof obj?.title === "string" ? obj.title : "";
+      const year = typeof obj?.year === "string" ? obj.year : "";
+      const desc = typeof obj?.desc === "string" ? obj.desc : "";
+      return { id, img, path, title, year, desc } satisfies EventsMomentItem;
+    });
+
+    return { calendar: nextCalendar, moments: nextMoments };
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", EVENTS_PAGE_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const normalized = normalize(data?.value as unknown);
+      setServerCalendar(normalized.calendar);
+      setServerMoments(normalized.moments);
+      setCalendar(normalized.calendar);
+      setMoments(normalized.moments);
+
+      setPreviews((prev) => {
+        Object.values(prev).forEach((p) => {
+          if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return {};
+      });
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load events page" });
+    } finally {
+      setLoading(false);
+    }
+  }, [normalize]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const updateCalendar = (id: string, patch: Partial<EventsCalendarItem>) => {
+    setCalendar((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  };
+
+  const updateMoment = (id: string, patch: Partial<EventsMomentItem>) => {
+    setMoments((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  };
+
+  const addCalendarItem = () => {
+    const id = makeId();
+    setCalendar((prev) => [
+      ...prev,
+      {
+        id,
+        title: "",
+        date: "",
+        time: "",
+        venue: "",
+        img: "",
+        path: `${EVENTS_FOLDER}/calendar/${id}`,
+        cat: "",
+        catColor: "bg-school-green",
+        desc: "",
+        highlight: false,
+      },
+    ]);
+  };
+
+  const addMomentItem = () => {
+    const id = makeId();
+    setMoments((prev) => [
+      ...prev,
+      { id, img: "", path: `${EVENTS_FOLDER}/moments/${id}`, title: "", year: "", desc: "" },
+    ]);
+  };
+
+  const removeCalendarItem = (id: string) => {
+    setCalendar((prev) => prev.filter((e) => e.id !== id));
+    setNewFiles((prev) => {
+      const k = keyFor("calendar", id);
+      if (!prev[k]) return prev;
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+    setPreviews((prev) => {
+      const k = keyFor("calendar", id);
+      const url = prev[k];
+      if (!url) return prev;
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+  };
+
+  const removeMomentItem = (id: string) => {
+    setMoments((prev) => prev.filter((m) => m.id !== id));
+    setNewFiles((prev) => {
+      const k = keyFor("moments", id);
+      if (!prev[k]) return prev;
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+    setPreviews((prev) => {
+      const k = keyFor("moments", id);
+      const url = prev[k];
+      if (!url) return prev;
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+  };
+
+  const pickCalendarImage = (id: string, file: File | null) => {
+    setMessage(null);
+    const k = keyFor("calendar", id);
+    if (!file) {
+      setNewFiles((prev) => {
+        if (!prev[k]) return prev;
+        const next = { ...prev };
+        delete next[k];
+        return next;
+      });
+      setPreviews((prev) => {
+        const existing = prev[k];
+        if (!existing) return prev;
+        if (existing.startsWith("blob:")) URL.revokeObjectURL(existing);
+        const next = { ...prev };
+        delete next[k];
+        return next;
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) return;
+    const preview = URL.createObjectURL(file);
+    setNewFiles((prev) => ({ ...prev, [k]: file }));
+    setPreviews((prev) => {
+      const existing = prev[k];
+      if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
+      return { ...prev, [k]: preview };
+    });
+  };
+
+  const pickMomentImage = (id: string, file: File | null) => {
+    setMessage(null);
+    const k = keyFor("moments", id);
+    if (!file) {
+      setNewFiles((prev) => {
+        if (!prev[k]) return prev;
+        const next = { ...prev };
+        delete next[k];
+        return next;
+      });
+      setPreviews((prev) => {
+        const existing = prev[k];
+        if (!existing) return prev;
+        if (existing.startsWith("blob:")) URL.revokeObjectURL(existing);
+        const next = { ...prev };
+        delete next[k];
+        return next;
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) return;
+    const preview = URL.createObjectURL(file);
+    setNewFiles((prev) => ({ ...prev, [k]: file }));
+    setPreviews((prev) => {
+      const existing = prev[k];
+      if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
+      return { ...prev, [k]: preview };
+    });
+  };
+
+  const dirty = useMemo(() => {
+    if (Object.keys(newFiles).length > 0) return true;
+    const a = JSON.stringify({ calendar: serverCalendar, moments: serverMoments });
+    const b = JSON.stringify({ calendar, moments });
+    return a !== b;
+  }, [calendar, moments, newFiles, serverCalendar, serverMoments]);
+
+  const save = async () => {
+    if (!dirty) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const serverPaths = new Set(
+        [...serverCalendar.map((e) => e.path), ...serverMoments.map((m) => m.path)].filter((p) => p.trim().length > 0),
+      );
+      const nextPaths = new Set(
+        [...calendar.map((e) => e.path), ...moments.map((m) => m.path)].filter((p) => p.trim().length > 0),
+      );
+      const toRemove = Array.from(serverPaths).filter((p) => !nextPaths.has(p));
+      if (toRemove.length > 0) {
+        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
+      }
+
+      const nextCalendar: EventsCalendarItem[] = calendar.map((e) => ({
+        ...e,
+        title: e.title.trim(),
+        date: e.date.trim(),
+        time: e.time.trim(),
+        venue: e.venue.trim(),
+        img: e.img.trim(),
+        path: e.path.trim(),
+        cat: e.cat.trim(),
+        catColor: e.catColor.trim() || "bg-school-green",
+        desc: e.desc.trim(),
+      }));
+
+      const nextMoments: EventsMomentItem[] = moments.map((m) => ({
+        ...m,
+        title: m.title.trim(),
+        year: m.year.trim(),
+        desc: m.desc.trim(),
+        img: m.img.trim(),
+        path: m.path.trim(),
+      }));
+
+      for (let i = 0; i < nextCalendar.length; i += 1) {
+        const item = nextCalendar[i];
+        const file = newFiles[keyFor("calendar", item.id)];
+        if (!file) continue;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(item.path);
+        nextCalendar[i] = { ...item, img: data.publicUrl };
+      }
+
+      for (let i = 0; i < nextMoments.length; i += 1) {
+        const item = nextMoments[i];
+        const file = newFiles[keyFor("moments", item.id)];
+        if (!file) continue;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(item.path);
+        nextMoments[i] = { ...item, img: data.publicUrl };
+      }
+
+      const cleanedCalendar = nextCalendar.filter((e) => e.title.trim().length > 0);
+      const cleanedMoments = nextMoments.filter((m) => m.title.trim().length > 0);
+
+      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+        {
+          key: EVENTS_PAGE_KEY,
+          value: {
+            calendar: cleanedCalendar.map((e) => ({
+              id: e.id,
+              title: e.title,
+              date: e.date,
+              time: e.time,
+              venue: e.venue,
+              img: e.img,
+              path: e.path,
+              cat: e.cat,
+              catColor: e.catColor,
+              desc: e.desc,
+              highlight: e.highlight,
+            })),
+            moments: cleanedMoments.map((m) => ({
+              id: m.id,
+              img: m.img,
+              path: m.path,
+              title: m.title,
+              year: m.year,
+              desc: m.desc,
+            })),
+            version: Date.now(),
+          },
+        },
+        { onConflict: "key" },
+      );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+      setPreviews({});
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+      const normalized = normalize({ calendar: cleanedCalendar, moments: cleanedMoments });
+      setServerCalendar(normalized.calendar);
+      setServerMoments(normalized.moments);
+      setCalendar(normalized.calendar);
+      setMoments(normalized.moments);
+      setMessage({ type: "success", text: "Events updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save events" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const colorOptions: { label: string; value: string }[] = [
+    { label: "Green", value: "bg-school-green" },
+    { label: "Blue", value: "bg-school-blue" },
+    { label: "Teal", value: "bg-school-teal" },
+    { label: "Orange", value: "bg-school-orange" },
+    { label: "Purple", value: "bg-school-purple" },
+    { label: "Red", value: "bg-school-red" },
+    { label: "Dark", value: "bg-school-dark" },
+    { label: "Gold", value: "bg-school-gold" },
+  ];
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Events Page</div>
+          <div className="text-sm text-gray-500">Update Events Calendar 2026 and Memorable Moments.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="space-y-6">
+        <div className="border rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <div className="font-semibold">Events Calendar 2026</div>
+              <div className="text-xs text-gray-500">These events appear in the “Events Calendar 2026” section.</div>
+            </div>
+            <button
+              type="button"
+              onClick={addCalendarItem}
+              disabled={saving || loading}
+              className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+            >
+              Add Event
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            {calendar.map((event) => {
+              const preview = previews[keyFor("calendar", event.id)];
+              const src = preview || (event.img ? `${event.img}?v=${encodeURIComponent(String(displayVersion))}` : "");
+              return (
+                <div key={event.id} className="border rounded-2xl p-4">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="font-semibold">{event.title.trim() || "New Event"}</div>
+                    <button
+                      type="button"
+                      onClick={() => removeCalendarItem(event.id)}
+                      disabled={saving || loading}
+                      className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="grid lg:grid-cols-[220px_1fr] gap-4">
+                    <div className="border rounded-xl overflow-hidden bg-gray-50">
+                      <div className="relative h-40">
+                        {src ? (
+                          <Image
+                            src={src}
+                            alt={event.title || "Event image"}
+                            fill
+                            sizes="220px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <label className="inline-flex items-center gap-2 border px-3 py-2 rounded-lg text-xs hover:bg-gray-50 cursor-pointer">
+                          Upload Image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => pickCalendarImage(event.id, e.target.files?.item(0) ?? null)}
+                            className="hidden"
+                            disabled={saving || loading}
+                          />
+                        </label>
+                        <input
+                          value={event.img}
+                          onChange={(e) => updateCalendar(event.id, { img: e.target.value })}
+                          placeholder="Image URL (optional)"
+                          className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid lg:grid-cols-2 gap-3">
+                      <input
+                        value={event.title}
+                        onChange={(e) => updateCalendar(event.id, { title: e.target.value })}
+                        placeholder="Title"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                        disabled={saving || loading}
+                      />
+                      <input
+                        value={event.date}
+                        onChange={(e) => updateCalendar(event.id, { date: e.target.value })}
+                        placeholder="Date (e.g., March 21, 2026)"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      />
+                      <input
+                        value={event.time}
+                        onChange={(e) => updateCalendar(event.id, { time: e.target.value })}
+                        placeholder="Time (e.g., 9:00 AM – 3:00 PM)"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      />
+                      <input
+                        value={event.venue}
+                        onChange={(e) => updateCalendar(event.id, { venue: e.target.value })}
+                        placeholder="Venue"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                        disabled={saving || loading}
+                      />
+
+                      <input
+                        value={event.cat}
+                        onChange={(e) => updateCalendar(event.id, { cat: e.target.value })}
+                        placeholder="Category (e.g., Sports)"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      />
+                      <select
+                        value={event.catColor}
+                        onChange={(e) => updateCalendar(event.id, { catColor: e.target.value })}
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      >
+                        {colorOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <textarea
+                        value={event.desc}
+                        onChange={(e) => updateCalendar(event.id, { desc: e.target.value })}
+                        placeholder="Description"
+                        rows={4}
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                        disabled={saving || loading}
+                      />
+
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={event.highlight}
+                          onChange={(e) => updateCalendar(event.id, { highlight: e.target.checked })}
+                          disabled={saving || loading}
+                        />
+                        Featured
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {calendar.length === 0 ? <div className="text-sm text-gray-500">No events yet.</div> : null}
+          </div>
+        </div>
+
+        <div className="border rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <div className="font-semibold">Memorable Moments</div>
+              <div className="text-xs text-gray-500">These appear in the “Memorable Moments” section.</div>
+            </div>
+            <button
+              type="button"
+              onClick={addMomentItem}
+              disabled={saving || loading}
+              className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+            >
+              Add Moment
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            {moments.map((moment) => {
+              const preview = previews[keyFor("moments", moment.id)];
+              const src =
+                preview || (moment.img ? `${moment.img}?v=${encodeURIComponent(String(displayVersion))}` : "");
+              return (
+                <div key={moment.id} className="border rounded-2xl p-4">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="font-semibold">{moment.title.trim() || "New Moment"}</div>
+                    <button
+                      type="button"
+                      onClick={() => removeMomentItem(moment.id)}
+                      disabled={saving || loading}
+                      className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="grid lg:grid-cols-[220px_1fr] gap-4">
+                    <div className="border rounded-xl overflow-hidden bg-gray-50">
+                      <div className="relative h-40">
+                        {src ? (
+                          <Image
+                            src={src}
+                            alt={moment.title || "Moment image"}
+                            fill
+                            sizes="220px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <label className="inline-flex items-center gap-2 border px-3 py-2 rounded-lg text-xs hover:bg-gray-50 cursor-pointer">
+                          Upload Image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => pickMomentImage(moment.id, e.target.files?.item(0) ?? null)}
+                            className="hidden"
+                            disabled={saving || loading}
+                          />
+                        </label>
+                        <input
+                          value={moment.img}
+                          onChange={(e) => updateMoment(moment.id, { img: e.target.value })}
+                          placeholder="Image URL (optional)"
+                          className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid lg:grid-cols-2 gap-3">
+                      <input
+                        value={moment.title}
+                        onChange={(e) => updateMoment(moment.id, { title: e.target.value })}
+                        placeholder="Title"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                        disabled={saving || loading}
+                      />
+                      <input
+                        value={moment.year}
+                        onChange={(e) => updateMoment(moment.id, { year: e.target.value })}
+                        placeholder="Year / Month (e.g., 2025 or May 2024)"
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                        disabled={saving || loading}
+                      />
+                      <div />
+                      <textarea
+                        value={moment.desc}
+                        onChange={(e) => updateMoment(moment.id, { desc: e.target.value })}
+                        placeholder="Description"
+                        rows={4}
+                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                        disabled={saving || loading}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {moments.length === 0 ? <div className="text-sm text-gray-500">No moments yet.</div> : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type BlogFit = "cover" | "contain";
+type BlogItem = {
+  id: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  date: string;
+  cat: string;
+  img: string;
+  path: string;
+  featured: boolean;
+  readTime: string;
+  catColor: string;
+};
+
+function BlogsEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [serverFit, setServerFit] = useState<BlogFit>("cover");
+  const [fit, setFit] = useState<BlogFit>("cover");
+  const [serverItems, setServerItems] = useState<BlogItem[]>([]);
+  const [items, setItems] = useState<BlogItem[]>([]);
+
+  const [newFiles, setNewFiles] = useState<Record<string, File>>({});
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const makeId = () => {
+    const cryptoObj = globalThis.crypto as { randomUUID?: () => string } | undefined;
+    if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const baseUrl = (value: unknown) => {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return "";
+    return trimmed.split("?")[0] ?? "";
+  };
+
+  const normalize = useCallback((raw: unknown): { fit: BlogFit; items: BlogItem[] } => {
+    const nextFit: BlogFit =
+      typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+    const itemsRaw =
+      typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+        ? ((raw as { items: unknown[] }).items as unknown[])
+        : [];
+
+    const nextItems = itemsRaw.map((row) => {
+      const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+      const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : makeId();
+      const title = typeof obj?.title === "string" ? obj.title : "";
+      const excerpt = typeof obj?.excerpt === "string" ? obj.excerpt : "";
+      const author = typeof obj?.author === "string" ? obj.author : "";
+      const date = typeof obj?.date === "string" ? obj.date : "";
+      const cat = typeof obj?.cat === "string" ? obj.cat : "";
+      const img = baseUrl(obj?.img);
+      const path =
+        typeof obj?.path === "string" && obj.path.trim().length > 0 ? obj.path.trim() : `${BLOGS_FOLDER}/${id}`;
+      const featured = Boolean(obj?.featured);
+      const readTime = typeof obj?.readTime === "string" ? obj.readTime : "";
+      const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
+      return { id, title, excerpt, author, date, cat, img, path, featured, readTime, catColor } satisfies BlogItem;
+    });
+
+    const hasFeatured = nextItems.some((b) => b.featured);
+    const normalizedItems = hasFeatured
+      ? nextItems.map((b, i) => ({ ...b, featured: i === nextItems.findIndex((x) => x.featured) }))
+      : nextItems;
+
+    return { fit: nextFit, items: normalizedItems };
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", BLOGS_PAGE_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const normalized = normalize(data?.value as unknown);
+      setServerFit(normalized.fit);
+      setFit(normalized.fit);
+      setServerItems(normalized.items);
+      setItems(normalized.items);
+
+      setPreviews((prev) => {
+        Object.values(prev).forEach((p) => {
+          if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return {};
+      });
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load blogs page" });
+    } finally {
+      setLoading(false);
+    }
+  }, [normalize]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const addItem = () => {
+    const id = makeId();
+    setItems((prev) => [
+      ...prev,
+      {
+        id,
+        title: "",
+        excerpt: "",
+        author: "",
+        date: "",
+        cat: "",
+        img: "",
+        path: `${BLOGS_FOLDER}/${id}`,
+        featured: prev.length === 0,
+        readTime: "",
+        catColor: "bg-school-green",
+      },
+    ]);
+  };
+
+  const moveItem = (id: string, dir: -1 | 1) => {
+    setItems((prev) => {
+      const idx = prev.findIndex((x) => x.id === id);
+      if (idx < 0) return prev;
+      const nextIdx = idx + dir;
+      if (nextIdx < 0 || nextIdx >= prev.length) return prev;
+      const next = [...prev];
+      const tmp = next[idx];
+      next[idx] = next[nextIdx];
+      next[nextIdx] = tmp;
+      return next;
+    });
+  };
+
+  const removeItem = (id: string) => {
+    setItems((prev) => prev.filter((b) => b.id !== id));
+    setNewFiles((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setPreviews((prev) => {
+      const url = prev[id];
+      if (!url) return prev;
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const setFeatured = (id: string) => {
+    setItems((prev) => prev.map((b) => ({ ...b, featured: b.id === id })));
+  };
+
+  const updateItem = (id: string, patch: Partial<BlogItem>) => {
+    setItems((prev) =>
+      prev.map((b) => {
+        if (b.id !== id) return b;
+        const next = { ...b, ...patch };
+        return next;
+      }),
+    );
+
+    if (patch.featured) setFeatured(id);
+  };
+
+  const pickImage = (id: string, file: File | null) => {
+    setMessage(null);
+    if (!file) {
+      setNewFiles((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setPreviews((prev) => {
+        const existing = prev[id];
+        if (!existing) return prev;
+        if (existing.startsWith("blob:")) URL.revokeObjectURL(existing);
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) return;
+    const preview = URL.createObjectURL(file);
+    setNewFiles((prev) => ({ ...prev, [id]: file }));
+    setPreviews((prev) => {
+      const existing = prev[id];
+      if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
+      return { ...prev, [id]: preview };
+    });
+  };
+
+  const dirty = useMemo(() => {
+    if (fit !== serverFit) return true;
+    if (Object.keys(newFiles).length > 0) return true;
+    const a = JSON.stringify(serverItems);
+    const b = JSON.stringify(items);
+    return a !== b;
+  }, [fit, items, newFiles, serverFit, serverItems]);
+
+  const save = async () => {
+    if (!dirty) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const serverPaths = new Set(serverItems.map((b) => b.path).filter((p) => p.trim().length > 0));
+      const nextPaths = new Set(items.map((b) => b.path).filter((p) => p.trim().length > 0));
+      const toRemove = Array.from(serverPaths).filter((p) => !nextPaths.has(p));
+      if (toRemove.length > 0) {
+        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
+      }
+
+      const nextItems: BlogItem[] = items.map((b) => ({
+        ...b,
+        title: b.title.trim(),
+        excerpt: b.excerpt.trim(),
+        author: b.author.trim(),
+        date: b.date.trim(),
+        cat: b.cat.trim(),
+        img: b.img.trim(),
+        path: b.path.trim(),
+        readTime: b.readTime.trim(),
+        catColor: b.catColor.trim() || "bg-school-green",
+      }));
+
+      const featuredIndex = nextItems.findIndex((b) => b.featured);
+      const fixedFeatured =
+        featuredIndex >= 0 ? nextItems.map((b, i) => ({ ...b, featured: i === featuredIndex })) : nextItems;
+
+      for (let i = 0; i < fixedFeatured.length; i += 1) {
+        const item = fixedFeatured[i];
+        const file = newFiles[item.id];
+        if (!file) continue;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(item.path);
+        fixedFeatured[i] = { ...item, img: data.publicUrl };
+      }
+
+      const cleaned = fixedFeatured.filter((b) => b.title.trim().length > 0);
+
+      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+        {
+          key: BLOGS_PAGE_KEY,
+          value: {
+            items: cleaned.map((b) => ({
+              id: b.id,
+              title: b.title,
+              excerpt: b.excerpt,
+              author: b.author,
+              date: b.date,
+              cat: b.cat,
+              img: b.img,
+              path: b.path,
+              featured: b.featured,
+              readTime: b.readTime,
+              catColor: b.catColor,
+            })),
+            fit,
+            version: Date.now(),
+          },
+        },
+        { onConflict: "key" },
+      );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+      setPreviews({});
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+
+      const normalized = normalize({ items: cleaned, fit });
+      setServerFit(normalized.fit);
+      setFit(normalized.fit);
+      setServerItems(normalized.items);
+      setItems(normalized.items);
+      setMessage({ type: "success", text: "Blogs updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save blogs" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const colorOptions: { label: string; value: string }[] = [
+    { label: "Green", value: "bg-school-green" },
+    { label: "Blue", value: "bg-school-blue" },
+    { label: "Teal", value: "bg-school-teal" },
+    { label: "Orange", value: "bg-school-orange" },
+    { label: "Purple", value: "bg-school-purple" },
+    { label: "Red", value: "bg-school-red" },
+    { label: "Dark", value: "bg-school-dark" },
+    { label: "Gold", value: "bg-school-gold" },
+  ];
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">Blogs Page</div>
+          <div className="text-sm text-gray-500">Add blog sections and control image fit.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={addItem}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            Add Blog
+          </button>
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${
+              fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"
+            } disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${
+              fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"
+            } disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        {items.map((blog, idx) => {
+          const preview = previews[blog.id];
+          const src = preview || (blog.img ? `${blog.img}?v=${encodeURIComponent(String(displayVersion))}` : "");
+          return (
+            <div key={blog.id} className="border rounded-2xl p-4">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="font-semibold">{blog.title.trim() || "New Blog"}</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveItem(blog.id, -1)}
+                    disabled={saving || loading || idx === 0}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveItem(blog.id, 1)}
+                    disabled={saving || loading || idx === items.length - 1}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Down
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(blog.id)}
+                    disabled={saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid lg:grid-cols-[220px_1fr] gap-4">
+                <div className="border rounded-xl overflow-hidden bg-gray-50">
+                  <div className="relative h-40">
+                    {src ? (
+                      <Image
+                        src={src}
+                        alt={blog.title || "Blog image"}
+                        fill
+                        sizes="220px"
+                        className={fit === "contain" ? "object-contain" : "object-cover"}
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3 space-y-2">
+                    <label className="inline-flex items-center gap-2 border px-3 py-2 rounded-lg text-xs hover:bg-gray-50 cursor-pointer">
+                      Upload Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => pickImage(blog.id, e.target.files?.item(0) ?? null)}
+                        className="hidden"
+                        disabled={saving || loading}
+                      />
+                    </label>
+                    <input
+                      value={blog.img}
+                      onChange={(e) => updateItem(blog.id, { img: e.target.value })}
+                      placeholder="Image URL (optional)"
+                      className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid lg:grid-cols-2 gap-3">
+                  <input
+                    value={blog.title}
+                    onChange={(e) => updateItem(blog.id, { title: e.target.value })}
+                    placeholder="Title"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                    disabled={saving || loading}
+                  />
+                  <textarea
+                    value={blog.excerpt}
+                    onChange={(e) => updateItem(blog.id, { excerpt: e.target.value })}
+                    placeholder="Excerpt"
+                    rows={4}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
+                    disabled={saving || loading}
+                  />
+                  <input
+                    value={blog.author}
+                    onChange={(e) => updateItem(blog.id, { author: e.target.value })}
+                    placeholder="Author"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                  <input
+                    value={blog.date}
+                    onChange={(e) => updateItem(blog.id, { date: e.target.value })}
+                    placeholder="Date (e.g., January 15, 2026)"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                  <input
+                    value={blog.cat}
+                    onChange={(e) => updateItem(blog.id, { cat: e.target.value })}
+                    placeholder="Category (e.g., Education)"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                  <select
+                    value={blog.catColor}
+                    onChange={(e) => updateItem(blog.id, { catColor: e.target.value })}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  >
+                    {colorOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={blog.readTime}
+                    onChange={(e) => updateItem(blog.id, { readTime: e.target.value })}
+                    placeholder="Read Time (e.g., 5 min read)"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={blog.featured}
+                      onChange={(e) => updateItem(blog.id, { featured: e.target.checked })}
+                      disabled={saving || loading}
+                    />
+                    Featured
+                  </label>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {items.length === 0 ? <div className="text-sm text-gray-500">No blogs yet.</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [active, setActive] = useState<AdminSectionKey>("hero");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
+    setSigningOut(false);
+  };
+
+  const navItems = useMemo(
+    (): AdminNavItem[] => [
+      { key: "hero", label: "Hero Section", icon: Star },
+      { key: "about", label: "About", icon: Users },
+      { key: "programs", label: "Programs", icon: Award },
+      { key: "memories", label: "Memories", icon: Star },
+      { key: "life", label: "Life at School", icon: Users },
+      { key: "gallery", label: "Gallery", icon: ImageIcon },
+      { key: "events", label: "Events", icon: Calendar },
+      { key: "blogs", label: "Blogs", icon: BookOpen },
+    ],
+    [],
+  );
+
+  const activeItem = navItems.find((i) => i.key === active);
+
+  return (
+    <div className="grid lg:grid-cols-[280px_1fr] gap-6 min-h-screen p-6">
+      <AdminNav
+        userEmail={user?.email ?? undefined}
+        navItems={navItems}
+        active={active}
+        onSelect={(key) => {
+          setActive(key);
+          setMobileMenuOpen(false);
+        }}
+        onSignOut={handleSignOut}
+        signingOut={signingOut}
+      />
+
+      <div className="bg-white border rounded-3xl shadow-xl p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">{activeItem?.label || "Dashboard"}</h1>
+            <p className="text-gray-500 text-sm">Manage content for this section</p>
+          </div>
+
+          <button className="lg:hidden border px-3 py-2 rounded" onClick={() => setMobileMenuOpen(true)}>
+            Menu
+          </button>
+        </div>
+
+        <div className="mt-6">
+          {active === "hero" ? (
+            <div className="space-y-6">
+              <HeroImagesEditor />
+              <HomeNotificationsEditor />
+            </div>
+          ) : active === "about" ? (
+            <AboutEditor />
+          ) : active === "programs" ? (
+            <ProgramsActivitiesEditor />
+          ) : active === "memories" ? (
+            <MemoriesEditor />
+          ) : active === "life" ? (
+            <LifeEditor />
+          ) : active === "gallery" ? (
+            <GalleryEditor />
+          ) : active === "events" ? (
+            <EventsEditor />
+          ) : active === "blogs" ? (
+            <BlogsEditor />
+          ) : (
+            <div className="p-6 border rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText size={18} />
+                <div className="font-bold">Editor</div>
+              </div>
+              <p className="text-sm text-gray-500">Select a section and connect it with Supabase CRUD operations.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 lg:hidden">
+          <div className="absolute left-4 right-4 top-4 bottom-4">
+            <AdminNav
+              mobile
+              userEmail={user?.email ?? undefined}
+              navItems={navItems}
+              active={active}
+              onSelect={(key) => {
+                setActive(key);
+                setMobileMenuOpen(false);
+              }}
+              onSignOut={handleSignOut}
+              signingOut={signingOut}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
