@@ -1,17 +1,51 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { Session } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
+import { isAdminUser } from "@/features/admin/auth/adminAuth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 type GateState = { status: "checking" } | { status: "allowed"; session: Session } | { status: "blocked" };
+
+let adminAuthorizationCache: { userId: string; authorized: boolean } | null = null;
+let adminAuthorizationInFlight: { userId: string; promise: Promise<boolean> } | null = null;
+
+async function getAdminAuthorization(
+  supabase: ReturnType<typeof getSupabaseBrowserClient>,
+  user: User,
+): Promise<boolean> {
+  if (adminAuthorizationCache?.userId === user.id) return adminAuthorizationCache.authorized;
+  if (adminAuthorizationInFlight?.userId === user.id) return adminAuthorizationInFlight.promise;
+
+  const promise = (async () => {
+    if (isAdminUser(user)) return true;
+
+    const { data: profile, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (error) return false;
+    return profile?.role === "admin";
+  })()
+    .then((authorized) => {
+      adminAuthorizationCache = { userId: user.id, authorized };
+      if (adminAuthorizationInFlight?.userId === user.id) adminAuthorizationInFlight = null;
+      return authorized;
+    })
+    .catch(() => {
+      adminAuthorizationCache = { userId: user.id, authorized: false };
+      if (adminAuthorizationInFlight?.userId === user.id) adminAuthorizationInFlight = null;
+      return false;
+    });
+
+  adminAuthorizationInFlight = { userId: user.id, promise };
+  return promise;
+}
 
 export default function AdminGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [state, setState] = useState<GateState>({ status: "checking" });
+  const checkSeq = useRef(0);
 
   const isLoginRoute = useMemo(() => pathname === "/admin/login", [pathname]);
 
@@ -19,40 +53,38 @@ export default function AdminGate({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient();
     let cancelled = false;
 
-    const isAdmin = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    const check = async (sessionOverride?: Session | null) => {
+      const seq = ++checkSeq.current;
 
-      if (!user) return false;
+      const { data, error } =
+        sessionOverride === undefined ? await supabase.auth.getSession() : { data: null, error: null };
+      const session = sessionOverride === undefined ? (data?.session ?? null) : sessionOverride;
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) return false;
-      return profile?.role === "admin";
-    };
-
-    const check = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      const session = data.session ?? null;
-
-      if (cancelled) return;
+      if (cancelled || seq !== checkSeq.current) return;
 
       if (error || !session) {
+        adminAuthorizationCache = null;
+        adminAuthorizationInFlight = null;
         setState({ status: "blocked" });
         if (!isLoginRoute) router.replace("/admin/login");
         return;
       }
 
-      const authorized = await isAdmin();
+      if (adminAuthorizationCache?.userId !== session.user.id) {
+        adminAuthorizationCache = null;
+        adminAuthorizationInFlight = null;
+      }
+
+      const authorized = await getAdminAuthorization(supabase, session.user);
+
+      if (cancelled || seq !== checkSeq.current) return;
 
       if (!authorized) {
         await supabase.auth.signOut();
+        if (cancelled || seq !== checkSeq.current) return;
 
+        adminAuthorizationCache = null;
+        adminAuthorizationInFlight = null;
         setState({ status: "blocked" });
         if (!isLoginRoute) router.replace("/admin/login");
         return;
@@ -62,10 +94,12 @@ export default function AdminGate({ children }: { children: ReactNode }) {
       if (isLoginRoute) router.replace("/admin");
     };
 
-    check();
+    supabase.auth.getSession().then(({ data }) => {
+      check(data.session ?? null);
+    });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      check();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      check(session ?? null);
     });
 
     return () => {

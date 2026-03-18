@@ -27,7 +27,7 @@ export default function AdminLoginPage() {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -37,9 +37,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = data.user ?? null;
 
       if (!user) {
         await supabase.auth.signOut();
@@ -91,10 +89,13 @@ export default function AdminLoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="px-8 py-8">
-          <label className="block text-sm text-gray-700 mb-2">Email</label>
+          <label htmlFor="admin-email" className="block text-sm text-gray-700 mb-2">
+            Email
+          </label>
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-5 focus-within:border-school-green/60">
             <Mail size={18} className="text-school-green" />
             <input
+              id="admin-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -105,10 +106,13 @@ export default function AdminLoginPage() {
             />
           </div>
 
-          <label className="block text-sm text-gray-700 mb-2">Password</label>
+          <label htmlFor="admin-password" className="block text-sm text-gray-700 mb-2">
+            Password
+          </label>
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6 focus-within:border-school-green/60">
             <Lock size={18} className="text-school-gold" />
             <input
+              id="admin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

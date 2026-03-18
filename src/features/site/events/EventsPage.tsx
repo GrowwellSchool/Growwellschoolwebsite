@@ -23,6 +23,7 @@ type UpcomingEvent = {
 };
 
 type PastHighlight = { id: string; img: string; title: string; year: string; desc: string };
+type EventsFit = "cover" | "contain";
 
 function PageHero() {
   return (
@@ -47,7 +48,7 @@ function PageHero() {
   );
 }
 
-function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }) {
+function UpcomingSection({ upcomingEvents, fit }: { upcomingEvents: UpcomingEvent[]; fit: EventsFit }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
 
@@ -71,14 +72,34 @@ function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }
               transition={{ duration: 0.6 }}
               className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8 grid lg:grid-cols-2"
             >
-              <div className="img-zoom h-64 lg:h-auto relative">
-                <Image
-                  src={event.img}
-                  alt={event.title}
-                  fill
-                  sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-cover"
-                />
+              <div className="img-zoom h-64 lg:h-auto relative bg-school-dark">
+                {fit === "contain" ? (
+                  <>
+                    <Image
+                      src={event.img}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      className="object-cover scale-110 blur-2xl"
+                      aria-hidden
+                    />
+                    <Image
+                      src={event.img}
+                      alt={event.title}
+                      fill
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      className="object-contain"
+                    />
+                  </>
+                ) : (
+                  <Image
+                    src={event.img}
+                    alt={event.title}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
+                  />
+                )}
               </div>
               <div className="p-8 lg:p-10 flex flex-col justify-center">
                 <div className="flex gap-3 mb-4">
@@ -91,8 +112,10 @@ function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }
                     Featured
                   </span>
                 </div>
-                <h3 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-3">{event.title}</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">{event.desc}</p>
+                <h3 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-3">
+                  <Link href={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
+                </h3>
+                <p className="text-gray-600 leading-relaxed mb-6 line-clamp-4">{event.desc}</p>
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center gap-3 text-gray-600 text-sm">
                     <Calendar size={16} className="text-school-green" /> {event.date}
@@ -104,9 +127,14 @@ function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }
                     <MapPin size={16} className="text-school-green" /> {event.venue}
                   </div>
                 </div>
-                <Link href="/contact" className="btn-primary self-start">
-                  Register / Enquire <ArrowRight size={16} />
-                </Link>
+                <div className="flex flex-wrap gap-3">
+                  <Link href={`/events/${encodeURIComponent(event.id)}`} className="btn-secondary self-start">
+                    View Details <ArrowRight size={16} />
+                  </Link>
+                  <Link href="/contact" className="btn-primary self-start">
+                    Register / Enquire <ArrowRight size={16} />
+                  </Link>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -122,14 +150,35 @@ function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }
                 transition={{ delay: i * 0.1, duration: 0.5 }}
                 className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
               >
-                <div className="img-zoom h-48 relative">
-                  <Image
-                    src={event.img}
-                    alt={event.title}
-                    fill
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className="object-cover"
-                  />
+                <div className="img-zoom h-48 relative bg-school-dark">
+                  {fit === "contain" ? (
+                    <>
+                      <Image
+                        src={event.img}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover scale-110 blur-2xl"
+                        aria-hidden
+                      />
+                      <div className="absolute inset-0 bg-school-dark/10" />
+                      <Image
+                        src={event.img}
+                        alt={event.title}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-contain"
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={event.img}
+                      alt={event.title}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  )}
                 </div>
                 <div className="p-5">
                   <span
@@ -137,8 +186,16 @@ function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }
                   >
                     {event.cat}
                   </span>
-                  <h3 className="font-heading font-bold text-gray-800 text-lg mt-3 mb-2">{event.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-4">{event.desc}</p>
+                  <h3 className="font-heading font-bold text-gray-800 text-lg mt-3 mb-2">
+                    <Link href={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
+                  </h3>
+                  <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-4">{event.desc}</p>
+                  <Link
+                    href={`/events/${encodeURIComponent(event.id)}`}
+                    className="inline-flex items-center gap-2 text-school-green font-heading font-bold text-sm"
+                  >
+                    View Details <ArrowRight size={16} />
+                  </Link>
                   <div className="space-y-1.5 border-t border-gray-100 pt-4">
                     <div className="flex items-center gap-2 text-gray-500 text-xs">
                       <Calendar size={13} className="text-school-green" /> {event.date}
@@ -156,7 +213,7 @@ function UpcomingSection({ upcomingEvents }: { upcomingEvents: UpcomingEvent[] }
   );
 }
 
-function PastHighlightsSection({ pastHighlights }: { pastHighlights: PastHighlight[] }) {
+function PastHighlightsSection({ pastHighlights, fit }: { pastHighlights: PastHighlight[]; fit: EventsFit }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
   return (
@@ -178,19 +235,47 @@ function PastHighlightsSection({ pastHighlights }: { pastHighlights: PastHighlig
               transition={{ delay: i * 0.1, duration: 0.4 }}
               className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden card-hover group"
             >
-              <div className="img-zoom h-44 relative">
-                <Image
-                  src={item.img}
-                  alt={item.title}
-                  fill
-                  sizes="(min-width: 1024px) 25vw, 50vw"
-                  className="object-cover"
-                />
+              <div className="img-zoom h-44 relative bg-school-dark">
+                {fit === "contain" ? (
+                  <>
+                    <Image
+                      src={item.img}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 25vw, 50vw"
+                      className="object-cover scale-110 blur-2xl"
+                      aria-hidden
+                    />
+                    <Image
+                      src={item.img}
+                      alt={item.title}
+                      fill
+                      sizes="(min-width: 1024px) 25vw, 50vw"
+                      className="object-contain"
+                    />
+                  </>
+                ) : (
+                  <Image
+                    src={item.img}
+                    alt={item.title}
+                    fill
+                    sizes="(min-width: 1024px) 25vw, 50vw"
+                    className="object-cover"
+                  />
+                )}
               </div>
               <div className="p-4">
                 <div className="text-school-gold text-xs font-bold mb-1">{item.year}</div>
-                <h3 className="font-heading font-bold text-white text-sm mb-1">{item.title}</h3>
-                <p className="text-gray-400 text-xs leading-relaxed">{item.desc}</p>
+                <h3 className="font-heading font-bold text-white text-sm mb-1">
+                  <Link href={`/events/${encodeURIComponent(item.id)}`}>{item.title}</Link>
+                </h3>
+                <p className="text-gray-400 text-xs leading-relaxed line-clamp-4">{item.desc}</p>
+                <Link
+                  href={`/events/${encodeURIComponent(item.id)}`}
+                  className="inline-flex items-center gap-2 text-school-gold font-heading font-bold text-xs mt-3"
+                >
+                  View Details <ArrowRight size={14} />
+                </Link>
               </div>
             </motion.div>
           ))}
@@ -203,6 +288,7 @@ function PastHighlightsSection({ pastHighlights }: { pastHighlights: PastHighlig
 export default function EventsPage() {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [pastHighlights, setPastHighlights] = useState<PastHighlight[]>([]);
+  const [fit, setFit] = useState<EventsFit>("cover");
 
   const addVersion = useMemo(() => {
     return (url: string, version: string) => {
@@ -225,6 +311,8 @@ export default function EventsPage() {
           : typeof versionFromRow === "string" || typeof versionFromRow === "number"
             ? String(versionFromRow)
             : String(Date.now());
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
 
       const calendarRaw =
         typeof raw === "object" && raw && Array.isArray((raw as { calendar?: unknown }).calendar)
@@ -277,6 +365,7 @@ export default function EventsPage() {
       if (cancelled) return;
       setUpcomingEvents(nextUpcoming);
       setPastHighlights(nextMoments);
+      setFit(loadedFit);
     };
 
     const load = async () => {
@@ -326,8 +415,8 @@ export default function EventsPage() {
   return (
     <>
       <PageHero />
-      <UpcomingSection upcomingEvents={upcomingEvents} />
-      <PastHighlightsSection pastHighlights={pastHighlights} />
+      <UpcomingSection upcomingEvents={upcomingEvents} fit={fit} />
+      <PastHighlightsSection pastHighlights={pastHighlights} fit={fit} />
     </>
   );
 }

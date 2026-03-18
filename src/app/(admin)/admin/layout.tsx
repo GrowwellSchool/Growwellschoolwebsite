@@ -34,8 +34,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     };
 
     sync();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      sync();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setIsAuthed(Boolean(session));
     });
 
     return () => {

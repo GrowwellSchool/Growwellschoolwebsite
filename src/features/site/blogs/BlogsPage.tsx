@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { Calendar, User, ArrowRight, BookOpen, Tag } from "lucide-react";
@@ -180,14 +181,35 @@ export default function BlogsPage() {
               animate={inView ? { opacity: 1, y: 0 } : {}}
               className="grid lg:grid-cols-2 bg-school-dark rounded-3xl overflow-hidden shadow-2xl mb-16 group"
             >
-              <div className="img-zoom h-64 lg:h-auto min-h-[300px] relative">
-                <Image
-                  src={featured.img}
-                  alt={featured.title}
-                  fill
-                  sizes="(min-width: 1024px) 50vw, 100vw"
-                  className={fit === "contain" ? "object-contain" : "object-cover"}
-                />
+              <div className="img-zoom h-64 lg:h-auto min-h-[300px] relative bg-school-dark">
+                {fit === "contain" ? (
+                  <>
+                    <Image
+                      src={featured.img}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      className="object-cover scale-110 blur-2xl"
+                      aria-hidden
+                    />
+                    <Image
+                      src={featured.img}
+                      alt={featured.title}
+                      fill
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      className="object-contain"
+                    />
+                    <div className="absolute inset-0 bg-school-dark/60" />
+                  </>
+                ) : (
+                  <Image
+                    src={featured.img}
+                    alt={featured.title}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
+                  />
+                )}
               </div>
               <div className="p-8 lg:p-12 flex flex-col justify-center">
                 <div className="flex gap-2 mb-4">
@@ -203,7 +225,7 @@ export default function BlogsPage() {
                 <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-4 leading-tight">
                   {featured.title}
                 </h2>
-                <p className="text-gray-400 leading-relaxed mb-6 text-sm">{featured.excerpt}</p>
+                <p className="text-gray-400 leading-relaxed mb-6 text-sm line-clamp-6">{featured.excerpt}</p>
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-6">
                   <span className="flex items-center gap-1.5">
                     <User size={13} className="text-school-gold" />
@@ -218,9 +240,9 @@ export default function BlogsPage() {
                     {featured.readTime}
                   </span>
                 </div>
-                <button className="btn-secondary self-start text-sm">
+                <Link href={`/blogs/${encodeURIComponent(featured.id)}`} className="btn-secondary self-start text-sm">
                   Read Full Article <ArrowRight size={16} />
-                </button>
+                </Link>
               </div>
             </motion.div>
           )}
@@ -249,13 +271,34 @@ export default function BlogsPage() {
                 className="bg-white border border-gray-100 rounded-2xl overflow-hidden card-hover shadow-sm group"
               >
                 <div className="img-zoom h-48 relative">
-                  <Image
-                    src={blog.img}
-                    alt={blog.title}
-                    fill
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className={fit === "contain" ? "object-contain" : "object-cover"}
-                  />
+                  {fit === "contain" ? (
+                    <>
+                      <Image
+                        src={blog.img}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover scale-110 blur-2xl"
+                        aria-hidden
+                      />
+                      <Image
+                        src={blog.img}
+                        alt={blog.title}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-contain"
+                      />
+                      <div className="absolute inset-0 bg-school-dark/10" />
+                    </>
+                  ) : (
+                    <Image
+                      src={blog.img}
+                      alt={blog.title}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  )}
                   <span
                     className={`absolute top-3 left-3 ${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
                   >
@@ -267,7 +310,7 @@ export default function BlogsPage() {
                 </div>
                 <div className="p-6">
                   <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">
-                    {blog.title}
+                    <Link href={`/blogs/${encodeURIComponent(blog.id)}`}>{blog.title}</Link>
                   </h3>
                   <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-3">{blog.excerpt}</p>
                   <div className="flex items-center justify-between border-t border-gray-100 pt-4">
@@ -275,12 +318,13 @@ export default function BlogsPage() {
                       <div className="font-medium text-gray-600">{blog.author}</div>
                       <div>{blog.date}</div>
                     </div>
-                    <button
+                    <Link
+                      href={`/blogs/${encodeURIComponent(blog.id)}`}
                       className="text-school-green hover:text-school-dark transition-colors"
                       aria-label="Read article"
                     >
                       <ArrowRight size={18} />
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </motion.article>
@@ -293,26 +337,6 @@ export default function BlogsPage() {
               <p>No articles found in this category yet.</p>
             </div>
           )}
-        </div>
-      </section>
-
-      <section className="py-16 bg-school-green pattern-dots">
-        <div className="max-w-2xl mx-auto px-4 text-center">
-          <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-3">Stay Updated</h2>
-          <p className="text-green-100 mb-6">
-            Get the latest news, event updates and educational insights delivered to your inbox.
-          </p>
-          <div className="flex gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Your email address"
-              aria-label="Email address"
-              className="flex-1 px-4 py-3 rounded-lg text-gray-800 font-medium outline-none focus:ring-2 focus:ring-school-gold"
-            />
-            <button className="btn-secondary px-5" aria-label="Subscribe">
-              Subscribe
-            </button>
-          </div>
         </div>
       </section>
     </>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Award,
@@ -18,7 +18,17 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-type AdminSectionKey = "hero" | "about" | "programs" | "memories" | "life" | "gallery" | "events" | "blogs";
+type AdminSectionKey =
+  | "hero"
+  | "about"
+  | "programs"
+  | "memories"
+  | "desk"
+  | "news"
+  | "life"
+  | "gallery"
+  | "events"
+  | "blogs";
 
 type AdminNavItem = {
   key: AdminSectionKey;
@@ -26,11 +36,39 @@ type AdminNavItem = {
   icon: LucideIcon;
 };
 
+const ADMIN_ACTIVE_SECTION_KEY = "admin.activeSection";
+const ADMIN_SECTIONS: AdminSectionKey[] = [
+  "hero",
+  "about",
+  "programs",
+  "memories",
+  "desk",
+  "news",
+  "life",
+  "gallery",
+  "events",
+  "blogs",
+];
+
+const capitalizeFirstLetter = (value: string) => {
+  const chars = [...value];
+  for (let i = 0; i < chars.length; i += 1) {
+    const ch = chars[i];
+    if (/[A-Za-z]/.test(ch)) {
+      chars[i] = ch.toUpperCase();
+      break;
+    }
+  }
+  return chars.join("");
+};
+
 const HOME_HERO_IMAGES_KEY = "home.heroImages";
 const HOME_NOTIFICATIONS_KEY = "home.notifications";
 const HOME_PROGRAMS_KEY = "home.programs";
 const HOME_ABOUT_KEY = "home.about";
 const HOME_MEMORIES_KEY = "home.memories";
+const HOME_DESK_KEY = "home.desk";
+const HOME_NEWS_KEY = "home.news";
 const HOME_LIFE_KEY = "home.life";
 const GALLERY_PAGE_KEY = "gallery.page";
 const EVENTS_PAGE_KEY = "events.page";
@@ -41,11 +79,84 @@ const HERO_FOLDER = "home/hero";
 const PROGRAMS_FOLDER = "home/programs";
 const ABOUT_FOLDER = "home/about";
 const MEMORIES_FOLDER = "home/memories";
+const DESK_FOLDER = "home/desk";
+const NEWS_FOLDER = "home/news";
 const LIFE_FOLDER = "home/life";
 const GALLERY_FOLDER = "gallery/sections";
 const EVENTS_FOLDER = "events";
 const BLOGS_FOLDER = "blogs";
 type HeroImageFit = "cover" | "contain";
+
+function SingleImageDropzone({ disabled, onPick }: { disabled: boolean; onPick: (file: File | null) => void }) {
+  const [dragOver, setDragOver] = useState(false);
+
+  return (
+    <label
+      className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none ${
+        dragOver ? "border-school-green bg-school-green/5" : "border-gray-200 hover:border-school-green/60"
+      } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        onPick(e.dataTransfer.files?.[0] ?? null);
+      }}
+    >
+      <div className="font-semibold text-gray-800">Drag & drop an image here</div>
+      <div className="text-xs text-gray-500 mt-1">or click to upload</div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+        className="hidden"
+        disabled={disabled}
+      />
+    </label>
+  );
+}
+
+function MultiImageDropzone({
+  disabled,
+  onPickFiles,
+}: {
+  disabled: boolean;
+  onPickFiles: (files: FileList | null) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+
+  return (
+    <label
+      className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none ${
+        dragOver ? "border-school-green bg-school-green/5" : "border-gray-200 hover:border-school-green/60"
+      } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        onPickFiles(e.dataTransfer.files ?? null);
+      }}
+    >
+      <div className="font-semibold text-gray-800">Drag & drop images here</div>
+      <div className="text-xs text-gray-500 mt-1">or click to upload multiple</div>
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={(e) => onPickFiles(e.target.files)}
+        className="hidden"
+        disabled={disabled}
+      />
+    </label>
+  );
+}
 
 function AdminNav({
   mobile = false,
@@ -566,14 +677,20 @@ function HomeNotificationsEditor() {
         </div>
       ) : null}
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={8}
-        placeholder="Type notifications here..."
-        className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-        disabled={loading || saving}
-      />
+      <div className="space-y-2">
+        <label htmlFor="admin-notifications" className="block text-sm font-semibold text-gray-700">
+          Notifications (one per line)
+        </label>
+        <textarea
+          id="admin-notifications"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={8}
+          placeholder="Type notifications here..."
+          className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+          disabled={loading || saving}
+        />
+      </div>
     </div>
   );
 }
@@ -958,10 +1075,13 @@ function AboutEditor() {
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="space-y-3">
-          <div className="text-sm font-semibold text-gray-700">Details</div>
+          <label htmlFor="about-details" className="block text-sm font-semibold text-gray-700">
+            Details
+          </label>
           <textarea
+            id="about-details"
             value={details}
-            onChange={(e) => setDetails(e.target.value)}
+            onChange={(e) => setDetails(capitalizeFirstLetter(e.target.value))}
             rows={8}
             className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
             disabled={saving || loading}
@@ -970,20 +1090,26 @@ function AboutEditor() {
 
         <div className="space-y-4">
           <div className="space-y-3">
-            <div className="text-sm font-semibold text-gray-700">Mission</div>
+            <label htmlFor="about-mission" className="block text-sm font-semibold text-gray-700">
+              Mission
+            </label>
             <textarea
+              id="about-mission"
               value={mission}
-              onChange={(e) => setMission(e.target.value)}
+              onChange={(e) => setMission(capitalizeFirstLetter(e.target.value))}
               rows={4}
               className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
               disabled={saving || loading}
             />
           </div>
           <div className="space-y-3">
-            <div className="text-sm font-semibold text-gray-700">Vision</div>
+            <label htmlFor="about-vision" className="block text-sm font-semibold text-gray-700">
+              Vision
+            </label>
             <textarea
+              id="about-vision"
               value={vision}
-              onChange={(e) => setVision(e.target.value)}
+              onChange={(e) => setVision(capitalizeFirstLetter(e.target.value))}
               rows={4}
               className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
               disabled={saving || loading}
@@ -1140,9 +1266,12 @@ function ProgramsActivitiesEditor() {
   };
 
   const updateItem = (index: number, patch: Partial<ProgramItem>) => {
+    const nextPatch: Partial<ProgramItem> = { ...patch };
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.details === "string") nextPatch.details = capitalizeFirstLetter(nextPatch.details);
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], ...patch };
+      next[index] = { ...next[index], ...nextPatch };
       return next;
     });
   };
@@ -1291,6 +1420,8 @@ function ProgramsActivitiesEditor() {
         {items.map((it, i) => {
           const src = previews[i] || (it.image ? `${it.image.split("?")[0]}?v=${displayVersion}` : "");
           const hasAny = Boolean(files[i] || previews[i] || it.image);
+          const titleId = `admin-program-${i}-title`;
+          const detailsId = `admin-program-${i}-details`;
           return (
             <div key={i} className="border rounded-2xl overflow-hidden">
               <div className="relative aspect-[16/10] bg-gray-100">
@@ -1356,22 +1487,34 @@ function ProgramsActivitiesEditor() {
                   </button>
                 </div>
 
-                <input
-                  value={it.title}
-                  onChange={(e) => updateItem(i, { title: e.target.value })}
-                  placeholder="Title"
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
+                <div className="space-y-1">
+                  <label htmlFor={titleId} className="block text-xs font-semibold text-gray-700">
+                    Title
+                  </label>
+                  <input
+                    id={titleId}
+                    value={it.title}
+                    onChange={(e) => updateItem(i, { title: e.target.value })}
+                    placeholder="Title"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
 
-                <textarea
-                  value={it.details}
-                  onChange={(e) => updateItem(i, { details: e.target.value })}
-                  placeholder="Details"
-                  rows={3}
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
+                <div className="space-y-1">
+                  <label htmlFor={detailsId} className="block text-xs font-semibold text-gray-700">
+                    Details
+                  </label>
+                  <textarea
+                    id={detailsId}
+                    value={it.details}
+                    onChange={(e) => updateItem(i, { details: e.target.value })}
+                    placeholder="Details"
+                    rows={3}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -1530,9 +1673,14 @@ function MemoriesEditor() {
     });
 
   const updateItem = (index: number, patch: Partial<MemoriesItem>) => {
+    const nextPatch: Partial<MemoriesItem> = { ...patch };
+    if (typeof nextPatch.common === "string") nextPatch.common = capitalizeFirstLetter(nextPatch.common);
+    if (typeof nextPatch.binomial === "string") nextPatch.binomial = capitalizeFirstLetter(nextPatch.binomial);
+    if (typeof nextPatch.text === "string") nextPatch.text = capitalizeFirstLetter(nextPatch.text);
+    if (typeof nextPatch.by === "string") nextPatch.by = capitalizeFirstLetter(nextPatch.by);
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], ...patch };
+      next[index] = { ...next[index], ...nextPatch };
       return next;
     });
   };
@@ -1587,7 +1735,7 @@ function MemoriesEditor() {
         binomial: it.binomial.trim(),
         url: it.url.trim(),
         text: it.text.trim(),
-        pos: it.pos.trim(),
+        pos: "50% 50%",
         by: it.by.trim(),
       }));
 
@@ -1734,6 +1882,11 @@ function MemoriesEditor() {
           const base = previews[i] || it.url;
           const src = base ? (base.startsWith("blob:") ? base : `${base.split("?")[0]}?v=${displayVersion}`) : "";
           const hasAny = Boolean(files[i] || previews[i] || it.url);
+          const titleId = `admin-memories-${i}-title`;
+          const subtitleId = `admin-memories-${i}-subtitle`;
+          const textId = `admin-memories-${i}-text`;
+          const byId = `admin-memories-${i}-by`;
+          const posId = `admin-memories-${i}-pos`;
 
           return (
             <div key={i} className="border rounded-2xl overflow-hidden">
@@ -1803,42 +1956,72 @@ function MemoriesEditor() {
                   </button>
                 </div>
 
-                <input
-                  value={it.common}
-                  onChange={(e) => updateItem(i, { common: e.target.value })}
-                  placeholder="Title"
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
-                <input
-                  value={it.binomial}
-                  onChange={(e) => updateItem(i, { binomial: e.target.value })}
-                  placeholder="Subtitle"
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
-                <textarea
-                  value={it.text}
-                  onChange={(e) => updateItem(i, { text: e.target.value })}
-                  placeholder="Text"
-                  rows={2}
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
-                <input
-                  value={it.by}
-                  onChange={(e) => updateItem(i, { by: e.target.value })}
-                  placeholder="Photo by"
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
-                <input
-                  value={it.pos}
-                  onChange={(e) => updateItem(i, { pos: e.target.value })}
-                  placeholder="Object Position (e.g. 50% 50%)"
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
+                <div className="space-y-1">
+                  <label htmlFor={titleId} className="block text-xs font-semibold text-gray-700">
+                    Title
+                  </label>
+                  <input
+                    id={titleId}
+                    value={it.common}
+                    onChange={(e) => updateItem(i, { common: e.target.value })}
+                    placeholder="Title"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor={subtitleId} className="block text-xs font-semibold text-gray-700">
+                    Subtitle
+                  </label>
+                  <input
+                    id={subtitleId}
+                    value={it.binomial}
+                    onChange={(e) => updateItem(i, { binomial: e.target.value })}
+                    placeholder="Subtitle"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor={textId} className="block text-xs font-semibold text-gray-700">
+                    Text
+                  </label>
+                  <textarea
+                    id={textId}
+                    value={it.text}
+                    onChange={(e) => updateItem(i, { text: e.target.value })}
+                    placeholder="Text"
+                    rows={2}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor={byId} className="block text-xs font-semibold text-gray-700">
+                    Photo by
+                  </label>
+                  <input
+                    id={byId}
+                    value={it.by}
+                    onChange={(e) => updateItem(i, { by: e.target.value })}
+                    placeholder="Photo by"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor={posId} className="block text-xs font-semibold text-gray-700">
+                    Object position
+                  </label>
+                  <input
+                    id={posId}
+                    value="50% 50%"
+                    readOnly
+                    placeholder="Object Position (e.g. 50% 50%)"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -1850,6 +2033,564 @@ function MemoriesEditor() {
 
 type LifeFit = "cover" | "contain";
 type LifeItem = { label: string; url: string };
+
+type NewsItem = {
+  id: string;
+  tag: string;
+  date: string;
+  title: string;
+  desc: string;
+  href: string;
+  image: string;
+  path: string;
+};
+
+type NewsFit = "cover" | "contain";
+
+function HomeNewsEditor() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [serverItems, setServerItems] = useState<NewsItem[]>([]);
+  const [items, setItems] = useState<NewsItem[]>([]);
+  const [fit, setFit] = useState<NewsFit>("cover");
+  const [serverFit, setServerFit] = useState<NewsFit>("cover");
+
+  const [newFiles, setNewFiles] = useState<Record<string, File>>({});
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+    };
+  }, [previews]);
+
+  const normalize = useCallback((raw: unknown): NewsItem[] => {
+    const candidate =
+      typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+        ? ((raw as { items: unknown[] }).items as unknown[])
+        : Array.isArray(raw)
+          ? raw
+          : [];
+
+    return candidate
+      .map((row, idx) => {
+        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+        const id =
+          typeof obj?.id === "string"
+            ? obj.id.trim()
+            : typeof obj?.id === "number"
+              ? String(obj.id)
+              : `news-${idx + 1}`;
+        const tag = typeof obj?.tag === "string" ? obj.tag.trim() : "";
+        const date = typeof obj?.date === "string" ? obj.date.trim() : "";
+        const title = typeof obj?.title === "string" ? obj.title.trim() : "";
+        const desc =
+          typeof obj?.desc === "string"
+            ? obj.desc.trim()
+            : typeof obj?.summary === "string"
+              ? obj.summary.trim()
+              : typeof obj?.details === "string"
+                ? obj.details.trim()
+                : "";
+        const detailHref = `/news/${encodeURIComponent(id)}`;
+        const rawHref =
+          typeof obj?.href === "string" && obj.href.trim().length > 0
+            ? obj.href.trim()
+            : typeof obj?.url === "string" && obj.url.trim().length > 0
+              ? obj.url.trim()
+              : "";
+        const href = rawHref.length === 0 || rawHref === "/news" || rawHref === "news" ? detailHref : rawHref;
+        const image =
+          typeof obj?.image === "string"
+            ? obj.image.trim().split("?")[0]
+            : typeof obj?.img === "string"
+              ? obj.img.trim().split("?")[0]
+              : "";
+        const path =
+          typeof obj?.path === "string" && obj.path.trim().length > 0 ? obj.path.trim() : `${NEWS_FOLDER}/${id}`;
+        return { id, tag, date, title, desc, href, image, path } satisfies NewsItem;
+      })
+      .filter((n) => n.id.trim().length > 0);
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", HOME_NEWS_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const raw = data?.value as unknown;
+      const normalized = normalize(raw);
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      setServerItems(normalized);
+      setItems(normalized);
+      setFit(loadedFit);
+      setServerFit(loadedFit);
+
+      setPreviews((prev) => {
+        Object.values(prev).forEach((p) => {
+          if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return {};
+      });
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load News section" });
+    } finally {
+      setLoading(false);
+    }
+  }, [normalize]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const addItem = () => {
+    setMessage(null);
+    const id = `news-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const next: NewsItem = {
+      id,
+      tag: "",
+      date: "",
+      title: "",
+      desc: "",
+      href: `/news/${encodeURIComponent(id)}`,
+      image: "",
+      path: `${NEWS_FOLDER}/${id}`,
+    };
+    setItems((prev) => [next, ...prev]);
+  };
+
+  const removeItem = (id: string) => {
+    setMessage(null);
+    setItems((prev) => prev.filter((x) => x.id !== id));
+    setNewFiles((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setPreviews((prev) => {
+      const existing = prev[id];
+      if (!existing) return prev;
+      if (existing.startsWith("blob:")) URL.revokeObjectURL(existing);
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const moveItem = (id: string, dir: -1 | 1) => {
+    setItems((prev) => {
+      const idx = prev.findIndex((x) => x.id === id);
+      if (idx < 0) return prev;
+      const nextIdx = idx + dir;
+      if (nextIdx < 0 || nextIdx >= prev.length) return prev;
+      const next = [...prev];
+      const temp = next[idx];
+      next[idx] = next[nextIdx];
+      next[nextIdx] = temp;
+      return next;
+    });
+  };
+
+  const updateItem = (id: string, patch: Partial<NewsItem>) => {
+    const nextPatch: Partial<NewsItem> = { ...patch };
+    if (typeof nextPatch.tag === "string") nextPatch.tag = capitalizeFirstLetter(nextPatch.tag);
+    if (typeof nextPatch.date === "string") nextPatch.date = capitalizeFirstLetter(nextPatch.date);
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
+    setItems((prev) => prev.map((x) => (x.id === id ? { ...x, ...nextPatch } : x)));
+  };
+
+  const pickImage = (id: string, file: File | null) => {
+    setMessage(null);
+    if (!file) {
+      setNewFiles((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setPreviews((prev) => {
+        const existing = prev[id];
+        if (!existing) return prev;
+        if (existing.startsWith("blob:")) URL.revokeObjectURL(existing);
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) return;
+    const preview = URL.createObjectURL(file);
+    setNewFiles((prev) => ({ ...prev, [id]: file }));
+    setPreviews((prev) => {
+      const existing = prev[id];
+      if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
+      return { ...prev, [id]: preview };
+    });
+  };
+
+  const dirty = useMemo(() => {
+    if (Object.keys(newFiles).length > 0) return true;
+    if (fit !== serverFit) return true;
+    const a = JSON.stringify(serverItems);
+    const b = JSON.stringify(items);
+    return a !== b;
+  }, [fit, items, newFiles, serverFit, serverItems]);
+
+  const save = async () => {
+    if (!dirty) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const nextItems: NewsItem[] = items.map((n) => ({
+        ...n,
+        tag: n.tag.trim(),
+        date: n.date.trim(),
+        title: n.title.trim(),
+        desc: n.desc.trim(),
+        href: "/news",
+        image: n.image.trim(),
+        path: n.path.trim() || `${NEWS_FOLDER}/${n.id}`,
+      }));
+
+      const serverPaths = new Set(serverItems.map((n) => n.path).filter((p) => p.trim().length > 0));
+      const keepPaths = new Set(
+        nextItems
+          .filter((n) => n.title.trim().length > 0 && (n.image.trim().length > 0 || Boolean(newFiles[n.id])))
+          .map((n) => n.path)
+          .filter((p) => p.trim().length > 0),
+      );
+      const toRemove = Array.from(serverPaths).filter((p) => !keepPaths.has(p));
+      if (toRemove.length > 0) {
+        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
+      }
+
+      for (let i = 0; i < nextItems.length; i += 1) {
+        const item = nextItems[i];
+        const file = newFiles[item.id];
+        if (!file) continue;
+        if (item.title.trim().length === 0) continue;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(item.path);
+        nextItems[i] = { ...item, image: data.publicUrl };
+      }
+
+      const cleaned = nextItems.filter((n) => n.title.trim().length > 0 && n.image.trim().length > 0);
+
+      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+        {
+          key: HOME_NEWS_KEY,
+          value: {
+            items: cleaned.map((n) => ({
+              id: n.id,
+              tag: n.tag,
+              date: n.date,
+              title: n.title,
+              desc: n.desc,
+              href: n.href,
+              image: n.image,
+              path: n.path,
+            })),
+            fit,
+            version: Date.now(),
+          },
+        },
+        { onConflict: "key" },
+      );
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      Object.values(previews).forEach((p) => {
+        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+      setPreviews({});
+      setNewFiles({});
+      setDisplayVersion(Date.now());
+
+      const normalized = normalize({ items: cleaned });
+      setServerItems(normalized);
+      setItems(normalized);
+      setServerFit(fit);
+      setMessage({ type: "success", text: "News & Announcements updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save News section" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-2xl p-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="font-bold text-lg">News & Announcements</div>
+          <div className="text-sm text-gray-500">Add and reorder announcements shown on the Home slider and /news.</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={addItem}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            Add Announcement
+          </button>
+          <button
+            onClick={load}
+            disabled={loading || saving}
+            className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Reload"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!dirty || saving || loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+            message.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <div className="space-y-4">
+        {items.map((it, idx) => {
+          const preview = previews[it.id];
+          const src =
+            preview || (it.image ? `${it.image.split("?")[0]}?v=${encodeURIComponent(String(displayVersion))}` : "");
+          return (
+            <div key={it.id} className="border rounded-2xl p-4 bg-white">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="font-semibold">{it.title.trim() || "New Announcement"}</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveItem(it.id, -1)}
+                    disabled={saving || loading || idx === 0}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveItem(it.id, 1)}
+                    disabled={saving || loading || idx === items.length - 1}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Down
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(it.id)}
+                    disabled={saving || loading}
+                    className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid lg:grid-cols-[260px_1fr] gap-4">
+                <div className="border rounded-xl overflow-hidden bg-gray-50">
+                  <div className="relative h-44">
+                    {src ? (
+                      fit === "contain" ? (
+                        <>
+                          <Image
+                            src={src}
+                            alt=""
+                            fill
+                            sizes="260px"
+                            className="object-cover blur-2xl scale-110 opacity-40"
+                          />
+                          <Image
+                            src={src}
+                            alt={it.title || "Announcement image"}
+                            fill
+                            sizes="260px"
+                            className="object-contain"
+                          />
+                        </>
+                      ) : (
+                        <Image
+                          src={src}
+                          alt={it.title || "Announcement image"}
+                          fill
+                          sizes="260px"
+                          className="object-cover"
+                        />
+                      )
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+                        No image
+                      </div>
+                    )}
+                    <div className="space-y-3">
+                      <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickImage(it.id, file)} />
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs text-gray-500 truncate">
+                          {preview ? "Preview (not saved)" : it.image ? "Saved" : "Empty"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            pickImage(it.id, null);
+                            updateItem(it.id, { image: "" });
+                          }}
+                          disabled={saving || loading || (!preview && !it.image)}
+                          className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid lg:grid-cols-2 gap-3">
+                  <div className="space-y-1 lg:col-span-2">
+                    <label htmlFor={`admin-news-${it.id}-title`} className="block text-xs font-semibold text-gray-700">
+                      Title
+                    </label>
+                    <input
+                      id={`admin-news-${it.id}-title`}
+                      value={it.title}
+                      onChange={(e) => updateItem(it.id, { title: e.target.value })}
+                      placeholder="Title"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1 lg:col-span-2">
+                    <label htmlFor={`admin-news-${it.id}-desc`} className="block text-xs font-semibold text-gray-700">
+                      Description
+                    </label>
+                    <textarea
+                      id={`admin-news-${it.id}-desc`}
+                      value={it.desc}
+                      onChange={(e) => updateItem(it.id, { desc: e.target.value })}
+                      placeholder="Description"
+                      rows={4}
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`admin-news-${it.id}-tag`} className="block text-xs font-semibold text-gray-700">
+                      Tag
+                    </label>
+                    <input
+                      id={`admin-news-${it.id}-tag`}
+                      value={it.tag}
+                      onChange={(e) => updateItem(it.id, { tag: e.target.value })}
+                      placeholder="Tag (e.g., Announcement)"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`admin-news-${it.id}-date`} className="block text-xs font-semibold text-gray-700">
+                      Date
+                    </label>
+                    <input
+                      id={`admin-news-${it.id}-date`}
+                      value={it.date}
+                      onChange={(e) => updateItem(it.id, { date: e.target.value })}
+                      placeholder="Date (e.g., March 2026)"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1 lg:col-span-2">
+                    <label htmlFor={`admin-news-${it.id}-href`} className="block text-xs font-semibold text-gray-700">
+                      Link (read-only)
+                    </label>
+                    <input
+                      id={`admin-news-${it.id}-href`}
+                      value="/news"
+                      readOnly
+                      placeholder="/news"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {items.length === 0 ? <div className="text-sm text-gray-500">No announcements yet.</div> : null}
+      </div>
+    </div>
+  );
+}
 
 function LifeEditor() {
   const [loading, setLoading] = useState(false);
@@ -1951,9 +2692,11 @@ function LifeEditor() {
     items.some((it, i) => it.url !== serverItems[i]?.url || it.label !== serverItems[i]?.label);
 
   const updateItem = (index: number, patch: Partial<LifeItem>) => {
+    const nextPatch: Partial<LifeItem> = { ...patch };
+    if (typeof nextPatch.label === "string") nextPatch.label = capitalizeFirstLetter(nextPatch.label);
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], ...patch };
+      next[index] = { ...next[index], ...nextPatch };
       return next;
     });
   };
@@ -2205,13 +2948,19 @@ function LifeEditor() {
                   </button>
                 </div>
 
-                <input
-                  value={it.label}
-                  onChange={(e) => updateItem(i, { label: e.target.value })}
-                  placeholder="Label"
-                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                  disabled={saving || loading}
-                />
+                <div className="space-y-1">
+                  <label htmlFor={`admin-life-${i}-label`} className="block text-xs font-semibold text-gray-700">
+                    Label
+                  </label>
+                  <input
+                    id={`admin-life-${i}-label`}
+                    value={it.label}
+                    onChange={(e) => updateItem(i, { label: e.target.value })}
+                    placeholder="Label"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -2391,7 +3140,11 @@ function GalleryEditor() {
   }, [load]);
 
   const updateSection = (sectionId: string, patch: Partial<GallerySection>) => {
-    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...patch } : s)));
+    const nextPatch: Partial<GallerySection> = { ...patch };
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.subtitle === "string") nextPatch.subtitle = capitalizeFirstLetter(nextPatch.subtitle);
+    if (typeof nextPatch.details === "string") nextPatch.details = capitalizeFirstLetter(nextPatch.details);
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...nextPatch } : s)));
   };
 
   const removeSection = (sectionId: string) => {
@@ -2478,10 +3231,13 @@ function GalleryEditor() {
   };
 
   const updateImage = (sectionId: string, imageId: string, patch: Partial<GalleryImage>) => {
+    const nextPatch: Partial<GalleryImage> = { ...patch };
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
     setSections((prev) =>
       prev.map((s) =>
         s.id === sectionId
-          ? { ...s, images: s.images.map((img) => (img.id === imageId ? { ...img, ...patch } : img)) }
+          ? { ...s, images: s.images.map((img) => (img.id === imageId ? { ...img, ...nextPatch } : img)) }
           : s,
       ),
     );
@@ -2660,28 +3416,55 @@ function GalleryEditor() {
             </div>
 
             <div className="grid lg:grid-cols-2 gap-4 mb-4">
-              <input
-                value={section.title}
-                onChange={(e) => updateSection(section.id, { title: e.target.value })}
-                placeholder="Title"
-                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                disabled={saving || loading}
-              />
-              <input
-                value={section.subtitle}
-                onChange={(e) => updateSection(section.id, { subtitle: e.target.value })}
-                placeholder="Subtitle"
-                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                disabled={saving || loading}
-              />
-              <textarea
-                value={section.details}
-                onChange={(e) => updateSection(section.id, { details: e.target.value })}
-                placeholder="Details"
-                rows={4}
-                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                disabled={saving || loading}
-              />
+              <div className="space-y-1">
+                <label
+                  htmlFor={`admin-gallery-section-${section.id}-title`}
+                  className="block text-xs font-semibold text-gray-700"
+                >
+                  Title
+                </label>
+                <input
+                  id={`admin-gallery-section-${section.id}-title`}
+                  value={section.title}
+                  onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                  placeholder="Title"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+              </div>
+              <div className="space-y-1">
+                <label
+                  htmlFor={`admin-gallery-section-${section.id}-subtitle`}
+                  className="block text-xs font-semibold text-gray-700"
+                >
+                  Subtitle
+                </label>
+                <input
+                  id={`admin-gallery-section-${section.id}-subtitle`}
+                  value={section.subtitle}
+                  onChange={(e) => updateSection(section.id, { subtitle: e.target.value })}
+                  placeholder="Subtitle"
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+              </div>
+              <div className="space-y-1 lg:col-span-2">
+                <label
+                  htmlFor={`admin-gallery-section-${section.id}-details`}
+                  className="block text-xs font-semibold text-gray-700"
+                >
+                  Details
+                </label>
+                <textarea
+                  id={`admin-gallery-section-${section.id}-details`}
+                  value={section.details}
+                  onChange={(e) => updateSection(section.id, { details: e.target.value })}
+                  placeholder="Details"
+                  rows={4}
+                  className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                  disabled={saving || loading}
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -2707,17 +3490,12 @@ function GalleryEditor() {
             </div>
 
             <div className="flex items-center justify-between gap-4 mb-4">
-              <label className="inline-flex items-center gap-2 border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 cursor-pointer">
-                Add Images
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => addImages(section.id, e.target.files)}
-                  className="hidden"
+              <div className="flex-1">
+                <MultiImageDropzone
                   disabled={saving || loading}
+                  onPickFiles={(files) => addImages(section.id, files)}
                 />
-              </label>
+              </div>
               <div className="text-xs text-gray-500">{section.images.length} images</div>
             </div>
 
@@ -2776,21 +3554,39 @@ function GalleryEditor() {
                         </button>
                       </div>
 
-                      <input
-                        value={img.title}
-                        onChange={(e) => updateImage(section.id, img.id, { title: e.target.value })}
-                        placeholder="Title"
-                        className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      />
-                      <textarea
-                        value={img.desc}
-                        onChange={(e) => updateImage(section.id, img.id, { desc: e.target.value })}
-                        placeholder="Details"
-                        rows={2}
-                        className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      />
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-gallery-img-${img.id}-title`}
+                          className="block text-[10px] font-semibold text-gray-600"
+                        >
+                          Title
+                        </label>
+                        <input
+                          id={`admin-gallery-img-${img.id}-title`}
+                          value={img.title}
+                          onChange={(e) => updateImage(section.id, img.id, { title: e.target.value })}
+                          placeholder="Title"
+                          className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-gallery-img-${img.id}-details`}
+                          className="block text-[10px] font-semibold text-gray-600"
+                        >
+                          Details
+                        </label>
+                        <textarea
+                          id={`admin-gallery-img-${img.id}-details`}
+                          value={img.desc}
+                          onChange={(e) => updateImage(section.id, img.id, { desc: e.target.value })}
+                          placeholder="Details"
+                          rows={2}
+                          className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
@@ -2818,6 +3614,7 @@ type EventsCalendarItem = {
 };
 
 type EventsMomentItem = { id: string; img: string; path: string; title: string; year: string; desc: string };
+type EventsFit = "cover" | "contain";
 
 function EventsEditor() {
   const [loading, setLoading] = useState(false);
@@ -2828,6 +3625,8 @@ function EventsEditor() {
   const [serverMoments, setServerMoments] = useState<EventsMomentItem[]>([]);
   const [calendar, setCalendar] = useState<EventsCalendarItem[]>([]);
   const [moments, setMoments] = useState<EventsMomentItem[]>([]);
+  const [fit, setFit] = useState<EventsFit>("cover");
+  const [serverFit, setServerFit] = useState<EventsFit>("cover");
 
   const [newFiles, setNewFiles] = useState<Record<string, File>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -2918,11 +3717,16 @@ function EventsEditor() {
         return;
       }
 
-      const normalized = normalize(data?.value as unknown);
+      const raw = data?.value as unknown;
+      const normalized = normalize(raw);
+      const loadedFit =
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
       setServerCalendar(normalized.calendar);
       setServerMoments(normalized.moments);
       setCalendar(normalized.calendar);
       setMoments(normalized.moments);
+      setFit(loadedFit);
+      setServerFit(loadedFit);
 
       setPreviews((prev) => {
         Object.values(prev).forEach((p) => {
@@ -2944,11 +3748,22 @@ function EventsEditor() {
   }, [load]);
 
   const updateCalendar = (id: string, patch: Partial<EventsCalendarItem>) => {
-    setCalendar((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    const nextPatch: Partial<EventsCalendarItem> = { ...patch };
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.date === "string") nextPatch.date = capitalizeFirstLetter(nextPatch.date);
+    if (typeof nextPatch.time === "string") nextPatch.time = capitalizeFirstLetter(nextPatch.time);
+    if (typeof nextPatch.venue === "string") nextPatch.venue = capitalizeFirstLetter(nextPatch.venue);
+    if (typeof nextPatch.cat === "string") nextPatch.cat = capitalizeFirstLetter(nextPatch.cat);
+    if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
+    setCalendar((prev) => prev.map((e) => (e.id === id ? { ...e, ...nextPatch } : e)));
   };
 
   const updateMoment = (id: string, patch: Partial<EventsMomentItem>) => {
-    setMoments((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    const nextPatch: Partial<EventsMomentItem> = { ...patch };
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.year === "string") nextPatch.year = capitalizeFirstLetter(nextPatch.year);
+    if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
+    setMoments((prev) => prev.map((m) => (m.id === id ? { ...m, ...nextPatch } : m)));
   };
 
   const addCalendarItem = () => {
@@ -3083,10 +3898,11 @@ function EventsEditor() {
 
   const dirty = useMemo(() => {
     if (Object.keys(newFiles).length > 0) return true;
+    if (fit !== serverFit) return true;
     const a = JSON.stringify({ calendar: serverCalendar, moments: serverMoments });
     const b = JSON.stringify({ calendar, moments });
     return a !== b;
-  }, [calendar, moments, newFiles, serverCalendar, serverMoments]);
+  }, [calendar, fit, moments, newFiles, serverCalendar, serverFit, serverMoments]);
 
   const save = async () => {
     if (!dirty) return;
@@ -3098,13 +3914,6 @@ function EventsEditor() {
       const serverPaths = new Set(
         [...serverCalendar.map((e) => e.path), ...serverMoments.map((m) => m.path)].filter((p) => p.trim().length > 0),
       );
-      const nextPaths = new Set(
-        [...calendar.map((e) => e.path), ...moments.map((m) => m.path)].filter((p) => p.trim().length > 0),
-      );
-      const toRemove = Array.from(serverPaths).filter((p) => !nextPaths.has(p));
-      if (toRemove.length > 0) {
-        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
-      }
 
       const nextCalendar: EventsCalendarItem[] = calendar.map((e) => ({
         ...e,
@@ -3128,10 +3937,32 @@ function EventsEditor() {
         path: m.path.trim(),
       }));
 
+      const keepPaths = new Set(
+        [
+          ...nextCalendar
+            .filter(
+              (e) =>
+                e.title.trim().length > 0 && (e.img.trim().length > 0 || Boolean(newFiles[keyFor("calendar", e.id)])),
+            )
+            .map((e) => e.path),
+          ...nextMoments
+            .filter(
+              (m) =>
+                m.title.trim().length > 0 && (m.img.trim().length > 0 || Boolean(newFiles[keyFor("moments", m.id)])),
+            )
+            .map((m) => m.path),
+        ].filter((p) => p.trim().length > 0),
+      );
+      const toRemove = Array.from(serverPaths).filter((p) => !keepPaths.has(p));
+      if (toRemove.length > 0) {
+        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
+      }
+
       for (let i = 0; i < nextCalendar.length; i += 1) {
         const item = nextCalendar[i];
         const file = newFiles[keyFor("calendar", item.id)];
         if (!file) continue;
+        if (item.title.trim().length === 0) continue;
         const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
           upsert: true,
           contentType: file.type,
@@ -3148,6 +3979,7 @@ function EventsEditor() {
         const item = nextMoments[i];
         const file = newFiles[keyFor("moments", item.id)];
         if (!file) continue;
+        if (item.title.trim().length === 0) continue;
         const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
           upsert: true,
           contentType: file.type,
@@ -3188,6 +4020,7 @@ function EventsEditor() {
               year: m.year,
               desc: m.desc,
             })),
+            fit,
             version: Date.now(),
           },
         },
@@ -3210,6 +4043,7 @@ function EventsEditor() {
       setServerMoments(normalized.moments);
       setCalendar(normalized.calendar);
       setMoments(normalized.moments);
+      setServerFit(fit);
       setMessage({ type: "success", text: "Events updated" });
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save events" });
@@ -3251,6 +4085,28 @@ function EventsEditor() {
             className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="text-sm font-semibold text-gray-700">Image Fit</div>
+        <div className="flex items-center rounded-xl border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFit("cover")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => setFit("contain")}
+            disabled={saving || loading}
+            className={`px-4 py-2 text-sm ${fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-60`}
+          >
+            Contain
           </button>
         </div>
       </div>
@@ -3319,85 +4175,151 @@ function EventsEditor() {
                           </div>
                         )}
                       </div>
-                      <div className="p-3 space-y-2">
-                        <label className="inline-flex items-center gap-2 border px-3 py-2 rounded-lg text-xs hover:bg-gray-50 cursor-pointer">
-                          Upload Image
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => pickCalendarImage(event.id, e.target.files?.item(0) ?? null)}
-                            className="hidden"
-                            disabled={saving || loading}
-                          />
-                        </label>
-                        <input
-                          value={event.img}
-                          onChange={(e) => updateCalendar(event.id, { img: e.target.value })}
-                          placeholder="Image URL (optional)"
-                          className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                      <div className="p-3 space-y-3">
+                        <SingleImageDropzone
                           disabled={saving || loading}
+                          onPick={(file) => pickCalendarImage(event.id, file)}
                         />
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs text-gray-500 truncate">
+                            {preview ? "Preview (not saved)" : event.img ? "Saved" : "Empty"}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              pickCalendarImage(event.id, null);
+                              updateCalendar(event.id, { img: "" });
+                            }}
+                            disabled={saving || loading || (!preview && !event.img)}
+                            className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     <div className="grid lg:grid-cols-2 gap-3">
-                      <input
-                        value={event.title}
-                        onChange={(e) => updateCalendar(event.id, { title: e.target.value })}
-                        placeholder="Title"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                        disabled={saving || loading}
-                      />
-                      <input
-                        value={event.date}
-                        onChange={(e) => updateCalendar(event.id, { date: e.target.value })}
-                        placeholder="Date (e.g., March 21, 2026)"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      />
-                      <input
-                        value={event.time}
-                        onChange={(e) => updateCalendar(event.id, { time: e.target.value })}
-                        placeholder="Time (e.g., 9:00 AM – 3:00 PM)"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      />
-                      <input
-                        value={event.venue}
-                        onChange={(e) => updateCalendar(event.id, { venue: e.target.value })}
-                        placeholder="Venue"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                        disabled={saving || loading}
-                      />
+                      <div className="space-y-1 lg:col-span-2">
+                        <label
+                          htmlFor={`admin-event-${event.id}-title`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Title
+                        </label>
+                        <input
+                          id={`admin-event-${event.id}-title`}
+                          value={event.title}
+                          onChange={(e) => updateCalendar(event.id, { title: e.target.value })}
+                          placeholder="Title"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-event-${event.id}-date`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Date
+                        </label>
+                        <input
+                          id={`admin-event-${event.id}-date`}
+                          value={event.date}
+                          onChange={(e) => updateCalendar(event.id, { date: e.target.value })}
+                          placeholder="Date (e.g., March 21, 2026)"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-event-${event.id}-time`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Time
+                        </label>
+                        <input
+                          id={`admin-event-${event.id}-time`}
+                          value={event.time}
+                          onChange={(e) => updateCalendar(event.id, { time: e.target.value })}
+                          placeholder="Time (e.g., 9:00 AM – 3:00 PM)"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1 lg:col-span-2">
+                        <label
+                          htmlFor={`admin-event-${event.id}-venue`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Venue
+                        </label>
+                        <input
+                          id={`admin-event-${event.id}-venue`}
+                          value={event.venue}
+                          onChange={(e) => updateCalendar(event.id, { venue: e.target.value })}
+                          placeholder="Venue"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
 
-                      <input
-                        value={event.cat}
-                        onChange={(e) => updateCalendar(event.id, { cat: e.target.value })}
-                        placeholder="Category (e.g., Sports)"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      />
-                      <select
-                        value={event.catColor}
-                        onChange={(e) => updateCalendar(event.id, { catColor: e.target.value })}
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      >
-                        {colorOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-event-${event.id}-cat`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Category
+                        </label>
+                        <input
+                          id={`admin-event-${event.id}-cat`}
+                          value={event.cat}
+                          onChange={(e) => updateCalendar(event.id, { cat: e.target.value })}
+                          placeholder="Category (e.g., Sports)"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-event-${event.id}-catColor`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Category color
+                        </label>
+                        <select
+                          id={`admin-event-${event.id}-catColor`}
+                          value={event.catColor}
+                          onChange={(e) => updateCalendar(event.id, { catColor: e.target.value })}
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        >
+                          {colorOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                      <textarea
-                        value={event.desc}
-                        onChange={(e) => updateCalendar(event.id, { desc: e.target.value })}
-                        placeholder="Description"
-                        rows={4}
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                        disabled={saving || loading}
-                      />
+                      <div className="space-y-1 lg:col-span-2">
+                        <label
+                          htmlFor={`admin-event-${event.id}-desc`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Description
+                        </label>
+                        <textarea
+                          id={`admin-event-${event.id}-desc`}
+                          value={event.desc}
+                          onChange={(e) => updateCalendar(event.id, { desc: e.target.value })}
+                          placeholder="Description"
+                          rows={4}
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
 
                       <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                         <input
@@ -3470,51 +4392,81 @@ function EventsEditor() {
                           </div>
                         )}
                       </div>
-                      <div className="p-3 space-y-2">
-                        <label className="inline-flex items-center gap-2 border px-3 py-2 rounded-lg text-xs hover:bg-gray-50 cursor-pointer">
-                          Upload Image
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => pickMomentImage(moment.id, e.target.files?.item(0) ?? null)}
-                            className="hidden"
-                            disabled={saving || loading}
-                          />
-                        </label>
-                        <input
-                          value={moment.img}
-                          onChange={(e) => updateMoment(moment.id, { img: e.target.value })}
-                          placeholder="Image URL (optional)"
-                          className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
+                      <div className="p-3 space-y-3">
+                        <SingleImageDropzone
                           disabled={saving || loading}
+                          onPick={(file) => pickMomentImage(moment.id, file)}
                         />
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs text-gray-500 truncate">
+                            {preview ? "Preview (not saved)" : moment.img ? "Saved" : "Empty"}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              pickMomentImage(moment.id, null);
+                              updateMoment(moment.id, { img: "" });
+                            }}
+                            disabled={saving || loading || (!preview && !moment.img)}
+                            className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     <div className="grid lg:grid-cols-2 gap-3">
-                      <input
-                        value={moment.title}
-                        onChange={(e) => updateMoment(moment.id, { title: e.target.value })}
-                        placeholder="Title"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                        disabled={saving || loading}
-                      />
-                      <input
-                        value={moment.year}
-                        onChange={(e) => updateMoment(moment.id, { year: e.target.value })}
-                        placeholder="Year / Month (e.g., 2025 or May 2024)"
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                        disabled={saving || loading}
-                      />
+                      <div className="space-y-1 lg:col-span-2">
+                        <label
+                          htmlFor={`admin-moment-${moment.id}-title`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Title
+                        </label>
+                        <input
+                          id={`admin-moment-${moment.id}-title`}
+                          value={moment.title}
+                          onChange={(e) => updateMoment(moment.id, { title: e.target.value })}
+                          placeholder="Title"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-moment-${moment.id}-year`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Year / Month
+                        </label>
+                        <input
+                          id={`admin-moment-${moment.id}-year`}
+                          value={moment.year}
+                          onChange={(e) => updateMoment(moment.id, { year: e.target.value })}
+                          placeholder="Year / Month (e.g., 2025 or May 2024)"
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
                       <div />
-                      <textarea
-                        value={moment.desc}
-                        onChange={(e) => updateMoment(moment.id, { desc: e.target.value })}
-                        placeholder="Description"
-                        rows={4}
-                        className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                        disabled={saving || loading}
-                      />
+                      <div className="space-y-1 lg:col-span-2">
+                        <label
+                          htmlFor={`admin-moment-${moment.id}-desc`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          Description
+                        </label>
+                        <textarea
+                          id={`admin-moment-${moment.id}-desc`}
+                          value={moment.desc}
+                          onChange={(e) => updateMoment(moment.id, { desc: e.target.value })}
+                          placeholder="Description"
+                          rows={4}
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3710,10 +4662,16 @@ function BlogsEditor() {
   };
 
   const updateItem = (id: string, patch: Partial<BlogItem>) => {
+    const nextPatch: Partial<BlogItem> = { ...patch };
+    if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
+    if (typeof nextPatch.excerpt === "string") nextPatch.excerpt = capitalizeFirstLetter(nextPatch.excerpt);
+    if (typeof nextPatch.author === "string") nextPatch.author = capitalizeFirstLetter(nextPatch.author);
+    if (typeof nextPatch.date === "string") nextPatch.date = capitalizeFirstLetter(nextPatch.date);
+    if (typeof nextPatch.cat === "string") nextPatch.cat = capitalizeFirstLetter(nextPatch.cat);
     setItems((prev) =>
       prev.map((b) => {
         if (b.id !== id) return b;
-        const next = { ...b, ...patch };
+        const next = { ...b, ...nextPatch };
         return next;
       }),
     );
@@ -3766,13 +4724,6 @@ function BlogsEditor() {
     try {
       const supabase = getSupabaseBrowserClient();
 
-      const serverPaths = new Set(serverItems.map((b) => b.path).filter((p) => p.trim().length > 0));
-      const nextPaths = new Set(items.map((b) => b.path).filter((p) => p.trim().length > 0));
-      const toRemove = Array.from(serverPaths).filter((p) => !nextPaths.has(p));
-      if (toRemove.length > 0) {
-        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
-      }
-
       const nextItems: BlogItem[] = items.map((b) => ({
         ...b,
         title: b.title.trim(),
@@ -3790,10 +4741,23 @@ function BlogsEditor() {
       const fixedFeatured =
         featuredIndex >= 0 ? nextItems.map((b, i) => ({ ...b, featured: i === featuredIndex })) : nextItems;
 
+      const serverPaths = new Set(serverItems.map((b) => b.path).filter((p) => p.trim().length > 0));
+      const keepPaths = new Set(
+        fixedFeatured
+          .filter((b) => b.title.trim().length > 0 && (b.img.trim().length > 0 || Boolean(newFiles[b.id])))
+          .map((b) => b.path)
+          .filter((p) => p.trim().length > 0),
+      );
+      const toRemove = Array.from(serverPaths).filter((p) => !keepPaths.has(p));
+      if (toRemove.length > 0) {
+        await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
+      }
+
       for (let i = 0; i < fixedFeatured.length; i += 1) {
         const item = fixedFeatured[i];
         const file = newFiles[item.id];
         if (!file) continue;
+        if (item.title.trim().length === 0) continue;
         const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(item.path, file, {
           upsert: true,
           contentType: file.type,
@@ -3992,83 +4956,140 @@ function BlogsEditor() {
                       </div>
                     )}
                   </div>
-                  <div className="p-3 space-y-2">
-                    <label className="inline-flex items-center gap-2 border px-3 py-2 rounded-lg text-xs hover:bg-gray-50 cursor-pointer">
-                      Upload Image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => pickImage(blog.id, e.target.files?.item(0) ?? null)}
-                        className="hidden"
-                        disabled={saving || loading}
-                      />
-                    </label>
-                    <input
-                      value={blog.img}
-                      onChange={(e) => updateItem(blog.id, { img: e.target.value })}
-                      placeholder="Image URL (optional)"
-                      className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
-                      disabled={saving || loading}
-                    />
+                  <div className="p-3 space-y-3">
+                    <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickImage(blog.id, file)} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs text-gray-500 truncate">
+                        {preview ? "Preview (not saved)" : blog.img ? "Saved" : "Empty"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          pickImage(blog.id, null);
+                          updateItem(blog.id, { img: "" });
+                        }}
+                        disabled={saving || loading || (!preview && !blog.img)}
+                        className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid lg:grid-cols-2 gap-3">
-                  <input
-                    value={blog.title}
-                    onChange={(e) => updateItem(blog.id, { title: e.target.value })}
-                    placeholder="Title"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                    disabled={saving || loading}
-                  />
-                  <textarea
-                    value={blog.excerpt}
-                    onChange={(e) => updateItem(blog.id, { excerpt: e.target.value })}
-                    placeholder="Excerpt"
-                    rows={4}
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 lg:col-span-2"
-                    disabled={saving || loading}
-                  />
-                  <input
-                    value={blog.author}
-                    onChange={(e) => updateItem(blog.id, { author: e.target.value })}
-                    placeholder="Author"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                    disabled={saving || loading}
-                  />
-                  <input
-                    value={blog.date}
-                    onChange={(e) => updateItem(blog.id, { date: e.target.value })}
-                    placeholder="Date (e.g., January 15, 2026)"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                    disabled={saving || loading}
-                  />
-                  <input
-                    value={blog.cat}
-                    onChange={(e) => updateItem(blog.id, { cat: e.target.value })}
-                    placeholder="Category (e.g., Education)"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                    disabled={saving || loading}
-                  />
-                  <select
-                    value={blog.catColor}
-                    onChange={(e) => updateItem(blog.id, { catColor: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                    disabled={saving || loading}
-                  >
-                    {colorOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={blog.readTime}
-                    onChange={(e) => updateItem(blog.id, { readTime: e.target.value })}
-                    placeholder="Read Time (e.g., 5 min read)"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                    disabled={saving || loading}
-                  />
+                  <div className="space-y-1 lg:col-span-2">
+                    <label
+                      htmlFor={`admin-blog-${blog.id}-title`}
+                      className="block text-xs font-semibold text-gray-700"
+                    >
+                      Title
+                    </label>
+                    <input
+                      id={`admin-blog-${blog.id}-title`}
+                      value={blog.title}
+                      onChange={(e) => updateItem(blog.id, { title: e.target.value })}
+                      placeholder="Title"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1 lg:col-span-2">
+                    <label
+                      htmlFor={`admin-blog-${blog.id}-excerpt`}
+                      className="block text-xs font-semibold text-gray-700"
+                    >
+                      Excerpt
+                    </label>
+                    <textarea
+                      id={`admin-blog-${blog.id}-excerpt`}
+                      value={blog.excerpt}
+                      onChange={(e) => updateItem(blog.id, { excerpt: e.target.value })}
+                      placeholder="Excerpt"
+                      rows={4}
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor={`admin-blog-${blog.id}-author`}
+                      className="block text-xs font-semibold text-gray-700"
+                    >
+                      Author
+                    </label>
+                    <input
+                      id={`admin-blog-${blog.id}-author`}
+                      value={blog.author}
+                      onChange={(e) => updateItem(blog.id, { author: e.target.value })}
+                      placeholder="Author"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`admin-blog-${blog.id}-date`} className="block text-xs font-semibold text-gray-700">
+                      Date
+                    </label>
+                    <input
+                      id={`admin-blog-${blog.id}-date`}
+                      value={blog.date}
+                      onChange={(e) => updateItem(blog.id, { date: e.target.value })}
+                      placeholder="Date (e.g., January 15, 2026)"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`admin-blog-${blog.id}-cat`} className="block text-xs font-semibold text-gray-700">
+                      Category
+                    </label>
+                    <input
+                      id={`admin-blog-${blog.id}-cat`}
+                      value={blog.cat}
+                      onChange={(e) => updateItem(blog.id, { cat: e.target.value })}
+                      placeholder="Category (e.g., Education)"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor={`admin-blog-${blog.id}-catColor`}
+                      className="block text-xs font-semibold text-gray-700"
+                    >
+                      Category color
+                    </label>
+                    <select
+                      id={`admin-blog-${blog.id}-catColor`}
+                      value={blog.catColor}
+                      onChange={(e) => updateItem(blog.id, { catColor: e.target.value })}
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    >
+                      {colorOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor={`admin-blog-${blog.id}-readTime`}
+                      className="block text-xs font-semibold text-gray-700"
+                    >
+                      Read time
+                    </label>
+                    <input
+                      id={`admin-blog-${blog.id}-readTime`}
+                      value={blog.readTime}
+                      onChange={(e) => updateItem(blog.id, { readTime: e.target.value })}
+                      placeholder="Read Time (e.g., 5 min read)"
+                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      disabled={saving || loading}
+                    />
+                  </div>
                   <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                     <input
                       type="checkbox"
@@ -4090,18 +5111,726 @@ function BlogsEditor() {
   );
 }
 
+function LeadersDeskEditor() {
+  type DeskImageFit = "cover" | "contain";
+  type DeskLeader = { name: string; role: string; message: string; image: string; quote: string; motto: string };
+  type DeskValue = { director: DeskLeader; principal: DeskLeader; fit: DeskImageFit; version?: unknown };
+
+  const defaultValue = useCallback(
+    (): DeskValue => ({
+      director: {
+        name: "",
+        role: "",
+        message: "",
+        image: "",
+        quote: "",
+        motto: "",
+      },
+      principal: {
+        name: "",
+        role: "",
+        quote: "",
+        message: "",
+        image: "",
+        motto: "",
+      },
+      fit: "cover",
+    }),
+    [],
+  );
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [desk, setDesk] = useState<DeskValue>(() => defaultValue());
+  const [serverDesk, setServerDesk] = useState<DeskValue>(() => defaultValue());
+  const [directorFile, setDirectorFile] = useState<File | null>(null);
+  const [principalFile, setPrincipalFile] = useState<File | null>(null);
+  const [directorPreview, setDirectorPreview] = useState<string | null>(null);
+  const [principalPreview, setPrincipalPreview] = useState<string | null>(null);
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      if (directorPreview?.startsWith("blob:")) URL.revokeObjectURL(directorPreview);
+      if (principalPreview?.startsWith("blob:")) URL.revokeObjectURL(principalPreview);
+    };
+  }, [directorPreview, principalPreview]);
+
+  const normalizeUrl = (value: string) => value.trim().split("?")[0];
+
+  const normalizeDesk = (value: DeskValue): DeskValue => ({
+    director: {
+      name: value.director.name.trim(),
+      role: value.director.role.trim(),
+      message: value.director.message.trim(),
+      quote: value.director.quote.trim(),
+      motto: value.director.motto.trim(),
+      image: normalizeUrl(value.director.image),
+    },
+    principal: {
+      name: value.principal.name.trim(),
+      role: value.principal.role.trim(),
+      message: value.principal.message.trim(),
+      quote: value.principal.quote.trim(),
+      motto: value.principal.motto.trim(),
+      image: normalizeUrl(value.principal.image),
+    },
+    fit: value.fit === "contain" ? "contain" : "cover",
+  });
+
+  const dirty =
+    JSON.stringify(normalizeDesk(desk)) !== JSON.stringify(normalizeDesk(serverDesk)) ||
+    Boolean(directorFile) ||
+    Boolean(principalFile);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value, updated_at")
+        .eq("key", HOME_DESK_KEY)
+        .maybeSingle();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const fallback = defaultValue();
+      const raw = data?.value as unknown;
+      const obj = typeof raw === "object" && raw ? (raw as Record<string, unknown>) : null;
+      const directorRaw =
+        obj && typeof obj.director === "object" && obj.director ? (obj.director as Record<string, unknown>) : null;
+      const principalRaw =
+        obj && typeof obj.principal === "object" && obj.principal ? (obj.principal as Record<string, unknown>) : null;
+
+      const next: DeskValue = {
+        director: {
+          name: typeof directorRaw?.name === "string" ? directorRaw.name : fallback.director.name,
+          role: typeof directorRaw?.role === "string" ? directorRaw.role : fallback.director.role,
+          message: typeof directorRaw?.message === "string" ? directorRaw.message : fallback.director.message,
+          quote: typeof directorRaw?.quote === "string" ? directorRaw.quote : fallback.director.quote,
+          motto: typeof directorRaw?.motto === "string" ? directorRaw.motto : fallback.director.motto,
+          image: typeof directorRaw?.image === "string" ? normalizeUrl(directorRaw.image) : fallback.director.image,
+        },
+        principal: {
+          name: typeof principalRaw?.name === "string" ? principalRaw.name : fallback.principal.name,
+          role: typeof principalRaw?.role === "string" ? principalRaw.role : fallback.principal.role,
+          message: typeof principalRaw?.message === "string" ? principalRaw.message : fallback.principal.message,
+          quote: typeof principalRaw?.quote === "string" ? principalRaw.quote : fallback.principal.quote,
+          motto: typeof principalRaw?.motto === "string" ? principalRaw.motto : fallback.principal.motto,
+          image: typeof principalRaw?.image === "string" ? normalizeUrl(principalRaw.image) : fallback.principal.image,
+        },
+        fit: obj && obj.fit === "contain" ? "contain" : "cover",
+      };
+
+      setDesk(next);
+      setServerDesk(next);
+      setDirectorFile(null);
+      setPrincipalFile(null);
+      setDirectorPreview((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setPrincipalPreview((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setDisplayVersion(Date.now());
+
+      const versionFromValue = obj?.version;
+      const version = typeof versionFromValue === "number" ? versionFromValue : (data?.updated_at ?? null);
+      if (version) setDisplayVersion(Date.now());
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load Leaders Desk" });
+    } finally {
+      setLoading(false);
+    }
+  }, [defaultValue]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const pickDirector = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    setDirectorFile(file);
+    setDirectorPreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
+
+  const pickPrincipal = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    setPrincipalFile(file);
+    setPrincipalPreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
+
+  const removeDirectorImage = () => {
+    setDesk((p) => ({ ...p, director: { ...p.director, image: "" } }));
+    setDirectorFile(null);
+    setDirectorPreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
+  const removePrincipalImage = () => {
+    setDesk((p) => ({ ...p, principal: { ...p.principal, image: "" } }));
+    setPrincipalFile(null);
+    setPrincipalPreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
+  const save = async () => {
+    if (!dirty) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const nextDesk: DeskValue = {
+        director: { ...desk.director, image: normalizeUrl(desk.director.image) },
+        principal: { ...desk.principal, image: normalizeUrl(desk.principal.image) },
+        fit: desk.fit === "contain" ? "contain" : "cover",
+      };
+
+      const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(DESK_FOLDER, { limit: 100 });
+
+      const maybeDelete = async (base: string) => {
+        const toDelete =
+          folderItems
+            ?.filter((item) => item.name === base || item.name.startsWith(`${base}.`))
+            .map((item) => `${DESK_FOLDER}/${item.name}`) ?? [];
+        if (toDelete.length > 0) await supabase.storage.from(STORAGE_BUCKET).remove(toDelete);
+      };
+
+      const directorRemoving =
+        nextDesk.director.image.trim().length === 0 && serverDesk.director.image.trim().length > 0;
+      const principalRemoving =
+        nextDesk.principal.image.trim().length === 0 && serverDesk.principal.image.trim().length > 0;
+
+      if (directorFile || directorRemoving) await maybeDelete("director");
+      if (principalFile || principalRemoving) await maybeDelete("principal");
+
+      if (directorFile) {
+        const path = `${DESK_FOLDER}/director`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, directorFile, {
+          upsert: true,
+          contentType: directorFile.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextDesk.director.image = data.publicUrl;
+      }
+
+      if (principalFile) {
+        const path = `${DESK_FOLDER}/principal`;
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, principalFile, {
+          upsert: true,
+          contentType: principalFile.type,
+        });
+        if (uploadError) {
+          setMessage({ type: "error", text: uploadError.message });
+          return;
+        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        nextDesk.principal.image = data.publicUrl;
+      }
+
+      const payload: DeskValue = {
+        director: {
+          ...nextDesk.director,
+          name: nextDesk.director.name.trim(),
+          role: nextDesk.director.role.trim(),
+          message: nextDesk.director.message.trim(),
+          quote: nextDesk.director.quote.trim(),
+          motto: nextDesk.director.motto.trim(),
+          image: normalizeUrl(nextDesk.director.image),
+        },
+        principal: {
+          ...nextDesk.principal,
+          name: nextDesk.principal.name.trim(),
+          role: nextDesk.principal.role.trim(),
+          message: nextDesk.principal.message.trim(),
+          quote: nextDesk.principal.quote.trim(),
+          motto: nextDesk.principal.motto.trim(),
+          image: normalizeUrl(nextDesk.principal.image),
+        },
+        fit: nextDesk.fit === "contain" ? "contain" : "cover",
+        version: Date.now(),
+      };
+
+      const { error } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert({ key: HOME_DESK_KEY, value: payload }, { onConflict: "key" });
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      setDesk(payload);
+      setServerDesk(payload);
+      setDirectorFile(null);
+      setPrincipalFile(null);
+      setDirectorPreview((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setPrincipalPreview((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setDisplayVersion(Date.now());
+      setMessage({ type: "success", text: "Leaders Desk updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save Leaders Desk" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const directorSrc =
+    directorPreview ||
+    (desk.director.image ? `${normalizeUrl(desk.director.image)}?v=${encodeURIComponent(String(displayVersion))}` : "");
+  const principalSrc =
+    principalPreview ||
+    (desk.principal.image
+      ? `${normalizeUrl(desk.principal.image)}?v=${encodeURIComponent(String(displayVersion))}`
+      : "");
+
+  return (
+    <div className="border rounded-3xl overflow-hidden">
+      <div className=" text-white px-6 py-5">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full mb-3">
+              Leadership
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={load}
+              disabled={loading || saving}
+              className="border border-white/20 text-white px-4 py-2 rounded-lg text-sm hover:bg-white/10 disabled:opacity-60"
+            >
+              {loading ? "Loading..." : "Reload"}
+            </button>
+            <button
+              onClick={save}
+              disabled={!dirty || saving || loading}
+              className="bg-school-gold text-school-dark px-4 py-2 rounded-lg text-sm font-semibold hover:bg-school-gold/90 disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        {message ? (
+          <div
+            className={`mb-6 rounded-xl px-4 py-3 text-sm border ${
+              message.type === "success"
+                ? "bg-green-50 border-green-200 text-green-800"
+                : "bg-red-50 border-red-200 text-red-800"
+            }`}
+          >
+            {message.text}
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Images</div>
+            <div className="text-xs text-gray-500">Choose how uploaded photos fit inside the frame.</div>
+          </div>
+          <div className="flex items-center rounded-xl border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setDesk((p) => ({ ...p, fit: "cover" }))}
+              disabled={saving || loading}
+              className={`px-4 py-2 text-sm ${
+                desk.fit === "cover" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"
+              } disabled:opacity-60`}
+            >
+              Cover
+            </button>
+            <button
+              type="button"
+              onClick={() => setDesk((p) => ({ ...p, fit: "contain" }))}
+              disabled={saving || loading}
+              className={`px-4 py-2 text-sm ${
+                desk.fit === "contain" ? "bg-school-dark text-white" : "bg-white text-gray-700 hover:bg-gray-50"
+              } disabled:opacity-60`}
+            >
+              Contain
+            </button>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          <div className="border rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-gray-50 border-b">
+              <div className="text-xs font-bold tracking-widest uppercase text-school-gold">
+                {desk.director.role.trim() || "Director"}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                {desk.director.name.trim() || "Primary leadership message"}
+              </div>
+            </div>
+            <div className="p-5 grid sm:grid-cols-[220px_1fr] gap-5">
+              <div className="border rounded-xl overflow-hidden bg-gray-100">
+                <div className="relative h-56">
+                  {directorSrc ? (
+                    desk.fit === "contain" ? (
+                      <>
+                        <Image
+                          src={directorSrc}
+                          alt=""
+                          fill
+                          sizes="220px"
+                          className="object-cover scale-110 blur-2xl"
+                          aria-hidden
+                          unoptimized={directorSrc.startsWith("blob:")}
+                        />
+                        <Image
+                          src={directorSrc}
+                          alt={desk.director.name || "Director"}
+                          fill
+                          sizes="220px"
+                          className="object-contain"
+                          unoptimized={directorSrc.startsWith("blob:")}
+                        />
+                      </>
+                    ) : (
+                      <Image
+                        src={directorSrc}
+                        alt={desk.director.name || "Director"}
+                        fill
+                        sizes="220px"
+                        className="object-cover"
+                        unoptimized={directorSrc.startsWith("blob:")}
+                      />
+                    )
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">No image</div>
+                  )}
+                </div>
+                <div className="p-3 space-y-2">
+                  <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickDirector(file)} />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs text-gray-500 truncate">
+                      {directorPreview ? "Preview (not saved)" : desk.director.image ? "Saved" : "Empty"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeDirectorImage}
+                      disabled={saving || loading || !directorSrc}
+                      className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60 bg-white"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-director-name" className="block text-xs font-semibold text-gray-700">
+                    Name
+                  </label>
+                  <input
+                    id="admin-desk-director-name"
+                    value={desk.director.name}
+                    onChange={(e) => setDesk((p) => ({ ...p, director: { ...p.director, name: e.target.value } }))}
+                    placeholder="Name"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-director-role" className="block text-xs font-semibold text-gray-700">
+                    Role
+                  </label>
+                  <input
+                    id="admin-desk-director-role"
+                    value={desk.director.role}
+                    onChange={(e) => setDesk((p) => ({ ...p, director: { ...p.director, role: e.target.value } }))}
+                    placeholder="Role (e.g., Director)"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-director-quote" className="block text-xs font-semibold text-gray-700">
+                    Highlight quote (optional)
+                  </label>
+                  <textarea
+                    id="admin-desk-director-quote"
+                    value={desk.director.quote}
+                    onChange={(e) =>
+                      setDesk((p) => ({
+                        ...p,
+                        director: { ...p.director, quote: capitalizeFirstLetter(e.target.value) },
+                      }))
+                    }
+                    placeholder="Highlight quote (optional)"
+                    rows={3}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-director-motto" className="block text-xs font-semibold text-gray-700">
+                    Motto (optional)
+                  </label>
+                  <textarea
+                    id="admin-desk-director-motto"
+                    value={desk.director.motto}
+                    onChange={(e) =>
+                      setDesk((p) => ({
+                        ...p,
+                        director: { ...p.director, motto: capitalizeFirstLetter(e.target.value) },
+                      }))
+                    }
+                    placeholder="Our motto (optional)"
+                    rows={2}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-director-message" className="block text-xs font-semibold text-gray-700">
+                    Message
+                  </label>
+                  <textarea
+                    id="admin-desk-director-message"
+                    value={desk.director.message}
+                    onChange={(e) =>
+                      setDesk((p) => ({
+                        ...p,
+                        director: { ...p.director, message: capitalizeFirstLetter(e.target.value) },
+                      }))
+                    }
+                    placeholder="Message"
+                    rows={10}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-gray-50 border-b">
+              <div className="text-xs font-bold tracking-widest uppercase text-school-orange">
+                {desk.principal.role.trim() || "Principal"}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                {desk.principal.name.trim() || "Message with optional highlight quote"}
+              </div>
+            </div>
+            <div className="p-5 grid sm:grid-cols-[220px_1fr] gap-5">
+              <div className="border rounded-xl overflow-hidden bg-gray-100">
+                <div className="relative h-56">
+                  {principalSrc ? (
+                    desk.fit === "contain" ? (
+                      <>
+                        <Image
+                          src={principalSrc}
+                          alt=""
+                          fill
+                          sizes="220px"
+                          className="object-cover scale-110 blur-2xl"
+                          aria-hidden
+                          unoptimized={principalSrc.startsWith("blob:")}
+                        />
+                        <Image
+                          src={principalSrc}
+                          alt={desk.principal.name || "Principal"}
+                          fill
+                          sizes="220px"
+                          className="object-contain"
+                          unoptimized={principalSrc.startsWith("blob:")}
+                        />
+                      </>
+                    ) : (
+                      <Image
+                        src={principalSrc}
+                        alt={desk.principal.name || "Principal"}
+                        fill
+                        sizes="220px"
+                        className="object-cover"
+                        unoptimized={principalSrc.startsWith("blob:")}
+                      />
+                    )
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">No image</div>
+                  )}
+                </div>
+                <div className="p-3 space-y-2">
+                  <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickPrincipal(file)} />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs text-gray-500 truncate">
+                      {principalPreview ? "Preview (not saved)" : desk.principal.image ? "Saved" : "Empty"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removePrincipalImage}
+                      disabled={saving || loading || !principalSrc}
+                      className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60 bg-white"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-principal-name" className="block text-xs font-semibold text-gray-700">
+                    Name
+                  </label>
+                  <input
+                    id="admin-desk-principal-name"
+                    value={desk.principal.name}
+                    onChange={(e) => setDesk((p) => ({ ...p, principal: { ...p.principal, name: e.target.value } }))}
+                    placeholder="Name"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-principal-role" className="block text-xs font-semibold text-gray-700">
+                    Role
+                  </label>
+                  <input
+                    id="admin-desk-principal-role"
+                    value={desk.principal.role}
+                    onChange={(e) => setDesk((p) => ({ ...p, principal: { ...p.principal, role: e.target.value } }))}
+                    placeholder="Role (e.g., Principal)"
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-principal-quote" className="block text-xs font-semibold text-gray-700">
+                    Highlight quote (optional)
+                  </label>
+                  <textarea
+                    id="admin-desk-principal-quote"
+                    value={desk.principal.quote}
+                    onChange={(e) =>
+                      setDesk((p) => ({
+                        ...p,
+                        principal: { ...p.principal, quote: capitalizeFirstLetter(e.target.value) },
+                      }))
+                    }
+                    placeholder="Highlight quote (optional)"
+                    rows={3}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-principal-motto" className="block text-xs font-semibold text-gray-700">
+                    Motto (optional)
+                  </label>
+                  <textarea
+                    id="admin-desk-principal-motto"
+                    value={desk.principal.motto}
+                    onChange={(e) =>
+                      setDesk((p) => ({
+                        ...p,
+                        principal: { ...p.principal, motto: capitalizeFirstLetter(e.target.value) },
+                      }))
+                    }
+                    placeholder="Motto (optional)"
+                    rows={2}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="admin-desk-principal-message" className="block text-xs font-semibold text-gray-700">
+                    Message
+                  </label>
+                  <textarea
+                    id="admin-desk-principal-message"
+                    value={desk.principal.message}
+                    onChange={(e) =>
+                      setDesk((p) => ({
+                        ...p,
+                        principal: { ...p.principal, message: capitalizeFirstLetter(e.target.value) },
+                      }))
+                    }
+                    placeholder="Message"
+                    rows={7}
+                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    disabled={saving || loading}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [signingOut, setSigningOut] = useState(false);
-  const [active, setActive] = useState<AdminSectionKey>("hero");
+  const [active, setActive] = useState<AdminSectionKey>(() => {
+    if (typeof window === "undefined") return "hero";
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("section");
+    const fromStorage = localStorage.getItem(ADMIN_ACTIVE_SECTION_KEY);
+    const candidate = (fromUrl ?? fromStorage ?? "hero") as AdminSectionKey;
+    return ADMIN_SECTIONS.includes(candidate) ? candidate : "hero";
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
+    let cancelled = false;
+
+    const sync = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      setUser(data.session?.user ?? null);
+    };
+
+    sync();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setUser(session?.user ?? null);
     });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -4118,6 +5847,8 @@ export default function AdminDashboardPage() {
       { key: "about", label: "About", icon: Users },
       { key: "programs", label: "Programs", icon: Award },
       { key: "memories", label: "Memories", icon: Star },
+      { key: "desk", label: "Leaders Desk", icon: Users },
+      { key: "news", label: "News & Announcements", icon: FileText },
       { key: "life", label: "Life at School", icon: Users },
       { key: "gallery", label: "Gallery", icon: ImageIcon },
       { key: "events", label: "Events", icon: Calendar },
@@ -4125,6 +5856,14 @@ export default function AdminDashboardPage() {
     ],
     [],
   );
+
+  useEffect(() => {
+    localStorage.setItem(ADMIN_ACTIVE_SECTION_KEY, active);
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+    params.set("section", active);
+    const qs = params.toString();
+    router.replace(qs.length > 0 ? `${pathname}?${qs}` : pathname);
+  }, [active, pathname, router]);
 
   const activeItem = navItems.find((i) => i.key === active);
 
@@ -4166,6 +5905,10 @@ export default function AdminDashboardPage() {
             <ProgramsActivitiesEditor />
           ) : active === "memories" ? (
             <MemoriesEditor />
+          ) : active === "desk" ? (
+            <LeadersDeskEditor />
+          ) : active === "news" ? (
+            <HomeNewsEditor />
           ) : active === "life" ? (
             <LifeEditor />
           ) : active === "gallery" ? (
