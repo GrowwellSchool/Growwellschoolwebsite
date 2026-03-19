@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Phone, Mail, MapPin, Facebook, Instagram, Youtube, ArrowRight } from 'lucide-react'
+import { Phone, Mail, MapPin, Facebook, Instagram, ArrowRight } from 'lucide-react'
+import { FaWhatsapp } from 'react-icons/fa'
 
 export default function Footer() {
   return (
@@ -36,25 +37,31 @@ export default function Footer() {
             </p>
             <div className="flex gap-3">
               <a
-                href="#"
+                href="https://www.facebook.com/growwellschool/"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Facebook"
                 className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-500 transition-colors"
               >
                 <Facebook size={16} />
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/growwellschool/"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Instagram"
                 className="w-9 h-9 bg-pink-600 rounded-full flex items-center justify-center hover:bg-pink-500 transition-colors"
               >
                 <Instagram size={16} />
               </a>
               <a
-                href="#"
-                aria-label="YouTube"
-                className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
+                href="https://web.whatsapp.com/send?phone=918196051999&text="
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="WhatsApp"
+                className="w-9 h-9 bg-green-600 rounded-full flex items-center justify-center hover:bg-green-500 transition-colors"
               >
-                <Youtube size={16} />
+                <FaWhatsapp size={16} />
               </a>
             </div>
           </div>

@@ -2491,24 +2491,24 @@ function HomeNewsEditor() {
                         No image
                       </div>
                     )}
-                    <div className="space-y-3">
-                      <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickImage(it.id, file)} />
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-xs text-gray-500 truncate">
-                          {preview ? "Preview (not saved)" : it.image ? "Saved" : "Empty"}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            pickImage(it.id, null);
-                            updateItem(it.id, { image: "" });
-                          }}
-                          disabled={saving || loading || (!preview && !it.image)}
-                          className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
-                        >
-                          Remove
-                        </button>
+                  </div>
+                  <div className="p-3 space-y-3 bg-white border-t">
+                    <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickImage(it.id, file)} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs text-gray-500 truncate">
+                        {preview ? "Preview (not saved)" : it.image ? "Saved" : "Empty"}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          pickImage(it.id, null);
+                          updateItem(it.id, { image: "" });
+                        }}
+                        disabled={saving || loading || (!preview && !it.image)}
+                        className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 </div>
