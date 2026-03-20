@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { X, ZoomIn } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const GALLERY_PAGE_KEY = "gallery.page";
-
 type GalleryFit = "cover" | "contain";
-type GalleryItem = { id: string; src: string; cat: string; title: string; desc: string; fit: GalleryFit };
-type GalleryCategory = { id: string; label: string; fit: GalleryFit };
+type GalleryItem = {
+  id: string;
+  src: string;
+  cat: string;
+  title: string;
+  desc: string;
+  fit: GalleryFit;
+};
+type GalleryCategory = { id: string; label: string };
 
 const BADGE_COLORS: { bg: string; text: string }[] = [
   { bg: "bg-school-green", text: "text-white" },
@@ -45,134 +50,168 @@ function PageHero() {
   );
 }
 
+const PAGE_SIZE = 12;
+
 export default function GalleryPage() {
   const [categories, setCategories] = useState<GalleryCategory[]>([
-    { id: "all", label: "All Activities", fit: "cover" },
+    { id: "all", label: "All Activities" },
   ]);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [activecat, setActivecat] = useState("all");
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
-  const ref = useRef(null);
-  useInView(ref, { once: true });
 
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [catLoading, setCatLoading] = useState(true);
+
+  // Refs so IntersectionObserver always sees the latest values (no stale closures)
+  const fetchingRef = useRef(false);
+  const fetchingCatsRef = useRef(false);
+  const pageRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const activecatRef = useRef(activecat);
+
+  // Keep refs in sync with state
+  useEffect(() => { pageRef.current = page; }, [page]);
+  useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
+  useEffect(() => { activecatRef.current = activecat; }, [activecat]);
+
+  // Ref for the "Load More" sentinel
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // ─── Fetch categories from the galleries table ─────────────────────────────
   useEffect(() => {
     let cancelled = false;
-
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
-
-      const addVersion = (url: string) => {
-        const trimmed = url.trim();
-        if (trimmed.length === 0) return "";
-        const base = trimmed.split("?")[0];
-        if (!base.startsWith("http")) return base;
-        return `${base}?v=${encodeURIComponent(version)}`;
-      };
-
-      const sections =
-        typeof raw === "object" && raw && Array.isArray((raw as { sections?: unknown }).sections)
-          ? ((raw as { sections: unknown[] }).sections as unknown[])
-          : [];
-
-      const mappedCats: GalleryCategory[] = [{ id: "all", label: "All Activities", fit: "cover" }];
-      const mappedItems: GalleryItem[] = [];
-
-      sections.forEach((s) => {
-        const obj = typeof s === "object" && s ? (s as Record<string, unknown>) : null;
-        const id = typeof obj?.id === "string" ? obj.id.trim() : "";
-        if (id.length === 0) return;
-        const label =
-          typeof obj?.label === "string" ? obj.label.trim() : typeof obj?.title === "string" ? obj.title.trim() : "";
-        const fit: GalleryFit = obj?.fit === "contain" ? "contain" : "cover";
-        mappedCats.push({ id, label: label.length > 0 ? label : "Section", fit });
-
-        const itemsRaw = Array.isArray(obj?.items)
-          ? (obj?.items as unknown[])
-          : Array.isArray(obj?.images)
-            ? (obj?.images as unknown[])
-            : [];
-        itemsRaw.forEach((it, idx) => {
-          const io = typeof it === "object" && it ? (it as Record<string, unknown>) : null;
-          const iid = typeof io?.id === "string" ? io.id.trim() : `${id}-${idx + 1}`;
-          const srcRaw =
-            typeof io?.src === "string"
-              ? io.src
-              : typeof io?.url === "string"
-                ? io.url
-                : typeof io?.image === "string"
-                  ? io.image
-                  : "";
-          const src = addVersion(String(srcRaw));
-          if (src.trim().length === 0) return;
-          const title = typeof io?.title === "string" ? io.title : typeof io?.common === "string" ? io.common : "";
-          const desc = typeof io?.desc === "string" ? io.desc : typeof io?.details === "string" ? io.details : "";
-          mappedItems.push({ id: iid, src, cat: id, title: String(title), desc: String(desc), fit });
-        });
-      });
-
-      if (cancelled) return;
-      setCategories(mappedCats);
-      setGalleryItems(mappedItems);
-      setActivecat((prev) => (prev !== "all" && !mappedCats.some((c) => c.id === prev) ? "all" : prev));
-      setLightbox((prev) => (prev && !mappedItems.some((i) => i.id === prev.id) ? null : prev));
-    };
-
-    const load = async () => {
+    const loadCats = async () => {
+      setCatLoading(true);
       try {
         const supabase = getSupabaseBrowserClient();
+        // Fetch all distinct cat values from the galleries table
         const { data, error } = await supabase
+          .from("galleries")
+          .select("cat")
+          .order("cat", { ascending: true });
+
+        if (cancelled || error || !data) return;
+
+        // Also pull label mapping from site_settings if available (for pretty names)
+        const { data: settingsData } = await supabase
           .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", GALLERY_PAGE_KEY)
+          .select("value")
+          .eq("key", "gallery.page")
           .maybeSingle();
-        if (cancelled || error || !data?.value) return;
-        const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
-        applySetting(value, version);
-      } catch {
-        return;
+
+        const labelMap: Record<string, string> = {};
+        if (settingsData?.value) {
+          const sections = (settingsData.value as any).sections;
+          if (Array.isArray(sections)) {
+            sections.forEach((s: any) => {
+              if (s?.id && s?.label) labelMap[s.id] = s.label;
+            });
+          }
+        }
+
+        const uniqueCats = Array.from(new Set(data.map((d) => d.cat as string))).filter(Boolean);
+        const mapped: GalleryCategory[] = [
+          { id: "all", label: "All Activities" },
+          ...uniqueCats.map((cat) => ({
+            id: cat,
+            label: labelMap[cat] || cat,
+          })),
+        ];
+
+        if (!cancelled) setCategories(mapped);
+      } finally {
+        fetchingCatsRef.current = false;
+        if (!cancelled) setCatLoading(false);
       }
     };
-
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("gallery-page")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${GALLERY_PAGE_KEY}` },
-        (payload) => {
-          if (cancelled) return;
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
-      )
-      .subscribe();
-
-    load();
+    loadCats();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
     };
   }, []);
 
-  const filtered = activecat === "all" ? galleryItems : galleryItems.filter((g) => g.cat === activecat);
+  // ─── Core fetch function ────────────────────────────────────────────────────
+  const fetchItems = useCallback(
+    async (currentPage: number, catOverride: string, isAppending: boolean) => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+      setLoading(true);
+      try {
+        const supabase = getSupabaseBrowserClient();
+        let query = supabase.from("galleries").select("*", { count: "exact" });
 
-  const catCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: galleryItems.length };
-    galleryItems.forEach((g) => {
-      counts[g.cat] = (counts[g.cat] || 0) + 1;
-    });
-    return counts;
-  }, [galleryItems]);
+        if (catOverride !== "all") {
+          query = query.eq("cat", catOverride);
+        }
+
+        query = query.order("created_at", { ascending: false });
+
+        const from = currentPage * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        query = query.range(from, to);
+
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+          const mapped: GalleryItem[] = data.map((d: any) => ({
+            id: d.id,
+            src: d.src,
+            cat: d.cat,
+            title: d.title || "",
+            desc: d.description || "",
+            fit: (d.fit as GalleryFit) || "cover",
+          }));
+          if (isAppending) {
+            setGalleryItems((prev) => [...prev, ...mapped]);
+          } else {
+            setGalleryItems(mapped);
+          }
+          setHasMore(count !== null && from + data.length < count);
+        }
+      } finally {
+        setLoading(false);
+        fetchingRef.current = false;
+      }
+    },
+    []
+  );
+
+  // ─── Reset & initial fetch when category changes ───────────────────────────
+  useEffect(() => {
+    setGalleryItems([]);
+    setPage(0);
+    pageRef.current = 0;
+    setHasMore(true);
+    hasMoreRef.current = true;
+    fetchItems(0, activecat, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activecat]);
+
+  // ─── Intersection Observer for infinite scroll ─────────────────────────────
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        if (!hasMoreRef.current || fetchingRef.current) return;
+        const nextPage = pageRef.current + 1;
+        pageRef.current = nextPage;
+        setPage(nextPage);
+        fetchItems(nextPage, activecatRef.current, true);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Mounted once — reads fresh values from refs every time
 
   const badgeClassByCategory = useMemo(() => {
     const ids = categories.map((c) => c.id).filter((id) => id !== "all");
@@ -187,41 +226,41 @@ export default function GalleryPage() {
     <>
       <PageHero />
 
-      <section className="py-16 bg-white" ref={ref}>
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
+          {/* Category Filter Tabs */}
           <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActivecat(cat.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-heading font-semibold text-sm transition-all duration-200 border-2
-                  ${
-                    activecat === cat.id
-                      ? "bg-school-green text-white border-school-green shadow-lg scale-105"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"
-                  }`}
-              >
-                {cat.label}
-                <span
-                  className={`text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold
-                  ${activecat === cat.id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}
+            {catLoading ? (
+              <div className="h-10 w-48 bg-gray-100 rounded-full animate-pulse" />
+            ) : (
+              categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActivecat(cat.id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-heading font-semibold text-sm transition-all duration-200 border-2
+                    ${
+                      activecat === cat.id
+                        ? "bg-school-green text-white border-school-green shadow-lg scale-105"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"
+                    }`}
                 >
-                  {catCounts[cat.id] || 0}
-                </span>
-              </button>
-            ))}
+                  {cat.label}
+                </button>
+              ))
+            )}
           </div>
 
+          {/* Gallery Grid */}
           <motion.div layout className="columns-1 sm:columns-2 lg:columns-3 gap-5 space-y-5">
             <AnimatePresence>
-              {filtered.map((item, i) => (
+              {galleryItems.map((item, i) => (
                 <motion.div
                   key={item.id}
                   layout
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ delay: i * 0.05, duration: 0.4 }}
+                  transition={{ delay: Math.min(i, 8) * 0.05, duration: 0.4 }}
                   className="break-inside-avoid mb-5 bg-white rounded-2xl overflow-hidden shadow-md card-hover group cursor-pointer"
                   onClick={() => setLightbox(item)}
                   role="button"
@@ -274,7 +313,7 @@ export default function GalleryPage() {
                           badgeClassByCategory.get(item.cat)?.text ?? "text-white"
                         } text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
                       >
-                        {categories.find((c) => c.id === item.cat)?.label}
+                        {categories.find((c) => c.id === item.cat)?.label ?? item.cat}
                       </span>
                     </div>
                   </div>
@@ -286,9 +325,24 @@ export default function GalleryPage() {
               ))}
             </AnimatePresence>
           </motion.div>
+
+          {/* Empty State */}
+          {!loading && galleryItems.length === 0 && (
+            <div className="text-center py-20 text-gray-400">
+              <p className="text-lg font-heading">No images found in this category.</p>
+            </div>
+          )}
+
+          {/* Infinite Scroll Sentinel */}
+          <div ref={loadMoreRef} className="py-10 flex justify-center">
+            {loading && (
+              <div className="w-8 h-8 rounded-full border-4 border-school-green border-t-transparent animate-spin" />
+            )}
+          </div>
         </div>
       </section>
 
+      {/* Lightbox */}
       <AnimatePresence>
         {lightbox && (
           <motion.div

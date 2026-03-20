@@ -28,47 +28,30 @@ interface CircularGalleryProps extends HTMLAttributes<HTMLDivElement> {
   /** Controls the speed of auto-rotation when not scrolling. */
   autoRotateSpeed?: number;
   fit?: "cover" | "contain";
+  /** External rotation offset for manual control */
+  manualRotation?: number;
 }
 
 const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
-  ({ items, className, radius = 600, autoRotateSpeed = 0.02, fit = "cover", ...props }, ref) => {
+  ({ items, className, radius = 600, autoRotateSpeed = 0.02, fit = "cover", manualRotation = 0, ...props }, ref) => {
     const [rotation, setRotation] = useState(0);
-    const [isScrolling, setIsScrolling] = useState(false);
-    const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const animationFrameRef = useRef<number | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const lastXRef = useRef(0);
+    const velocityRef = useRef(0);
 
-    // Effect to handle scroll-based rotation
-    useEffect(() => {
-      const handleScroll = () => {
-        setIsScrolling(true);
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-
-        const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-        const scrollProgress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-        const scrollRotation = scrollProgress * 360;
-        setRotation(scrollRotation);
-
-        scrollTimeoutRef.current = setTimeout(() => {
-          setIsScrolling(false);
-        }, 150);
-      };
-
-      window.addEventListener("scroll", handleScroll, { passive: true });
-      return () => {
-        window.removeEventListener("scroll", handleScroll);
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-      };
-    }, []);
-
-    // Effect for auto-rotation when not scrolling
+    // Effect for auto-rotation when not dragging
     useEffect(() => {
       const autoRotate = () => {
-        if (!isScrolling) {
-          setRotation((prev) => prev + autoRotateSpeed);
+        if (!isDragging) {
+          // Apply velocity with friction
+          if (Math.abs(velocityRef.current) > 0.1) {
+            setRotation((prev) => prev + velocityRef.current);
+            velocityRef.current *= 0.95; // Friction
+          } else {
+            setRotation((prev) => prev + autoRotateSpeed);
+          }
         }
         animationFrameRef.current = requestAnimationFrame(autoRotate);
       };
@@ -80,23 +63,92 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
           cancelAnimationFrame(animationFrameRef.current);
         }
       };
-    }, [isScrolling, autoRotateSpeed]);
+    }, [isDragging, autoRotateSpeed]);
+
+    // Mouse drag handlers
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const handleMouseDown = (e: MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+        lastXRef.current = e.clientX;
+        velocityRef.current = 0;
+      };
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - lastXRef.current;
+        velocityRef.current = deltaX * 0.3;
+        setRotation((prev) => prev + deltaX * 0.3);
+        lastXRef.current = e.clientX;
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      // Touch handlers
+      const handleTouchStart = (e: TouchEvent) => {
+        setIsDragging(true);
+        lastXRef.current = e.touches[0].clientX;
+        velocityRef.current = 0;
+      };
+
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!isDragging) return;
+        const deltaX = e.touches[0].clientX - lastXRef.current;
+        velocityRef.current = deltaX * 0.3;
+        setRotation((prev) => prev + deltaX * 0.3);
+        lastXRef.current = e.touches[0].clientX;
+      };
+
+      const handleTouchEnd = () => {
+        setIsDragging(false);
+      };
+
+      container.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      container.addEventListener('touchstart', handleTouchStart, { passive: true });
+      window.addEventListener('touchmove', handleTouchMove, { passive: true });
+      window.addEventListener('touchend', handleTouchEnd);
+
+      return () => {
+        container.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        container.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
+      };
+    }, [isDragging]);
 
     const anglePerItem = 360 / items.length;
 
     return (
       <div
-        ref={ref}
+        ref={(node) => {
+          // Handle both refs
+          (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          if (typeof ref === 'function') ref(node);
+          else if (ref) ref.current = node;
+        }}
         role="region"
-        aria-label="Circular 3D Gallery"
-        className={cn("relative w-full h-full flex items-center justify-center", className)}
-        style={{ perspective: "2000px" }}
+        aria-label="Circular 3D Gallery - drag to rotate"
+        className={cn(
+          "relative w-full h-full flex items-center justify-center select-none touch-none",
+          isDragging ? "cursor-grabbing" : "cursor-grab",
+          className
+        )}
+        style={{ perspective: "2000px", pointerEvents: "auto" as const }}
         {...props}
       >
         <div
-          className="relative w-full h-full"
+          className="relative w-full h-full pointer-events-none"
           style={{
-            transform: `rotateY(${rotation}deg)`,
+            transform: `rotateY(${rotation + manualRotation}deg)`,
             transformStyle: "preserve-3d",
           }}
         >
@@ -132,6 +184,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                           alt=""
                           fill
                           sizes="300px"
+                          quality={100}
                           className="object-cover scale-110 blur-2xl"
                           style={{ objectPosition: item.photo.pos || "center" }}
                           aria-hidden
@@ -141,6 +194,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                           alt={item.photo.text}
                           fill
                           sizes="300px"
+                          quality={100}
                           className="object-contain"
                           style={{ objectPosition: item.photo.pos || "center" }}
                         />
@@ -151,6 +205,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                         alt={item.photo.text}
                         fill
                         sizes="300px"
+                        quality={100}
                         className="object-cover"
                         style={{ objectPosition: item.photo.pos || "center" }}
                       />

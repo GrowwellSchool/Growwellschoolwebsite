@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
@@ -8,6 +9,7 @@ import { Calendar, MapPin, Clock, ArrowRight } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 const EVENTS_PAGE_KEY = "events.page";
+const PAGE_SIZE = 6;
 
 type UpcomingEvent = {
   id: string;
@@ -36,7 +38,7 @@ function PageHero() {
       <div className="relative max-w-7xl mx-auto px-4 text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
           <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-5">
-            Events & Activities
+            Events &amp; Activities
           </span>
           <h1 className="text-4xl lg:text-6xl font-heading font-black mb-4">School Events</h1>
           <p className="text-gray-300 text-lg max-w-xl mx-auto">
@@ -48,7 +50,21 @@ function PageHero() {
   );
 }
 
-function UpcomingSection({ upcomingEvents, fit }: { upcomingEvents: UpcomingEvent[]; fit: EventsFit }) {
+function UpcomingSection({
+  highlights,
+  events,
+  fit,
+  hasMore,
+  loading,
+  loadMoreRef, // Received ref for sentinel
+}: {
+  highlights: UpcomingEvent[];
+  events: UpcomingEvent[];
+  fit: EventsFit;
+  hasMore: boolean;
+  loading: boolean;
+  loadMoreRef: RefObject<HTMLDivElement | null>;
+}) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
 
@@ -62,32 +78,107 @@ function UpcomingSection({ upcomingEvents, fit }: { upcomingEvents: UpcomingEven
           <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">Events Calendar 2026</h2>
         </motion.div>
 
-        {upcomingEvents
-          .filter((e) => e.highlight)
-          .map((event) => (
+        {highlights.map((event) => (
+          <motion.div
+            key={event.id}
+            initial={{ opacity: 0, y: 40 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6 }}
+            className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8 grid lg:grid-cols-2"
+          >
+            <div className="img-zoom h-64 lg:h-auto relative bg-school-dark">
+              {fit === "contain" ? (
+                <>
+                  <Image
+                    src={event.img}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover scale-110 blur-2xl"
+                    aria-hidden
+                  />
+                  <Image
+                    src={event.img}
+                    alt={event.title}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-contain"
+                  />
+                </>
+              ) : (
+                <Image
+                  src={event.img}
+                  alt={event.title}
+                  fill
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className="object-cover"
+                />
+              )}
+            </div>
+            <div className="p-8 lg:p-10 flex flex-col justify-center">
+              <div className="flex gap-3 mb-4">
+                <span
+                  className={`${event.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}
+                >
+                  {event.cat}
+                </span>
+                <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">
+                  Featured
+                </span>
+              </div>
+              <h3 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-3">
+                <Link href={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
+              </h3>
+              <p className="text-gray-600 leading-relaxed mb-6 line-clamp-4">{event.desc}</p>
+              <div className="space-y-2 mb-6">
+                <div className="flex items-center gap-3 text-gray-600 text-sm">
+                  <Calendar size={16} className="text-school-green" /> {event.date}
+                </div>
+                <div className="flex items-center gap-3 text-gray-600 text-sm">
+                  <Clock size={16} className="text-school-green" /> {event.time}
+                </div>
+                <div className="flex items-center gap-3 text-gray-600 text-sm">
+                  <MapPin size={16} className="text-school-green" /> {event.venue}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link href={`/events/${encodeURIComponent(event.id)}`} className="btn-secondary self-start">
+                  View Details <ArrowRight size={16} />
+                </Link>
+                <Link href="/contact" className="btn-primary self-start">
+                  Register / Enquire <ArrowRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          {events.map((event, i) => (
             <motion.div
               key={event.id}
               initial={{ opacity: 0, y: 40 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-              className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8 grid lg:grid-cols-2"
+              transition={{ delay: Math.min(i, 5) * 0.1, duration: 0.5 }}
+              className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
             >
-              <div className="img-zoom h-64 lg:h-auto relative bg-school-dark">
+              <div className="img-zoom h-48 relative bg-school-dark">
                 {fit === "contain" ? (
                   <>
                     <Image
                       src={event.img}
                       alt=""
                       fill
-                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="object-cover scale-110 blur-2xl"
                       aria-hidden
                     />
+                    <div className="absolute inset-0 bg-school-dark/10" />
                     <Image
                       src={event.img}
                       alt={event.title}
                       fill
-                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="object-contain"
                     />
                   </>
@@ -96,124 +187,71 @@ function UpcomingSection({ upcomingEvents, fit }: { upcomingEvents: UpcomingEven
                     src={event.img}
                     alt={event.title}
                     fill
-                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="object-cover"
                   />
                 )}
               </div>
-              <div className="p-8 lg:p-10 flex flex-col justify-center">
-                <div className="flex gap-3 mb-4">
-                  <span
-                    className={`${event.catColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded`}
-                  >
-                    {event.cat}
-                  </span>
-                  <span className="bg-school-gold text-school-dark text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded">
-                    Featured
-                  </span>
-                </div>
-                <h3 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-3">
+              <div className="p-5">
+                <span
+                  className={`${event.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
+                >
+                  {event.cat}
+                </span>
+                <h3 className="font-heading font-bold text-gray-800 text-lg mt-3 mb-2">
                   <Link href={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
                 </h3>
-                <p className="text-gray-600 leading-relaxed mb-6 line-clamp-4">{event.desc}</p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-3 text-gray-600 text-sm">
-                    <Calendar size={16} className="text-school-green" /> {event.date}
+                <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-4">{event.desc}</p>
+                <Link
+                  href={`/events/${encodeURIComponent(event.id)}`}
+                  className="inline-flex items-center gap-2 text-school-green font-heading font-bold text-sm"
+                >
+                  View Details <ArrowRight size={16} />
+                </Link>
+                <div className="space-y-1.5 border-t border-gray-100 pt-4">
+                  <div className="flex items-center gap-2 text-gray-500 text-xs">
+                    <Calendar size={13} className="text-school-green" /> {event.date}
                   </div>
-                  <div className="flex items-center gap-3 text-gray-600 text-sm">
-                    <Clock size={16} className="text-school-green" /> {event.time}
+                  <div className="flex items-center gap-2 text-gray-500 text-xs">
+                    <MapPin size={13} className="text-school-green" /> {event.venue}
                   </div>
-                  <div className="flex items-center gap-3 text-gray-600 text-sm">
-                    <MapPin size={16} className="text-school-green" /> {event.venue}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link href={`/events/${encodeURIComponent(event.id)}`} className="btn-secondary self-start">
-                    View Details <ArrowRight size={16} />
-                  </Link>
-                  <Link href="/contact" className="btn-primary self-start">
-                    Register / Enquire <ArrowRight size={16} />
-                  </Link>
                 </div>
               </div>
             </motion.div>
           ))}
+        </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {upcomingEvents
-            .filter((e) => !e.highlight)
-            .map((event, i) => (
-              <motion.div
-                key={event.id}
-                initial={{ opacity: 0, y: 40 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
-              >
-                <div className="img-zoom h-48 relative bg-school-dark">
-                  {fit === "contain" ? (
-                    <>
-                      <Image
-                        src={event.img}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover scale-110 blur-2xl"
-                        aria-hidden
-                      />
-                      <div className="absolute inset-0 bg-school-dark/10" />
-                      <Image
-                        src={event.img}
-                        alt={event.title}
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-contain"
-                      />
-                    </>
-                  ) : (
-                    <Image
-                      src={event.img}
-                      alt={event.title}
-                      fill
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                      className="object-cover"
-                    />
-                  )}
-                </div>
-                <div className="p-5">
-                  <span
-                    className={`${event.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
-                  >
-                    {event.cat}
-                  </span>
-                  <h3 className="font-heading font-bold text-gray-800 text-lg mt-3 mb-2">
-                    <Link href={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
-                  </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-4">{event.desc}</p>
-                  <Link
-                    href={`/events/${encodeURIComponent(event.id)}`}
-                    className="inline-flex items-center gap-2 text-school-green font-heading font-bold text-sm"
-                  >
-                    View Details <ArrowRight size={16} />
-                  </Link>
-                  <div className="space-y-1.5 border-t border-gray-100 pt-4">
-                    <div className="flex items-center gap-2 text-gray-500 text-xs">
-                      <Calendar size={13} className="text-school-green" /> {event.date}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-500 text-xs">
-                      <MapPin size={13} className="text-school-green" /> {event.venue}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+        {events.length === 0 && !loading && highlights.length === 0 && (
+          <div className="text-center py-16 text-gray-500">No upcoming events at this time.</div>
+        )}
+
+        {/* Infinite Scroll Sentinel */}
+        <div ref={loadMoreRef} className="mt-12 flex justify-center min-h-[40px]">
+          {loading && (
+            <div className="w-8 h-8 rounded-full border-4 border-school-green border-t-transparent animate-spin" />
+          )}
+          {!hasMore && (events.length > 0 || highlights.length > 0) && (
+            <p className="text-sm text-gray-400 font-medium">No more upcoming events to show.</p>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function PastHighlightsSection({ pastHighlights, fit }: { pastHighlights: PastHighlight[]; fit: EventsFit }) {
+function PastHighlightsSection({
+  pastHighlights,
+  fit,
+  hasMore,
+  loading,
+  loadMoreRef, // Received ref for sentinel
+}: {
+  pastHighlights: PastHighlight[];
+  fit: EventsFit;
+  hasMore: boolean;
+  loading: boolean;
+  loadMoreRef: RefObject<HTMLDivElement | null>;
+}) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
   return (
@@ -229,10 +267,10 @@ function PastHighlightsSection({ pastHighlights, fit }: { pastHighlights: PastHi
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {pastHighlights.map((item, i) => (
             <motion.div
-              key={item.title}
+              key={item.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={inView ? { opacity: 1, scale: 1 } : {}}
-              transition={{ delay: i * 0.1, duration: 0.4 }}
+              transition={{ delay: Math.min(i, 5) * 0.1, duration: 0.4 }}
               className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden card-hover group"
             >
               <div className="img-zoom h-44 relative bg-school-dark">
@@ -280,143 +318,226 @@ function PastHighlightsSection({ pastHighlights, fit }: { pastHighlights: PastHi
             </motion.div>
           ))}
         </div>
+
+        {pastHighlights.length === 0 && !loading && (
+          <div className="text-center py-16 text-gray-400">No past events yet.</div>
+        )}
+
+        {/* Infinite Scroll Sentinel */}
+        <div ref={loadMoreRef} className="mt-12 flex justify-center min-h-[40px]">
+          {loading && (
+            <div className="w-8 h-8 rounded-full border-4 border-school-gold border-t-transparent animate-spin" />
+          )}
+          {!hasMore && pastHighlights.length > 0 && (
+            <p className="text-sm text-gray-400">No more past events to show.</p>
+          )}
+        </div>
       </div>
     </section>
   );
 }
 
 export default function EventsPage() {
+  const [highlights, setHighlights] = useState<UpcomingEvent[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [pastHighlights, setPastHighlights] = useState<PastHighlight[]>([]);
   const [fit, setFit] = useState<EventsFit>("cover");
 
-  const addVersion = useMemo(() => {
-    return (url: string, version: string) => {
-      const trimmed = url.trim();
-      if (trimmed.length === 0) return "";
-      const base = trimmed.split("?")[0];
-      if (!base.startsWith("http")) return base;
-      return `${base}?v=${encodeURIComponent(version)}`;
-    };
-  }, []);
+  const [upcomingPage, setUpcomingPage] = useState(0);
+  const [hasMoreUpcoming, setHasMoreUpcoming] = useState(true);
+  const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
+  const [pastPage, setPastPage] = useState(0);
+  const [hasMorePast, setHasMorePast] = useState(true);
+  const [loadingPast, setLoadingPast] = useState(false);
+
+  // Guards and refs for accurate tracking in observers
+  const fetchingMetaRef = useRef(false);
+  const fetchingUpcomingRef = useRef(false);
+  const fetchingPastRef = useRef(false);
+  const upcomingPageRef = useRef(0);
+  const pastPageRef = useRef(0);
+  const hasMoreUpcomingRef = useRef(true);
+  const hasMorePastRef = useRef(true);
+
+  useEffect(() => { upcomingPageRef.current = upcomingPage; }, [upcomingPage]);
+  useEffect(() => { pastPageRef.current = pastPage; }, [pastPage]);
+  useEffect(() => { hasMoreUpcomingRef.current = hasMoreUpcoming; }, [hasMoreUpcoming]);
+  useEffect(() => { hasMorePastRef.current = hasMorePast; }, [hasMorePast]);
+
+  // Sentinel refs
+  const upcomingSentinelRef = useRef<HTMLDivElement | null>(null);
+  const pastSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // On mount: fetch fit setting and highlight events
   useEffect(() => {
     let cancelled = false;
-
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
-      const loadedFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
-
-      const calendarRaw =
-        typeof raw === "object" && raw && Array.isArray((raw as { calendar?: unknown }).calendar)
-          ? ((raw as { calendar: unknown[] }).calendar as unknown[])
-          : [];
-      const momentsRaw =
-        typeof raw === "object" && raw && Array.isArray((raw as { moments?: unknown }).moments)
-          ? ((raw as { moments: unknown[] }).moments as unknown[])
-          : [];
-
-      const nextUpcoming = calendarRaw
-        .map((row, idx) => {
-          const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-          const id =
-            typeof obj?.id === "string"
-              ? obj.id.trim()
-              : typeof obj?.id === "number"
-                ? String(obj.id)
-                : `event-${idx + 1}`;
-          const title = typeof obj?.title === "string" ? obj.title : "";
-          const date = typeof obj?.date === "string" ? obj.date : "";
-          const time = typeof obj?.time === "string" ? obj.time : "";
-          const venue = typeof obj?.venue === "string" ? obj.venue : "";
-          const img = typeof obj?.img === "string" ? addVersion(obj.img, version) : "";
-          const cat = typeof obj?.cat === "string" ? obj.cat : "";
-          const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
-          const desc = typeof obj?.desc === "string" ? obj.desc : "";
-          const highlight = Boolean(obj?.highlight);
-          return { id, title, date, time, venue, img, cat, catColor, desc, highlight } satisfies UpcomingEvent;
-        })
-        .filter((e) => e.title.trim().length > 0);
-
-      const nextMoments = momentsRaw
-        .map((row, idx) => {
-          const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-          const id =
-            typeof obj?.id === "string"
-              ? obj.id.trim()
-              : typeof obj?.id === "number"
-                ? String(obj.id)
-                : `moment-${idx + 1}`;
-          const img = typeof obj?.img === "string" ? addVersion(obj.img, version) : "";
-          const title = typeof obj?.title === "string" ? obj.title : "";
-          const year = typeof obj?.year === "string" ? obj.year : "";
-          const desc = typeof obj?.desc === "string" ? obj.desc : "";
-          return { id, img, title, year, desc } satisfies PastHighlight;
-        })
-        .filter((m) => m.title.trim().length > 0);
-
-      if (cancelled) return;
-      setUpcomingEvents(nextUpcoming);
-      setPastHighlights(nextMoments);
-      setFit(loadedFit);
-    };
-
-    const load = async () => {
+    const loadMeta = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", EVENTS_PAGE_KEY)
-          .maybeSingle();
-        if (cancelled || error) return;
-        if (!data?.value) {
-          setUpcomingEvents([]);
-          setPastHighlights([]);
-          return;
+        const [{ data: fitData }, { data: hData }] = await Promise.all([
+          supabase.from("site_settings").select("value").eq("key", EVENTS_PAGE_KEY).maybeSingle(),
+          supabase
+            .from("events")
+            .select("*")
+            .eq("type", "upcoming")
+            .eq("highlight", true)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        if (cancelled) return;
+
+        if (fitData?.value) {
+          const val = fitData.value as any;
+          setFit(val.fit === "contain" ? "contain" : "cover");
         }
-        applySetting(data.value as unknown, String(data.updated_at ?? Date.now()));
-      } catch {
-        return;
+
+        if (hData) {
+          setHighlights(
+            hData.map((d) => ({
+              id: d.id, title: d.title, date: d.date, time: d.time,
+              venue: d.venue, img: d.img, cat: d.cat, catColor: d.cat_color,
+              desc: d.description, highlight: d.highlight,
+            }))
+          );
+        }
+      } finally {
+        fetchingMetaRef.current = false;
       }
     };
 
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("events-page")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${EVENTS_PAGE_KEY}` },
-        (payload) => {
-          if (cancelled) return;
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
-      )
-      .subscribe();
+    loadMeta();
+    return () => { cancelled = true; };
+  }, []);
 
-    load();
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, [addVersion]);
+  // Upcoming events (non-highlights) with pagination
+  const fetchUpcoming = useCallback(async (currentPage: number, isAppending: boolean) => {
+    if (fetchingUpcomingRef.current) return;
+    fetchingUpcomingRef.current = true;
+    setLoadingUpcoming(true);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count, error } = await supabase
+        .from("events")
+        .select("*", { count: "exact" })
+        .eq("type", "upcoming")
+        .eq("highlight", false)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (!error && data) {
+        const mapped: UpcomingEvent[] = data.map((d) => ({
+          id: d.id, title: d.title, date: d.date, time: d.time,
+          venue: d.venue, img: d.img, cat: d.cat, catColor: d.cat_color,
+          desc: d.description, highlight: d.highlight,
+        }));
+        if (isAppending) setUpcomingEvents((prev) => [...prev, ...mapped]);
+        else setUpcomingEvents(mapped);
+        setHasMoreUpcoming(count !== null && from + data.length < count);
+      }
+    } finally {
+      setLoadingUpcoming(false);
+      fetchingUpcomingRef.current = false;
+    }
+  }, []);
+
+  // Past events with pagination
+  const fetchPast = useCallback(async (currentPage: number, isAppending: boolean) => {
+    if (fetchingPastRef.current) return;
+    fetchingPastRef.current = true;
+    setLoadingPast(true);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count, error } = await supabase
+        .from("events")
+        .select("*", { count: "exact" })
+        .eq("type", "past")
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (!error && data) {
+        const mapped: PastHighlight[] = data.map((d) => ({
+          id: d.id, img: d.img, title: d.title, year: d.year, desc: d.description,
+        }));
+        if (isAppending) setPastHighlights((prev) => [...prev, ...mapped]);
+        else setPastHighlights(mapped);
+        setHasMorePast(count !== null && from + data.length < count);
+      }
+    } finally {
+      setLoadingPast(false);
+      fetchingPastRef.current = false;
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    setUpcomingEvents([]);
+    setPastHighlights([]);
+    setUpcomingPage(0);
+    setPastPage(0);
+    upcomingPageRef.current = 0;
+    pastPageRef.current = 0;
+    fetchUpcoming(0, false);
+    fetchPast(0, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Observer for upcoming
+  useEffect(() => {
+    const el = upcomingSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMoreUpcomingRef.current && !fetchingUpcomingRef.current) {
+        const nextPage = upcomingPageRef.current + 1;
+        upcomingPageRef.current = nextPage;
+        setUpcomingPage(nextPage);
+        fetchUpcoming(nextPage, true);
+      }
+    }, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Observer for past
+  useEffect(() => {
+    const el = pastSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMorePastRef.current && !fetchingPastRef.current) {
+        const nextPage = pastPageRef.current + 1;
+        pastPageRef.current = nextPage;
+        setPastPage(nextPage);
+        fetchPast(nextPage, true);
+      }
+    }, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
       <PageHero />
-      <UpcomingSection upcomingEvents={upcomingEvents} fit={fit} />
-      <PastHighlightsSection pastHighlights={pastHighlights} fit={fit} />
+      <UpcomingSection
+        highlights={highlights}
+        events={upcomingEvents}
+        fit={fit}
+        hasMore={hasMoreUpcoming}
+        loading={loadingUpcoming}
+        loadMoreRef={upcomingSentinelRef}
+      />
+      <PastHighlightsSection
+        pastHighlights={pastHighlights}
+        fit={fit}
+        hasMore={hasMorePast}
+        loading={loadingPast}
+        loadMoreRef={pastSentinelRef}
+      />
     </>
   );
 }

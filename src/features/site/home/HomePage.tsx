@@ -180,23 +180,23 @@ function HeroCarousel() {
           animate={{ opacity: 1, x: 0, rotate: 0 }}
           transition={{ duration: 0.8, delay: 0.2, type: "spring", bounce: 0.4 }}
           style={{ transformOrigin: "left center" }}
-          className="max-w-max"
+          className="max-w-2xl"
         >
-          <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-6 whitespace-nowrap">
+          <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-6">
             {slide.tag}
           </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-white leading-tight mb-2 whitespace-nowrap">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-heading font-black text-white leading-tight mb-2">
             {slide.title}
           </h1>
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-heading font-black text-school-gold leading-tight mb-6 whitespace-nowrap">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-heading font-black text-school-gold leading-tight mb-6">
             {slide.accent}
           </h1>
-          <p className="text-gray-200 text-lg mb-10 max-w-xl whitespace-nowrap">{slide.sub}</p>
-          <div className="flex flex-nowrap gap-4">
-            <Link href="/admission" className="btn-secondary whitespace-nowrap">
+          <p className="text-gray-200 text-base sm:text-lg mb-10 max-w-xl">{slide.sub}</p>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/admission" className="btn-secondary">
               Apply for Admission <ArrowRight size={18} />
             </Link>
-            <Link href="/gallery" className="btn-primary border border-white/30 whitespace-nowrap">
+            <Link href="/gallery" className="btn-primary border border-white/30">
               Explore Gallery <ArrowRight size={18} />
             </Link>
           </div>
@@ -348,7 +348,7 @@ function StatsSection() {
   const inView = useInView(ref, { once: true });
   return (
     <section className="py-12 bg-school-green/5 pattern-grid relative">
-      <div ref={ref} className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((s, i) => (
           <motion.div
             key={s.label}
@@ -989,8 +989,9 @@ function AcademicSection() {
                 <h3 className="font-heading font-black text-school-dark text-lg">Age Eligibility — Session 2026-27</h3>
                 <p className="text-school-dark/70 text-xs mt-1">Age as on 31.03.2026</p>
               </div>
-              <table className="w-full">
-                <thead>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[300px]">
+                  <thead>
                   <tr className="bg-school-green/20 text-left">
                     <th className="px-5 py-3 text-school-lime text-xs font-bold uppercase tracking-wide">Class</th>
                     <th className="px-5 py-3 text-school-lime text-xs font-bold uppercase tracking-wide">
@@ -1017,6 +1018,7 @@ function AcademicSection() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <div className="px-6 py-5 bg-school-green/10 border-t border-white/10">
                 <Link href="/admission" className="btn-secondary w-full justify-center text-sm">
                   Start Your Application <ArrowRight size={16} />
@@ -1053,7 +1055,7 @@ function NewsAnnouncementsSlider() {
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+    const applySetting = (raw: unknown, dbNews: any[], versionFromRow: unknown) => {
       const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
       const version =
         typeof versionFromValue === "string" || typeof versionFromValue === "number"
@@ -1062,12 +1064,6 @@ function NewsAnnouncementsSlider() {
             ? String(versionFromRow)
             : String(Date.now());
 
-      const candidate = Array.isArray(raw)
-        ? raw
-        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
-          ? ((raw as { items: unknown[] }).items as unknown[])
-          : [];
-
       const normalizeUrl = (url: string) => {
         const trimmed = url.trim();
         if (trimmed.length === 0) return "";
@@ -1075,37 +1071,16 @@ function NewsAnnouncementsSlider() {
         return `${base}?v=${encodeURIComponent(version)}`;
       };
 
-      const mapped = candidate
-        .map((row, i) => {
-          const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-          const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : `news-${i + 1}`;
-          const tag = typeof obj?.tag === "string" && obj.tag.trim().length > 0 ? obj.tag.trim() : "Update";
-          const date = typeof obj?.date === "string" && obj.date.trim().length > 0 ? obj.date.trim() : "—";
-          const title = typeof obj?.title === "string" ? obj.title.trim() : "";
-          const desc =
-            typeof obj?.desc === "string"
-              ? obj.desc.trim()
-              : typeof obj?.summary === "string"
-                ? obj.summary.trim()
-                : typeof obj?.details === "string"
-                  ? obj.details.trim()
-                  : "";
-          const href = `/news/${encodeURIComponent(id)}`;
-          const image =
-            typeof obj?.image === "string"
-              ? normalizeUrl(obj.image)
-              : typeof obj?.img === "string"
-                ? normalizeUrl(obj.img)
-                : typeof obj?.photo === "object" &&
-                    obj.photo &&
-                    typeof (obj.photo as { url?: unknown }).url === "string"
-                  ? normalizeUrl(String((obj.photo as { url: string }).url))
-                  : "";
-
-          return { id, tag, date, title, desc, href, image };
-        })
-        .filter((it) => it.title.length > 0 && it.image.length > 0)
-        .slice(0, 4);
+      const mapped: HomeNewsSlide[] = dbNews.map((n) => ({
+        id: n.id,
+        tag: n.tag || "Update",
+        date: n.date || "—",
+        title: n.title || "",
+        desc: n.excerpt || "",
+        href: `/news/${encodeURIComponent(n.id)}`,
+        image: n.image ? normalizeUrl(n.image) : "",
+      })).filter(it => it.title.length > 0 && it.image.length > 0)
+         .slice(0, 4);
 
       if (cancelled) return;
       const loadedFit =
@@ -1118,42 +1093,48 @@ function NewsAnnouncementsSlider() {
     const load = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", HOME_NEWS_KEY)
-          .maybeSingle();
-        if (cancelled || error || !data?.value) return;
+        const [settingsRes, newsRes] = await Promise.all([
+          supabase.from("site_settings").select("value, updated_at").eq("key", HOME_NEWS_KEY).maybeSingle(),
+          supabase.from("news").select("*").order("created_at", { ascending: false })
+        ]);
 
-        const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
-        applySetting(value, version);
-      } catch {
-        return;
+        if (cancelled) return;
+        if (newsRes.error) throw new Error(newsRes.error.message);
+
+        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
+        const versionToken = settingsRes.data?.updated_at ?? Date.now();
+        
+        applySetting(settingsValue, newsRes.data || [], versionToken);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Home news load error:", err);
       }
     };
 
     const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("home-news")
+    const chSettings = supabase
+      .channel("home-news-settings")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${HOME_NEWS_KEY}` },
-        (payload) => {
-          if (cancelled) return;
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
+        () => { if (!cancelled) load(); }
+      )
+      .subscribe();
+
+    const chNews = supabase
+      .channel("home-news-items")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news" },
+        () => { if (!cancelled) load(); }
       )
       .subscribe();
 
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(chSettings);
+      supabase.removeChannel(chNews);
     };
   }, []);
 
@@ -1299,11 +1280,12 @@ function GalleryPreview() {
       const nextFit =
         typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
 
-      const candidate = Array.isArray(raw)
-        ? raw
-        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
+      const candidate =
+        typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
           ? ((raw as { items: unknown[] }).items as unknown[])
-          : [];
+          : Array.isArray(raw)
+            ? raw
+            : [];
 
       const normalizeUrl = (url: string) => {
         const trimmed = url.trim();
@@ -1318,13 +1300,15 @@ function GalleryPreview() {
           const url =
             typeof obj?.url === "string"
               ? normalizeUrl(obj.url)
-              : typeof obj?.image === "string"
-                ? normalizeUrl(obj.image)
-                : typeof obj?.photo === "object" &&
-                    obj.photo &&
-                    typeof (obj.photo as { url?: unknown }).url === "string"
-                  ? normalizeUrl(String((obj.photo as { url: string }).url))
-                  : "";
+              : typeof obj?.src === "string"
+                ? normalizeUrl(obj.src)
+                : typeof obj?.image === "string"
+                  ? normalizeUrl(obj.image)
+                  : typeof obj?.photo === "object" &&
+                      obj.photo &&
+                      typeof (obj.photo as { url?: unknown }).url === "string"
+                    ? normalizeUrl(String((obj.photo as { url: string }).url))
+                    : "";
           const label =
             typeof obj?.label === "string" ? obj.label.trim() : typeof obj?.title === "string" ? obj.title.trim() : "";
           return { id: i + 1, url, label };
@@ -1332,7 +1316,7 @@ function GalleryPreview() {
         .filter((it) => it.url.trim().length > 0);
 
       if (cancelled) return;
-      setFit(nextFit);
+      setFit(nextFit as "cover" | "contain");
       setItems(mapped);
     };
 
@@ -1344,19 +1328,21 @@ function GalleryPreview() {
           .select("value, updated_at")
           .eq("key", HOME_LIFE_KEY)
           .maybeSingle();
+
         if (cancelled || error || !data?.value) return;
 
         const value = data.value as unknown;
         const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
         applySetting(value, version);
-      } catch {
-        return;
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Home life load error:", err);
       }
     };
 
     const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("home-life")
+    const chSettings = supabase
+      .channel("home-life-settings")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${HOME_LIFE_KEY}` },
@@ -1374,7 +1360,7 @@ function GalleryPreview() {
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(chSettings);
     };
   }, []);
 
@@ -1586,7 +1572,7 @@ function AboutSection() {
             transition={{ duration: 0.6 }}
             className="relative"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="col-span-1 row-span-2">
                 <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-lg relative">
                   {images[0] ? (

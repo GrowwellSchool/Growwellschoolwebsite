@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
@@ -8,6 +9,7 @@ import { Calendar, User, ArrowRight, BookOpen, Tag } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 const BLOGS_PAGE_KEY = "blogs.page";
+const PAGE_SIZE = 9;
 
 type BlogFit = "cover" | "contain";
 type BlogItem = {
@@ -36,7 +38,7 @@ function PageHero() {
           <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-5">
             School Blog
           </span>
-          <h1 className="text-4xl lg:text-6xl font-heading font-black mb-4">Insights & Stories</h1>
+          <h1 className="text-4xl lg:text-6xl font-heading font-black mb-4">Insights &amp; Stories</h1>
           <p className="text-gray-300 text-lg max-w-xl mx-auto">
             Education insights, school news, parenting tips and stories from our vibrant community.
           </p>
@@ -48,140 +50,181 @@ function PageHero() {
 
 export default function BlogsPage() {
   const [activeCat, setActiveCat] = useState("All");
-  const [fit, setFit] = useState<BlogFit>("cover");
+  const [fit, setFit] = useState<BlogFit>("contain");
   const [blogs, setBlogs] = useState<BlogItem[]>([]);
+  const [featured, setFeatured] = useState<BlogItem | null>(null);
+  const [blogCategories, setBlogCategories] = useState<string[]>(["All"]);
+
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
 
-  const addVersion = useMemo(() => {
-    return (url: string, version: string) => {
-      const trimmed = url.trim();
-      if (trimmed.length === 0) return "";
-      const base = trimmed.split("?")[0];
-      if (!base.startsWith("http")) return base;
-      return `${base}?v=${encodeURIComponent(version)}`;
-    };
-  }, []);
+  // Guard against duplicate in-flight requests
+  const fetchingRef = useRef(false);
+  // Keep refs in sync so the observer always has the latest values
+  const fetchingMetaRef = useRef(false);
+  const pageRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const activeCatRef = useRef(activeCat);
 
+  useEffect(() => { pageRef.current = page; }, [page]);
+  useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
+  useEffect(() => { activeCatRef.current = activeCat; }, [activeCat]);
+
+  // Ref for the "Load More" sentinel
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Fetch fit setting, featured post, and categories on mount
   useEffect(() => {
     let cancelled = false;
-
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
-
-      const nextFit: BlogFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
-      const itemsRaw =
-        typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
-          ? ((raw as { items: unknown[] }).items as unknown[])
-          : [];
-
-      const nextBlogs = itemsRaw
-        .map((row, idx) => {
-          const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-          const id =
-            typeof obj?.id === "string"
-              ? obj.id.trim()
-              : typeof obj?.id === "number"
-                ? String(obj.id)
-                : `blog-${idx + 1}`;
-          const title = typeof obj?.title === "string" ? obj.title : "";
-          const excerpt = typeof obj?.excerpt === "string" ? obj.excerpt : "";
-          const author = typeof obj?.author === "string" ? obj.author : "";
-          const date = typeof obj?.date === "string" ? obj.date : "";
-          const cat = typeof obj?.cat === "string" ? obj.cat : "";
-          const img = typeof obj?.img === "string" ? addVersion(obj.img, version) : "";
-          const featured = Boolean(obj?.featured);
-          const readTime = typeof obj?.readTime === "string" ? obj.readTime : "";
-          const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
-          return { id, title, excerpt, author, date, cat, img, featured, readTime, catColor } satisfies BlogItem;
-        })
-        .filter((b) => b.title.trim().length > 0);
-
-      if (cancelled) return;
-      setFit(nextFit);
-      setBlogs(nextBlogs);
-    };
-
-    const load = async () => {
+    const loadMeta = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", BLOGS_PAGE_KEY)
-          .maybeSingle();
-        if (cancelled || error) return;
-        if (!data?.value) {
-          setBlogs([]);
-          return;
+        const [{ data: fitData }, { data: fData }, { data: cData }] = await Promise.all([
+          supabase.from("site_settings").select("value").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
+          supabase
+            .from("blogs")
+            .select("*")
+            .eq("featured", true)
+            .order("created_at", { ascending: false })
+            .limit(1),
+          supabase.from("blogs").select("cat"),
+        ]);
+
+        if (cancelled) return;
+
+        if (fitData?.value) {
+          const raw = fitData.value as any;
+          setFit(raw.fit === "contain" ? "contain" : "cover");
         }
-        applySetting(data.value as unknown, String(data.updated_at ?? Date.now()));
-      } catch {
-        return;
+
+        if (fData && fData.length > 0) {
+          const d = fData[0];
+          setFeatured({
+            id: d.id,
+            title: d.title,
+            excerpt: d.excerpt,
+            author: d.author,
+            date: d.date,
+            cat: d.cat,
+            img: d.img,
+            featured: d.featured,
+            readTime: d.read_time,
+            catColor: d.cat_color,
+          });
+        }
+
+        if (cData) {
+          const unique = Array.from(
+            new Set(cData.map((c) => c.cat as string).filter((c) => c && c.trim().length > 0))
+          );
+          setBlogCategories(["All", ...unique]);
+        }
+      } finally {
+        fetchingMetaRef.current = false;
       }
     };
 
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("blogs-page")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${BLOGS_PAGE_KEY}` },
-        (payload) => {
-          if (cancelled) return;
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
-      )
-      .subscribe();
-
-    load();
+    loadMeta();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
     };
-  }, [addVersion]);
+  }, []);
 
-  const blogCategories = useMemo(() => {
-    const set = new Set<string>();
-    blogs.forEach((b) => {
-      const c = b.cat.trim();
-      if (c.length > 0) set.add(c);
-    });
-    return ["All", ...Array.from(set)];
-  }, [blogs]);
+  // Core paginated fetch — receives category as parameter to avoid stale closure
+  const fetchBlogs = useCallback(
+    async (currentPage: number, isAppending: boolean, catOverride: string) => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+      setLoading(true);
+      try {
+        const supabase = getSupabaseBrowserClient();
+        let query = supabase
+          .from("blogs")
+          .select("*", { count: "exact" })
+          .eq("featured", false);
 
-  const selectedCat = blogCategories.includes(activeCat) ? activeCat : "All";
+        if (catOverride !== "All") {
+          query = query.eq("cat", catOverride);
+        }
 
-  const featured = blogs.find((b) => b.featured);
-  const filtered =
-    selectedCat === "All"
-      ? blogs.filter((b) => !b.featured)
-      : blogs.filter((b) => b.cat === selectedCat && !b.featured);
+        query = query.order("created_at", { ascending: false });
+
+        const from = currentPage * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        query = query.range(from, to);
+
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+          const mapped: BlogItem[] = data.map((d: any) => ({
+            id: d.id, title: d.title, excerpt: d.excerpt, author: d.author, date: d.date,
+            cat: d.cat, img: d.img, featured: d.featured, readTime: d.read_time, catColor: d.cat_color,
+          }));
+          if (isAppending) setBlogs((prev) => [...prev, ...mapped]);
+          else setBlogs(mapped);
+          setHasMore(count !== null && from + data.length < count);
+        }
+      } finally {
+        setLoading(false);
+        fetchingRef.current = false;
+      }
+    },
+    []
+  );
+
+  // Reset & refetch whenever category changes
+  useEffect(() => {
+    setBlogs([]);
+    setPage(0);
+    pageRef.current = 0;
+    setHasMore(true);
+    hasMoreRef.current = true;
+    fetchingRef.current = false;
+    fetchBlogs(0, false, activeCat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCat]);
+
+  // ─── Intersection Observer for infinite scroll ─────────────────────────────
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        if (!hasMoreRef.current || fetchingRef.current) return;
+        
+        const nextPage = pageRef.current + 1;
+        pageRef.current = nextPage;
+        setPage(nextPage);
+        fetchBlogs(nextPage, true, activeCatRef.current);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
       <PageHero />
 
-      <section className="py-20 bg-white" ref={ref}>
+      <section className="py-20 bg-white pattern-grid" ref={ref}>
         <div className="max-w-7xl mx-auto px-4">
+          {/* Featured Blog */}
           {featured && (
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
-              className="grid lg:grid-cols-2 bg-school-dark rounded-3xl overflow-hidden shadow-2xl mb-16 group"
+              className="grid lg:grid-cols-2 bg-white rounded-3xl overflow-hidden border border-black/10 shadow-2xl mb-16 group"
             >
-              <div className="img-zoom h-64 lg:h-auto min-h-[300px] relative bg-school-dark">
+              <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
                 {fit === "contain" ? (
                   <>
                     <Image
@@ -192,6 +235,7 @@ export default function BlogsPage() {
                       className="object-cover scale-110 blur-2xl"
                       aria-hidden
                     />
+                    <div className="absolute inset-0 bg-school-dark/40" />
                     <Image
                       src={featured.img}
                       alt={featured.title}
@@ -199,7 +243,6 @@ export default function BlogsPage() {
                       sizes="(min-width: 1024px) 50vw, 100vw"
                       className="object-contain"
                     />
-                    <div className="absolute inset-0 bg-school-dark/60" />
                   </>
                 ) : (
                   <Image
@@ -207,7 +250,7 @@ export default function BlogsPage() {
                     alt={featured.title}
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-cover"
+                    className="object-contain"
                   />
                 )}
               </div>
@@ -222,21 +265,21 @@ export default function BlogsPage() {
                     Featured
                   </span>
                 </div>
-                <h2 className="text-2xl lg:text-3xl font-heading font-black text-white mb-4 leading-tight">
+                <h2 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-4 leading-tight">
                   {featured.title}
                 </h2>
-                <p className="text-gray-400 leading-relaxed mb-6 text-sm line-clamp-6">{featured.excerpt}</p>
+                <p className="text-gray-600 leading-relaxed mb-6 text-sm line-clamp-6">{featured.excerpt}</p>
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-6">
                   <span className="flex items-center gap-1.5">
-                    <User size={13} className="text-school-gold" />
+                    <User size={13} className="text-school-green" />
                     {featured.author}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Calendar size={13} className="text-school-gold" />
+                    <Calendar size={13} className="text-school-green" />
                     {featured.date}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <BookOpen size={13} className="text-school-gold" />
+                    <BookOpen size={13} className="text-school-green" />
                     {featured.readTime}
                   </span>
                 </div>
@@ -247,13 +290,17 @@ export default function BlogsPage() {
             </motion.div>
           )}
 
+          {/* Category Filter */}
           <div className="flex flex-wrap gap-2 mb-10">
             {blogCategories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCat(cat)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-heading font-semibold transition-all border
-                  ${selectedCat === cat ? "bg-school-green text-white border-school-green" : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"}`}
+                  ${activeCat === cat
+                    ? "bg-school-green text-white border-school-green"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"
+                  }`}
               >
                 <Tag size={12} />
                 {cat}
@@ -261,16 +308,19 @@ export default function BlogsPage() {
             ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
-            {filtered.map((blog, i) => (
+          {/* Blog Grid */}
+          <section className="bg-gray-50 border-t border-black/5 -mx-4 px-4 py-20 pattern-zigzag">
+            <div className="max-w-7xl mx-auto">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-7">
+            {blogs.map((blog, i) => (
               <motion.article
                 key={blog.id}
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="bg-white border border-gray-100 rounded-2xl overflow-hidden card-hover shadow-sm group"
+                transition={{ delay: Math.min(i, 6) * 0.1, duration: 0.5 }}
+                className="bg-white border border-black/10 rounded-2xl overflow-hidden card-hover shadow-md group"
               >
-                <div className="img-zoom h-48 relative">
+                <div className="aspect-[2/3] relative overflow-hidden bg-gray-50">
                   {fit === "contain" ? (
                     <>
                       <Image
@@ -329,14 +379,27 @@ export default function BlogsPage() {
                 </div>
               </motion.article>
             ))}
-          </div>
+              </div>
+            </div>
+          </section>
 
-          {filtered.length === 0 && (
+          {/* Empty state */}
+          {blogs.length === 0 && !loading && (
             <div className="text-center py-16 text-gray-400">
               <BookOpen size={48} className="mx-auto mb-4 opacity-30" />
               <p>No articles found in this category yet.</p>
             </div>
           )}
+
+          {/* Infinite Scroll Sentinel */}
+          <div ref={loadMoreRef} className="mt-16 flex justify-center min-h-[40px]">
+            {loading && (
+              <div className="w-8 h-8 rounded-full border-4 border-school-green border-t-transparent animate-spin" />
+            )}
+            {!hasMore && blogs.length > 0 && (
+              <p className="text-sm text-gray-400">No more articles to show.</p>
+            )}
+          </div>
         </div>
       </section>
     </>

@@ -36,7 +36,7 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+    const applySetting = (raw: any, dbItem: any | null, versionFromRow: any) => {
       const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
       const version =
         typeof versionFromValue === "string" || typeof versionFromValue === "number"
@@ -55,64 +55,39 @@ export default function Page() {
       const loadedFit =
         typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
 
-      const candidate = Array.isArray(raw)
-        ? raw
-        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
-          ? ((raw as { items: unknown[] }).items as unknown[])
-          : [];
-
-      const mapped = candidate.map((row, i) => {
-        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-        const rowId = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : `news-${i + 1}`;
-        const tag = typeof obj?.tag === "string" && obj.tag.trim().length > 0 ? obj.tag.trim() : "Update";
-        const date = typeof obj?.date === "string" && obj.date.trim().length > 0 ? obj.date.trim() : "—";
-        const title = typeof obj?.title === "string" ? obj.title.trim() : "";
-        const desc =
-          typeof obj?.desc === "string"
-            ? obj.desc.trim()
-            : typeof obj?.summary === "string"
-              ? obj.summary.trim()
-              : typeof obj?.details === "string"
-                ? obj.details.trim()
-                : "";
-        const image =
-          typeof obj?.image === "string"
-            ? normalizeUrl(obj.image)
-            : typeof obj?.img === "string"
-              ? normalizeUrl(obj.img)
-              : typeof obj?.photo === "object" && obj.photo && typeof (obj.photo as { url?: unknown }).url === "string"
-                ? normalizeUrl(String((obj.photo as { url: string }).url))
-                : "";
-
-        return { id: rowId, tag, date, title, desc, image } satisfies NewsItem;
-      });
-
-      const found = mapped.find((x) => x.id === id) ?? null;
-
       if (cancelled) return;
       setFit(loadedFit);
-      setItem(found);
+      
+      if (dbItem) {
+        setItem({
+          id: dbItem.id,
+          tag: dbItem.tag || "Update",
+          date: dbItem.date || "—",
+          title: dbItem.title || "",
+          desc: dbItem.excerpt || "",
+          image: dbItem.image ? normalizeUrl(dbItem.image) : "",
+        });
+      } else {
+        setItem(null);
+      }
       setLoading(false);
     };
 
     const load = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", HOME_NEWS_KEY)
-          .maybeSingle();
+        const [settingsRes, newsRes] = await Promise.all([
+          supabase.from("site_settings").select("value, updated_at").eq("key", HOME_NEWS_KEY).maybeSingle(),
+          supabase.from("news").select("*").eq("id", id).maybeSingle()
+        ]);
+
         if (cancelled) return;
-        if (error || !data?.value) {
-          setLoading(false);
-          setItem(null);
-          return;
-        }
-        const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
-        applySetting(value, version);
-      } catch {
+        
+        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
+        const versionToken = settingsRes.data?.updated_at ?? Date.now();
+        
+        applySetting(settingsValue, newsRes.data || null, versionToken);
+      } catch (err) {
         if (cancelled) return;
         setLoading(false);
         setItem(null);
@@ -120,25 +95,29 @@ export default function Page() {
     };
 
     const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("news-detail")
+    const chSettings = supabase
+      .channel("news-detail-settings")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${HOME_NEWS_KEY}` },
-        (payload) => {
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
+        () => { if (!cancelled) load(); }
+      )
+      .subscribe();
+
+    const chNews = supabase
+      .channel("news-detail-item")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news", filter: `id=eq.${id}` },
+        () => { if (!cancelled) load(); }
       )
       .subscribe();
 
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(chSettings);
+      supabase.removeChannel(chNews);
     };
   }, [id]);
 

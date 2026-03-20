@@ -3,227 +3,43 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  Award,
-  BookOpen,
-  Calendar,
-  FileText,
-  Image as ImageIcon,
-  LogOut,
-  ShieldCheck,
-  Star,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { Award, BookOpen, Calendar, FileText, Image as ImageIcon, MessageSquare, Star, Users } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { AdminNav } from "@/features/admin/dashboard/components/AdminNav";
+import { MultiImageDropzone, SingleImageDropzone } from "@/features/admin/dashboard/components/Dropzones";
+import {
+  ABOUT_FOLDER,
+  ADMIN_ACTIVE_SECTION_KEY,
+  ADMIN_SECTIONS,
+  BLOGS_FOLDER,
+  BLOGS_PAGE_KEY,
+  DESK_FOLDER,
+  EVENTS_FOLDER,
+  EVENTS_PAGE_KEY,
+  GALLERY_FOLDER,
+  GALLERY_PAGE_KEY,
+  HERO_FOLDER,
+  HOME_ABOUT_KEY,
+  HOME_DESK_KEY,
+  HOME_HERO_IMAGES_KEY,
+  HOME_LIFE_KEY,
+  HOME_MEMORIES_KEY,
+  HOME_NEWS_KEY,
+  HOME_NOTIFICATIONS_KEY,
+  HOME_PROGRAMS_KEY,
+  LIFE_FOLDER,
+  MEMORIES_FOLDER,
+  NEWS_FOLDER,
+  PROGRAMS_FOLDER,
+  SITE_SETTINGS_TABLE,
+  STORAGE_BUCKET,
+  type HeroImageFit,
+} from "@/features/admin/dashboard/constants";
+import { ContactMessagesViewer } from "@/features/admin/dashboard/sections/ContactMessagesViewer";
 
-type AdminSectionKey =
-  | "hero"
-  | "about"
-  | "programs"
-  | "memories"
-  | "desk"
-  | "news"
-  | "life"
-  | "gallery"
-  | "events"
-  | "blogs";
-
-type AdminNavItem = {
-  key: AdminSectionKey;
-  label: string;
-  icon: LucideIcon;
-};
-
-const ADMIN_ACTIVE_SECTION_KEY = "admin.activeSection";
-const ADMIN_SECTIONS: AdminSectionKey[] = [
-  "hero",
-  "about",
-  "programs",
-  "memories",
-  "desk",
-  "news",
-  "life",
-  "gallery",
-  "events",
-  "blogs",
-];
-
-const capitalizeFirstLetter = (value: string) => {
-  const chars = [...value];
-  for (let i = 0; i < chars.length; i += 1) {
-    const ch = chars[i];
-    if (/[A-Za-z]/.test(ch)) {
-      chars[i] = ch.toUpperCase();
-      break;
-    }
-  }
-  return chars.join("");
-};
-
-const HOME_HERO_IMAGES_KEY = "home.heroImages";
-const HOME_NOTIFICATIONS_KEY = "home.notifications";
-const HOME_PROGRAMS_KEY = "home.programs";
-const HOME_ABOUT_KEY = "home.about";
-const HOME_MEMORIES_KEY = "home.memories";
-const HOME_DESK_KEY = "home.desk";
-const HOME_NEWS_KEY = "home.news";
-const HOME_LIFE_KEY = "home.life";
-const GALLERY_PAGE_KEY = "gallery.page";
-const EVENTS_PAGE_KEY = "events.page";
-const BLOGS_PAGE_KEY = "blogs.page";
-const SITE_SETTINGS_TABLE = "site_settings";
-const STORAGE_BUCKET = "site-assets";
-const HERO_FOLDER = "home/hero";
-const PROGRAMS_FOLDER = "home/programs";
-const ABOUT_FOLDER = "home/about";
-const MEMORIES_FOLDER = "home/memories";
-const DESK_FOLDER = "home/desk";
-const NEWS_FOLDER = "home/news";
-const LIFE_FOLDER = "home/life";
-const GALLERY_FOLDER = "gallery/sections";
-const EVENTS_FOLDER = "events";
-const BLOGS_FOLDER = "blogs";
-type HeroImageFit = "cover" | "contain";
-
-function SingleImageDropzone({ disabled, onPick }: { disabled: boolean; onPick: (file: File | null) => void }) {
-  const [dragOver, setDragOver] = useState(false);
-
-  return (
-    <label
-      className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none ${
-        dragOver ? "border-school-green bg-school-green/5" : "border-gray-200 hover:border-school-green/60"
-      } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        onPick(e.dataTransfer.files?.[0] ?? null);
-      }}
-    >
-      <div className="font-semibold text-gray-800">Drag & drop an image here</div>
-      <div className="text-xs text-gray-500 mt-1">or click to upload</div>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => onPick(e.target.files?.[0] ?? null)}
-        className="hidden"
-        disabled={disabled}
-      />
-    </label>
-  );
-}
-
-function MultiImageDropzone({
-  disabled,
-  onPickFiles,
-}: {
-  disabled: boolean;
-  onPickFiles: (files: FileList | null) => void;
-}) {
-  const [dragOver, setDragOver] = useState(false);
-
-  return (
-    <label
-      className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none ${
-        dragOver ? "border-school-green bg-school-green/5" : "border-gray-200 hover:border-school-green/60"
-      } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        onPickFiles(e.dataTransfer.files ?? null);
-      }}
-    >
-      <div className="font-semibold text-gray-800">Drag & drop images here</div>
-      <div className="text-xs text-gray-500 mt-1">or click to upload multiple</div>
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(e) => onPickFiles(e.target.files)}
-        className="hidden"
-        disabled={disabled}
-      />
-    </label>
-  );
-}
-
-function AdminNav({
-  mobile = false,
-  userEmail,
-  navItems,
-  active,
-  onSelect,
-  onSignOut,
-  signingOut,
-}: {
-  mobile?: boolean;
-  userEmail?: string;
-  navItems: AdminNavItem[];
-  active: AdminSectionKey;
-  onSelect: (key: AdminSectionKey) => void;
-  onSignOut: () => void;
-  signingOut: boolean;
-}) {
-  return (
-    <div
-      className={`${
-        mobile ? "h-full" : "hidden lg:flex lg:sticky lg:top-28 lg:h-[calc(100vh-7rem)]"
-      } bg-white border rounded-3xl shadow-xl flex flex-col`}
-    >
-      <div className="px-6 py-5 border-b">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="text-green-600" />
-          <div>
-            <div className="font-bold">Admin</div>
-            <div className="text-xs text-gray-500">{userEmail ?? "Signed in"}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-3 flex-1 overflow-y-auto min-h-0">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.key === active;
-
-          return (
-            <button
-              key={item.key}
-              onClick={() => onSelect(item.key)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${
-                isActive ? "bg-green-600 text-white" : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <Icon size={18} />
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="p-4">
-        <button
-          onClick={onSignOut}
-          disabled={signingOut}
-          className="w-full flex items-center justify-center gap-2 bg-red-500 text-white py-2 rounded-lg"
-        >
-          <LogOut size={16} />
-          {signingOut ? "Signing out..." : "Logout"}
-        </button>
-      </div>
-    </div>
-  );
-}
+import type { AdminNavItem, AdminSectionKey } from "@/features/admin/dashboard/types";
+import { capitalizeFirstLetter } from "@/features/admin/dashboard/utils";
 
 function HeroImagesEditor() {
   const [loading, setLoading] = useState(false);
@@ -2123,19 +1939,29 @@ function HomeNewsEditor() {
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase
-        .from(SITE_SETTINGS_TABLE)
-        .select("value")
-        .eq("key", HOME_NEWS_KEY)
-        .maybeSingle();
+      const [settingsRes, newsRes] = await Promise.all([
+        supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", HOME_NEWS_KEY).maybeSingle(),
+        supabase.from("news").select("*").order("created_at", { ascending: true })
+      ]);
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
-      }
+      if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
+      if (newsRes.error) throw new Error(newsRes.error.message);
 
-      const raw = data?.value as unknown;
-      const normalized = normalize(raw);
+      const raw = settingsRes.data?.value as unknown;
+      const dbNews = newsRes.data || [];
+
+      const loadedItems = dbNews.map(n => ({
+        id: n.id,
+        tag: n.tag,
+        date: n.date,
+        title: n.title,
+        desc: n.excerpt || "",
+        href: n.href,
+        image: n.image,
+        path: `${NEWS_FOLDER}/${n.id}`
+      }));
+
+      const normalized = normalize(loadedItems);
       const loadedFit =
         typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
       setServerItems(normalized);
@@ -2307,20 +2133,10 @@ function HomeNewsEditor() {
 
       const cleaned = nextItems.filter((n) => n.title.trim().length > 0 && n.image.trim().length > 0);
 
-      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+      const { error: settingsError } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
         {
           key: HOME_NEWS_KEY,
           value: {
-            items: cleaned.map((n) => ({
-              id: n.id,
-              tag: n.tag,
-              date: n.date,
-              title: n.title,
-              desc: n.desc,
-              href: n.href,
-              image: n.image,
-              path: n.path,
-            })),
             fit,
             version: Date.now(),
           },
@@ -2328,9 +2144,37 @@ function HomeNewsEditor() {
         { onConflict: "key" },
       );
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
+      if (settingsError) throw new Error(settingsError.message);
+
+      const upsertRows = cleaned.map((n) => ({
+        id: n.id,
+        tag: n.tag,
+        date: n.date,
+        title: n.title,
+        excerpt: n.desc,
+        href: n.href,
+        image: n.image,
+      }));
+
+      if (upsertRows.length > 0) {
+        const { error: upsertError } = await supabase.from("news").upsert(upsertRows);
+        if (upsertError) throw new Error(upsertError.message);
+      }
+
+      const activeIds = upsertRows.map((r) => r.id);
+      if (activeIds.length > 0) {
+        // Use properly quoted UUID syntax for .not("id", "in", ...)
+        const { error: deleteError } = await supabase
+          .from("news")
+          .delete()
+          .not("id", "in", `(${activeIds.map(id => `"${id}"`).join(",")})`);
+        if (deleteError) {
+          console.warn("News cleanup delete error:", deleteError.message);
+        }
+      } else {
+        // Wipe everything if no announcements remain
+        const { error: deleteAllError } = await supabase.from("news").delete().gte("id", "");
+        if (deleteAllError) console.warn("News wipe error:", deleteAllError.message);
       }
 
       Object.values(previews).forEach((p) => {
@@ -3104,19 +2948,49 @@ function GalleryEditor() {
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase
-        .from(SITE_SETTINGS_TABLE)
-        .select("value")
-        .eq("key", GALLERY_PAGE_KEY)
-        .maybeSingle();
+      const [settingsRes, galleriesRes] = await Promise.all([
+        supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", GALLERY_PAGE_KEY).maybeSingle(),
+        supabase.from("galleries").select("*").order("created_at", { ascending: true })
+      ]);
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
+      if (settingsRes.error) throw new Error(settingsRes.error.message);
+      if (galleriesRes.error) throw new Error(galleriesRes.error.message);
+
+      const raw = settingsRes.data?.value as unknown;
+      const dbImages = galleriesRes.data || [];
+
+      // Build candidate sections from site_settings first
+      let candidateSections: any[] = [];
+      if (typeof raw === "object" && raw && Array.isArray((raw as any).sections)) {
+        candidateSections = (raw as any).sections;
       }
 
-      const raw = data?.value as unknown;
-      const next = normalize(raw);
+      // Also discover any categories that exist in galleries but not in site_settings
+      const knownCatIds = new Set(candidateSections.map((s: any) => s.id));
+      const extraCatIds = Array.from(
+        new Set(dbImages.map((img: any) => img.cat as string).filter((c: string) => c && !knownCatIds.has(c)))
+      );
+      for (const catId of extraCatIds) {
+        candidateSections.push({ id: catId, label: catId, fit: "cover" });
+      }
+
+      // Merge images from galleries table into their sections
+      const mergedSections = candidateSections.map((s: any) => {
+        const sectionId = s.id;
+        const sectionImages = dbImages
+          .filter((img: any) => img.cat === sectionId)
+          .map((img: any) => ({
+            id: img.id,
+            src: img.src,
+            url: img.src,
+            title: img.title || "",
+            desc: img.description || "",
+            path: `${GALLERY_FOLDER}/${sectionId}/${img.id}`,
+          }));
+        return { ...s, items: sectionImages };
+      });
+
+      const next = normalize({ sections: mergedSections });
       setServerSections(next);
       setSections(next);
 
@@ -3243,6 +3117,8 @@ function GalleryEditor() {
     );
   };
 
+  const [savingSections, setSavingSections] = useState<Record<string, boolean>>({});
+
   const dirty = useMemo(() => {
     if (Object.keys(newFiles).length > 0) return true;
     const a = JSON.stringify(serverSections);
@@ -3250,108 +3126,157 @@ function GalleryEditor() {
     return a !== b;
   }, [newFiles, serverSections, sections]);
 
-  const save = async () => {
-    if (!dirty) return;
+  const isSectionDirty = useCallback((sectionId: string) => {
+    const section = sections.find(s => s.id === sectionId);
+    const serverSection = serverSections.find(s => s.id === sectionId);
+    if (!section) return false;
+    
+    // Check if any new files belong to this section
+    const hasNewFiles = section.images.some(img => !!newFiles[img.id]);
+    if (hasNewFiles) return true;
 
-    setSaving(true);
+    if (!serverSection) return true; // New section
+    return JSON.stringify(section) !== JSON.stringify(serverSection);
+  }, [sections, serverSections, newFiles]);
+
+  const saveSection = async (sectionId: string) => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    setSavingSections(prev => ({ ...prev, [sectionId]: true }));
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
 
-      const serverPaths = new Set(
-        serverSections.flatMap((s) => s.images.map((img) => img.path).filter((p) => p.trim().length > 0)),
-      );
-      const nextPaths = new Set(
-        sections.flatMap((s) => s.images.map((img) => img.path).filter((p) => p.trim().length > 0)),
-      );
-      const toRemove = Array.from(serverPaths).filter((p) => !nextPaths.has(p));
+      // 1. Storage Operations for this section
+      const serverSection = serverSections.find(s => s.id === sectionId);
+      const serverPaths = new Set(serverSection?.images.map(img => img.path).filter(p => !!p) || []);
+      const nextPaths = new Set(section.images.map(img => img.path).filter(p => !!p));
+      
+      const toRemove = Array.from(serverPaths).filter(p => !nextPaths.has(p));
       if (toRemove.length > 0) {
         await supabase.storage.from(STORAGE_BUCKET).remove(toRemove);
       }
 
-      const nextSections: GallerySection[] = sections.map((s) => ({
-        ...s,
-        title: s.title.trim(),
-        subtitle: s.subtitle.trim(),
-        details: s.details.trim(),
-        images: s.images.map((img) => ({
-          ...img,
-          url: img.url.trim(),
-          path: img.path.trim(),
-          title: img.title.trim(),
-          desc: img.desc.trim(),
-        })),
-      }));
+      const updatedSection = { ...section };
+      updatedSection.images = [...section.images];
 
-      for (const section of nextSections) {
-        for (let i = 0; i < section.images.length; i += 1) {
-          const img = section.images[i];
-          const file = newFiles[img.id];
-          if (!file) continue;
+      // Upload new files for this section
+      for (let i = 0; i < updatedSection.images.length; i++) {
+        const img = updatedSection.images[i];
+        const file = newFiles[img.id];
+        if (!file) continue;
 
-          const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(img.path, file, {
-            upsert: true,
-            contentType: file.type,
-          });
-          if (uploadError) {
-            setMessage({ type: "error", text: uploadError.message });
-            return;
-          }
+        const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(img.path, file, {
+          upsert: true,
+          contentType: file.type
+        });
+        if (uploadError) throw new Error(`Upload failed for ${img.title || 'image'}: ${uploadError.message}`);
 
-          const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(img.path);
-          section.images[i] = { ...img, url: data.publicUrl };
-        }
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(img.path);
+        updatedSection.images[i] = { ...img, url: data.publicUrl };
       }
 
-      const cleaned = nextSections
-        .map((s) => ({ ...s, images: s.images.filter((img) => img.url.trim().length > 0) }))
-        .filter((s) => s.images.length > 0);
+      // 2. Update site_settings (metadata)
+      // We must fetch current settings to merge
+      const { data: currentSettings } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .select("value")
+        .eq("key", GALLERY_PAGE_KEY)
+        .maybeSingle();
+      
+      let allSectionsMetadata: any[] = [];
+      if (currentSettings?.value && Array.isArray((currentSettings.value as any).sections)) {
+        allSectionsMetadata = (currentSettings.value as any).sections;
+      }
 
-      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
-        {
+      const meta = {
+        id: updatedSection.id,
+        label: updatedSection.title,
+        subtitle: updatedSection.subtitle,
+        details: updatedSection.details,
+        fit: updatedSection.fit
+      };
+
+      const existingIdx = allSectionsMetadata.findIndex(m => m.id === sectionId);
+      if (existingIdx >= 0) allSectionsMetadata[existingIdx] = meta;
+      else allSectionsMetadata.push(meta);
+
+      const { error: settingsError } = await supabase
+        .from(SITE_SETTINGS_TABLE)
+        .upsert({
           key: GALLERY_PAGE_KEY,
-          value: {
-            sections: cleaned.map((s) => ({
-              id: s.id,
-              label: s.title,
-              subtitle: s.subtitle,
-              details: s.details,
-              fit: s.fit,
-              items: s.images.map((img) => ({
-                id: img.id,
-                src: img.url,
-                title: img.title,
-                desc: img.desc,
-                path: img.path,
-                w: img.w,
-                h: img.h,
-              })),
-            })),
-            version: Date.now(),
-          },
-        },
-        { onConflict: "key" },
-      );
+          value: { sections: allSectionsMetadata, version: Date.now() }
+        }, { onConflict: "key" });
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
+      if (settingsError) throw new Error(settingsError.message);
+
+      // 3. Update galleries table (relational rows)
+      const upsertRows = updatedSection.images
+        .filter(img => img.url.length > 0)
+        .map(img => ({
+          id: img.id,
+          src: img.url,
+          cat: updatedSection.id,
+          title: img.title || "",
+          description: img.desc || "",
+          fit: updatedSection.fit
+        }));
+
+      if (upsertRows.length > 0) {
+        const { error: upsertError } = await supabase
+          .from("galleries")
+          .upsert(upsertRows, { onConflict: "id" });
+        if (upsertError) throw new Error(upsertError.message);
       }
 
-      Object.values(previews).forEach((p) => {
-        if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+      // Delete rows for this category that are no longer present
+      const activeIds = upsertRows.map(r => r.id);
+      let deleteQuery = supabase.from("galleries").delete().eq("cat", sectionId);
+      if (activeIds.length > 0) {
+        deleteQuery = deleteQuery.not("id", "in", `(${activeIds.map(id => `"${id}"`).join(",")})`);
+      }
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError) console.warn("Section images cleanup error:", deleteError.message);
+
+      // 4. Cleanup local state for this section
+      const idsToRemoveFromNewFiles = section.images.map(img => img.id);
+      setNewFiles(prev => {
+        const next = { ...prev };
+        idsToRemoveFromNewFiles.forEach(id => {
+          if (next[id]) {
+            const preview = previews[id];
+            if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+            delete next[id];
+          }
+        });
+        return next;
       });
-      setPreviews({});
-      setNewFiles({});
+
+      setPreviews(prev => {
+        const next = { ...prev };
+        idsToRemoveFromNewFiles.forEach(id => delete next[id]);
+        return next;
+      });
+
+      // Update server state for this section
+      setServerSections(prev => {
+        const next = [...prev];
+        const idx = next.findIndex(s => s.id === sectionId);
+        if (idx >= 0) next[idx] = updatedSection;
+        else next.push(updatedSection);
+        return next;
+      });
+
+      // Update UI state with final URLs
+      setSections(prev => prev.map(s => s.id === sectionId ? updatedSection : s));
+      
       setDisplayVersion(Date.now());
-      const normalized = normalize({ sections: cleaned.map((s) => ({ ...s, label: s.title, items: s.images })) });
-      setServerSections(normalized);
-      setSections(normalized);
-      setMessage({ type: "success", text: "Gallery updated" });
+      setMessage({ type: "success", text: `Section "${updatedSection.title || updatedSection.id}" saved successfully` });
     } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save gallery" });
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save section" });
     } finally {
-      setSaving(false);
+      setSavingSections(prev => ({ ...prev, [sectionId]: false }));
     }
   };
 
@@ -3366,25 +3291,21 @@ function GalleryEditor() {
         <div className="flex items-center gap-2">
           <button
             onClick={addSection}
-            disabled={loading || saving}
+            disabled={loading || Object.values(savingSections).some(Boolean)}
             className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
           >
             Add Section
           </button>
           <button
             onClick={load}
-            disabled={loading || saving}
+            disabled={loading || Object.values(savingSections).some(Boolean)}
             className="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60"
           >
             {loading ? "Loading..." : "Reload"}
           </button>
-          <button
-            onClick={save}
-            disabled={!dirty || saving || loading}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+          {dirty && (
+             <div className="text-[10px] text-orange-500 font-bold uppercase animate-pulse">Unsaved Changes</div>
+          )}
         </div>
       </div>
 
@@ -3405,14 +3326,25 @@ function GalleryEditor() {
           <div key={section.id} className="border rounded-2xl p-5">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="font-semibold">{section.title.trim() || "Untitled Section"}</div>
-              <button
-                type="button"
-                onClick={() => removeSection(section.id)}
-                disabled={saving || loading}
-                className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
-              >
-                Remove Section
-              </button>
+              <div className="flex items-center gap-2">
+                {isSectionDirty(section.id) && (
+                  <button
+                    onClick={() => saveSection(section.id)}
+                    disabled={savingSections[section.id] || loading}
+                    className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-60 font-bold shadow-sm"
+                  >
+                    {savingSections[section.id] ? "Saving..." : "Save Section"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeSection(section.id)}
+                  disabled={savingSections[section.id] || loading}
+                  className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Remove Section
+                </button>
+              </div>
             </div>
 
             <div className="grid lg:grid-cols-2 gap-4 mb-4">
@@ -3547,7 +3479,7 @@ function GalleryEditor() {
                         <button
                           type="button"
                           onClick={() => removeImage(section.id, img.id)}
-                          disabled={saving || loading}
+                          disabled={savingSections[section.id] || loading}
                           className="text-[10px] border px-2 py-1 rounded hover:bg-gray-50 disabled:opacity-60"
                         >
                           Remove
@@ -3567,7 +3499,7 @@ function GalleryEditor() {
                           onChange={(e) => updateImage(section.id, img.id, { title: e.target.value })}
                           placeholder="Title"
                           className="w-full border rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-school-green/40"
-                          disabled={saving || loading}
+                          disabled={savingSections[section.id] || loading}
                         />
                       </div>
                       <div className="space-y-1">
@@ -3706,19 +3638,44 @@ function EventsEditor() {
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase
-        .from(SITE_SETTINGS_TABLE)
-        .select("value")
-        .eq("key", EVENTS_PAGE_KEY)
-        .maybeSingle();
+      const [settingsRes, eventsRes] = await Promise.all([
+        supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", EVENTS_PAGE_KEY).maybeSingle(),
+        supabase.from("events").select("*").order("created_at", { ascending: true })
+      ]);
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
-      }
+      if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
+      if (eventsRes.error) throw new Error(eventsRes.error.message);
 
-      const raw = data?.value as unknown;
-      const normalized = normalize(raw);
+      const raw = settingsRes.data?.value as unknown;
+      const dbEvents = eventsRes.data || [];
+
+      const dbCalendar = dbEvents.filter((e: any) => e.type === "upcoming");
+      const dbMoments = dbEvents.filter((e: any) => e.type === "past");
+
+      const loadedCalendar = dbCalendar.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          time: e.time,
+          venue: e.venue,
+          img: e.img,
+          path: `${EVENTS_FOLDER}/calendar/${e.id}`,
+          cat: e.cat,
+          catColor: e.cat_color || "bg-school-green",
+          desc: e.description || "",
+          highlight: e.highlight
+      }));
+
+      const loadedMoments = dbMoments.map((m: any) => ({
+          id: m.id,
+          img: m.img,
+          path: `${EVENTS_FOLDER}/moments/${m.id}`,
+          title: m.title,
+          year: m.year || "",
+          desc: m.description || "",
+      }));
+
+      const normalized = normalize({ calendar: loadedCalendar, moments: loadedMoments });
       const loadedFit =
         typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
       setServerCalendar(normalized.calendar);
@@ -3995,31 +3952,10 @@ function EventsEditor() {
       const cleanedCalendar = nextCalendar.filter((e) => e.title.trim().length > 0);
       const cleanedMoments = nextMoments.filter((m) => m.title.trim().length > 0);
 
-      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+      const { error: settingsError } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
         {
           key: EVENTS_PAGE_KEY,
           value: {
-            calendar: cleanedCalendar.map((e) => ({
-              id: e.id,
-              title: e.title,
-              date: e.date,
-              time: e.time,
-              venue: e.venue,
-              img: e.img,
-              path: e.path,
-              cat: e.cat,
-              catColor: e.catColor,
-              desc: e.desc,
-              highlight: e.highlight,
-            })),
-            moments: cleanedMoments.map((m) => ({
-              id: m.id,
-              img: m.img,
-              path: m.path,
-              title: m.title,
-              year: m.year,
-              desc: m.desc,
-            })),
             fit,
             version: Date.now(),
           },
@@ -4027,10 +3963,61 @@ function EventsEditor() {
         { onConflict: "key" },
       );
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
+      if (settingsError) throw new Error(settingsError.message);
+
+      const upsertRows = [
+        ...cleanedCalendar.map(e => ({
+            id: e.id,
+            type: "upcoming",
+            title: e.title,
+            date: e.date,
+            time: e.time,
+            venue: e.venue,
+            img: e.img,
+            cat: e.cat,
+            cat_color: e.catColor,
+            description: e.desc,
+            highlight: e.highlight,
+            year: ""
+        })),
+        ...cleanedMoments.map(m => ({
+            id: m.id,
+            type: "past",
+            title: m.title,
+            date: "",
+            time: "",
+            venue: "",
+            img: m.img,
+            cat: "",
+            cat_color: "",
+            description: m.desc,
+            highlight: false,
+            year: m.year
+        }))
+      ];
+
+      if (upsertRows.length > 0) {
+        const { error: upsertError } = await supabase.from("events").upsert(upsertRows);
+        if (upsertError) throw new Error(upsertError.message);
       }
+
+      const activeIds = upsertRows.map(r => r.id);
+      if (activeIds.length > 0) {
+        // Use properly quoted UUID syntax for .not("id", "in", ...)
+        const { error: deleteError } = await supabase
+          .from("events")
+          .delete()
+          .not("id", "in", `(${activeIds.map(id => `"${id}"`).join(",")})`);
+        if (deleteError) {
+          console.warn("Events cleanup delete error:", deleteError.message);
+        }
+      } else {
+        // Wipe everything if no events remain
+        const { error: deleteAllError } = await supabase.from("events").delete().gte("id", "");
+        if (deleteAllError) console.warn("Events wipe error:", deleteAllError.message);
+      }
+
+
 
       Object.values(previews).forEach((p) => {
         if (p.startsWith("blob:")) URL.revokeObjectURL(p);
@@ -4569,18 +4556,38 @@ function BlogsEditor() {
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase
-        .from(SITE_SETTINGS_TABLE)
-        .select("value")
-        .eq("key", BLOGS_PAGE_KEY)
-        .maybeSingle();
+      const [settingsRes, blogsRes] = await Promise.all([
+        supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
+        supabase.from("blogs").select("*").order("created_at", { ascending: true })
+      ]);
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
-      }
+      if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
+      if (blogsRes.error) throw new Error(blogsRes.error.message);
 
-      const normalized = normalize(data?.value as unknown);
+      const raw = settingsRes.data?.value as unknown;
+      const dbBlogs = blogsRes.data || [];
+
+      const loadedItems = dbBlogs.map(b => ({
+          id: b.id,
+          title: b.title,
+          excerpt: b.excerpt,
+          author: b.author,
+          date: b.date,
+          cat: b.cat,
+          img: b.img,
+          path: `${BLOGS_FOLDER}/${b.id}`,
+          featured: b.featured,
+          readTime: b.read_time || "",
+          catColor: b.cat_color || "bg-school-green",
+      }));
+
+      const fit = typeof raw === "object" && raw && (raw as any).fit === "contain" ? "contain" : "cover";
+      const candidate = {
+        fit,
+        items: loadedItems
+      };
+
+      const normalized = normalize(candidate);
       setServerFit(normalized.fit);
       setFit(normalized.fit);
       setServerItems(normalized.items);
@@ -4772,23 +4779,10 @@ function BlogsEditor() {
 
       const cleaned = fixedFeatured.filter((b) => b.title.trim().length > 0);
 
-      const { error } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
+      const { error: settingsError } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
         {
           key: BLOGS_PAGE_KEY,
           value: {
-            items: cleaned.map((b) => ({
-              id: b.id,
-              title: b.title,
-              excerpt: b.excerpt,
-              author: b.author,
-              date: b.date,
-              cat: b.cat,
-              img: b.img,
-              path: b.path,
-              featured: b.featured,
-              readTime: b.readTime,
-              catColor: b.catColor,
-            })),
             fit,
             version: Date.now(),
           },
@@ -4796,10 +4790,43 @@ function BlogsEditor() {
         { onConflict: "key" },
       );
 
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
+      if (settingsError) throw new Error(settingsError.message);
+
+      const upsertRows = cleaned.map((b) => ({
+        id: b.id,
+        title: b.title,
+        excerpt: b.excerpt,
+        author: b.author,
+        date: b.date,
+        cat: b.cat,
+        img: b.img,
+        featured: b.featured,
+        read_time: b.readTime,
+        cat_color: b.catColor,
+      }));
+
+      if (upsertRows.length > 0) {
+        const { error: upsertError } = await supabase.from("blogs").upsert(upsertRows);
+        if (upsertError) throw new Error(upsertError.message);
       }
+
+      const activeIds = upsertRows.map((r) => r.id);
+      if (activeIds.length > 0) {
+        // Use properly quoted UUID syntax for .not("id", "in", ...)
+        const { error: deleteError } = await supabase
+          .from("blogs")
+          .delete()
+          .not("id", "in", `(${activeIds.map(id => `"${id}"`).join(",")})`);
+        if (deleteError) {
+          console.warn("Blogs cleanup delete error:", deleteError.message);
+        }
+      } else {
+        // Wipe everything if no blogs remain
+        const { error: deleteAllError } = await supabase.from("blogs").delete().gte("id", "");
+        if (deleteAllError) console.warn("Blogs wipe error:", deleteAllError.message);
+      }
+
+
 
       Object.values(previews).forEach((p) => {
         if (p.startsWith("blob:")) URL.revokeObjectURL(p);
@@ -5853,6 +5880,7 @@ export default function AdminDashboardPage() {
       { key: "gallery", label: "Gallery", icon: ImageIcon },
       { key: "events", label: "Events", icon: Calendar },
       { key: "blogs", label: "Blogs", icon: BookOpen },
+      { key: "contacts", label: "Contact Messages", icon: MessageSquare },
     ],
     [],
   );
@@ -5873,11 +5901,11 @@ export default function AdminDashboardPage() {
         userEmail={user?.email ?? undefined}
         navItems={navItems}
         active={active}
-        onSelect={(key) => {
+        onSelectAction={(key) => {
           setActive(key);
           setMobileMenuOpen(false);
         }}
-        onSignOut={handleSignOut}
+        onSignOutAction={handleSignOut}
         signingOut={signingOut}
       />
 
@@ -5917,6 +5945,8 @@ export default function AdminDashboardPage() {
             <EventsEditor />
           ) : active === "blogs" ? (
             <BlogsEditor />
+          ) : active === "contacts" ? (
+            <ContactMessagesViewer adminUserId={user?.id ?? undefined} />
           ) : (
             <div className="p-6 border rounded-xl">
               <div className="flex items-center gap-2 mb-2">
@@ -5938,11 +5968,11 @@ export default function AdminDashboardPage() {
               userEmail={user?.email ?? undefined}
               navItems={navItems}
               active={active}
-              onSelect={(key) => {
+              onSelectAction={(key) => {
                 setActive(key);
                 setMobileMenuOpen(false);
               }}
-              onSignOut={handleSignOut}
+              onSignOutAction={handleSignOut}
               signingOut={signingOut}
             />
           </div>

@@ -52,7 +52,7 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+    const applySetting = (raw: any, dbItem: any | null, versionFromRow: any) => {
       const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
       const version =
         typeof versionFromValue === "string" || typeof versionFromValue === "number"
@@ -72,107 +72,59 @@ export default function Page() {
       const loadedFit: EventsFit =
         typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
 
-      const calendarRaw =
-        typeof raw === "object" && raw && Array.isArray((raw as { calendar?: unknown }).calendar)
-          ? ((raw as { calendar: unknown[] }).calendar as unknown[])
-          : [];
-      const momentsRaw =
-        typeof raw === "object" && raw && Array.isArray((raw as { moments?: unknown }).moments)
-          ? ((raw as { moments: unknown[] }).moments as unknown[])
-          : [];
-
-      const calendar = calendarRaw.map((row, idx) => {
-        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-        const rowId =
-          typeof obj?.id === "string"
-            ? obj.id.trim()
-            : typeof obj?.id === "number"
-              ? String(obj.id)
-              : `event-${idx + 1}`;
-
-        const title = typeof obj?.title === "string" ? obj.title.trim() : "";
-        const date = typeof obj?.date === "string" ? obj.date.trim() : "";
-        const time = typeof obj?.time === "string" ? obj.time.trim() : "";
-        const venue = typeof obj?.venue === "string" ? obj.venue.trim() : "";
-        const img =
-          typeof obj?.img === "string"
-            ? normalizeUrl(obj.img)
-            : typeof obj?.image === "string"
-              ? normalizeUrl(obj.image)
-              : "";
-        const cat = typeof obj?.cat === "string" ? obj.cat.trim() : "";
-        const catColor = typeof obj?.catColor === "string" ? obj.catColor.trim() : "bg-school-green";
-        const desc =
-          typeof obj?.desc === "string"
-            ? obj.desc.trim()
-            : typeof obj?.details === "string"
-              ? obj.details.trim()
-              : typeof obj?.content === "string"
-                ? obj.content.trim()
-                : "";
-
-        return {
-          kind: "calendar",
-          id: rowId,
-          title,
-          date,
-          time,
-          venue,
-          img,
-          cat,
-          catColor,
-          desc,
-        } satisfies CalendarEvent;
-      });
-
-      const moments = momentsRaw.map((row, idx) => {
-        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-        const rowId =
-          typeof obj?.id === "string"
-            ? obj.id.trim()
-            : typeof obj?.id === "number"
-              ? String(obj.id)
-              : `moment-${idx + 1}`;
-        const img =
-          typeof obj?.img === "string"
-            ? normalizeUrl(obj.img)
-            : typeof obj?.image === "string"
-              ? normalizeUrl(obj.image)
-              : "";
-        const title = typeof obj?.title === "string" ? obj.title.trim() : "";
-        const year = typeof obj?.year === "string" ? obj.year.trim() : "";
-        const desc =
-          typeof obj?.desc === "string" ? obj.desc.trim() : typeof obj?.details === "string" ? obj.details.trim() : "";
-
-        return { kind: "moment", id: rowId, title, year, img, desc } satisfies PastMoment;
-      });
-
-      const found = calendar.find((x) => x.id === id) ?? moments.find((x) => x.id === id) ?? null;
-
       if (cancelled) return;
       setFit(loadedFit);
-      setItem(found);
+      
+      if (dbItem) {
+        // Determine if it should be kind "calendar" or "moment"
+        const isPast = dbItem.type === "past";
+        const desc = dbItem.description || dbItem.desc || dbItem.details || dbItem.content || "";
+        const image = dbItem.img || dbItem.image || "";
+
+        if (isPast) {
+          setItem({
+            kind: "moment",
+            id: dbItem.id,
+            title: dbItem.title || "",
+            year: dbItem.year || (dbItem.date ? new Date(dbItem.date).getFullYear().toString() : ""),
+            img: image ? normalizeUrl(image) : "",
+            desc: desc,
+          });
+        } else {
+          setItem({
+            kind: "calendar",
+            id: dbItem.id,
+            title: dbItem.title || "",
+            date: dbItem.date || "",
+            time: dbItem.time || "",
+            venue: dbItem.venue || "",
+            img: image ? normalizeUrl(image) : "",
+            cat: dbItem.cat || "",
+            catColor: dbItem.cat_color || dbItem.catColor || "bg-school-green",
+            desc: desc,
+          });
+        }
+      } else {
+        setItem(null);
+      }
       setLoading(false);
     };
 
     const load = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", EVENTS_PAGE_KEY)
-          .maybeSingle();
+        const [settingsRes, eventRes] = await Promise.all([
+          supabase.from("site_settings").select("value, updated_at").eq("key", EVENTS_PAGE_KEY).maybeSingle(),
+          supabase.from("events").select("*").eq("id", id).maybeSingle()
+        ]);
+
         if (cancelled) return;
-        if (error || !data?.value) {
-          setLoading(false);
-          setItem(null);
-          return;
-        }
-        const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
-        applySetting(value, version);
-      } catch {
+        
+        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
+        const versionToken = settingsRes.data?.updated_at ?? Date.now();
+        
+        applySetting(settingsValue, eventRes.data || null, versionToken);
+      } catch (err) {
         if (cancelled) return;
         setLoading(false);
         setItem(null);
@@ -180,25 +132,29 @@ export default function Page() {
     };
 
     const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("events-detail")
+    const chSettings = supabase
+      .channel("events-detail-settings")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${EVENTS_PAGE_KEY}` },
-        (payload) => {
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
+        () => { if (!cancelled) load(); }
+      )
+      .subscribe();
+
+    const chEvents = supabase
+      .channel("events-detail-item")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "events", filter: `id=eq.${id}` },
+        () => { if (!cancelled) load(); }
       )
       .subscribe();
 
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(chSettings);
+      supabase.removeChannel(chEvents);
     };
   }, [id]);
 

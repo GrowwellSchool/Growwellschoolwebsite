@@ -33,14 +33,14 @@ export default function Page() {
     }
   }, [params.id]);
 
-  const [fit, setFit] = useState<BlogFit>("cover");
+  const [fit, setFit] = useState<BlogFit>("contain");
   const [item, setItem] = useState<BlogItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+    const applySetting = (raw: any, dbItem: any | null, versionFromRow: any) => {
       const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
       const version =
         typeof versionFromValue === "string" || typeof versionFromValue === "number"
@@ -58,75 +58,45 @@ export default function Page() {
       };
 
       const loadedFit: BlogFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
-
-      const itemsRaw =
-        typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
-          ? ((raw as { items: unknown[] }).items as unknown[])
-          : [];
-
-      const mapped = itemsRaw.map((row, idx) => {
-        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-        const rowId =
-          typeof obj?.id === "string"
-            ? obj.id.trim()
-            : typeof obj?.id === "number"
-              ? String(obj.id)
-              : `blog-${idx + 1}`;
-
-        const title = typeof obj?.title === "string" ? obj.title.trim() : "";
-        const excerpt = typeof obj?.excerpt === "string" ? obj.excerpt.trim() : "";
-        const content =
-          typeof obj?.content === "string"
-            ? obj.content.trim()
-            : typeof obj?.body === "string"
-              ? obj.body.trim()
-              : typeof obj?.desc === "string"
-                ? obj.desc.trim()
-                : typeof obj?.details === "string"
-                  ? obj.details.trim()
-                  : excerpt;
-        const author = typeof obj?.author === "string" ? obj.author.trim() : "";
-        const date = typeof obj?.date === "string" ? obj.date.trim() : "";
-        const cat = typeof obj?.cat === "string" ? obj.cat.trim() : "";
-        const readTime = typeof obj?.readTime === "string" ? obj.readTime.trim() : "";
-        const catColor = typeof obj?.catColor === "string" ? obj.catColor.trim() : "bg-school-green";
-        const img =
-          typeof obj?.img === "string"
-            ? normalizeUrl(obj.img)
-            : typeof obj?.image === "string"
-              ? normalizeUrl(obj.image)
-              : "";
-
-        return { id: rowId, title, excerpt, content, author, date, cat, img, readTime, catColor } satisfies BlogItem;
-      });
-
-      const found = mapped.find((x) => x.id === id) ?? null;
+        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "cover" ? "cover" : "contain";
 
       if (cancelled) return;
       setFit(loadedFit);
-      setItem(found);
+      
+      if (dbItem) {
+        setItem({
+          id: dbItem.id,
+          title: dbItem.title || "",
+          excerpt: dbItem.excerpt || "",
+          content: dbItem.content || dbItem.body || "",
+          author: dbItem.author || "",
+          date: dbItem.date || "",
+          cat: dbItem.cat || "",
+          img: dbItem.img ? normalizeUrl(dbItem.img) : dbItem.image ? normalizeUrl(dbItem.image) : "",
+          readTime: dbItem.read_time || dbItem.readTime || "",
+          catColor: dbItem.cat_color || dbItem.catColor || "bg-school-green",
+        });
+      } else {
+        setItem(null);
+      }
       setLoading(false);
     };
 
     const load = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", BLOGS_PAGE_KEY)
-          .maybeSingle();
+        const [settingsRes, blogRes] = await Promise.all([
+          supabase.from("site_settings").select("value, updated_at").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
+          supabase.from("blogs").select("*").eq("id", id).maybeSingle()
+        ]);
+
         if (cancelled) return;
-        if (error || !data?.value) {
-          setLoading(false);
-          setItem(null);
-          return;
-        }
-        const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
-        applySetting(value, version);
-      } catch {
+        
+        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
+        const versionToken = settingsRes.data?.updated_at ?? Date.now();
+        
+        applySetting(settingsValue, blogRes.data || null, versionToken);
+      } catch (err) {
         if (cancelled) return;
         setLoading(false);
         setItem(null);
@@ -134,25 +104,29 @@ export default function Page() {
     };
 
     const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("blogs-detail")
+    const chSettings = supabase
+      .channel("blogs-detail-settings")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${BLOGS_PAGE_KEY}` },
-        (payload) => {
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
-        },
+        () => { if (!cancelled) load(); }
+      )
+      .subscribe();
+
+    const chBlogs = supabase
+      .channel("blogs-detail-item")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "blogs", filter: `id=eq.${id}` },
+        () => { if (!cancelled) load(); }
       )
       .subscribe();
 
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(chSettings);
+      supabase.removeChannel(chBlogs);
     };
   }, [id]);
 
@@ -185,7 +159,7 @@ export default function Page() {
       </section>
 
       <section className="pt-6 pb-16 bg-white pattern-grid">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4">
           {!loading && !item ? (
             <div className="rounded-3xl border border-black/10 bg-white p-10 text-center">
               <div className="text-school-dark font-heading font-black text-2xl">Blog not found</div>
@@ -195,7 +169,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark aspect-[16/9]">
+              <div className="relative bg-school-dark aspect-[16/9] lg:aspect-auto lg:h-[500px] min-h-[400px]">
                 <div className="absolute inset-0 pattern-grid opacity-25" aria-hidden />
                 {item.img ? (
                   fit === "contain" ? (
@@ -209,6 +183,7 @@ export default function Page() {
                         aria-hidden
                         priority
                       />
+                      <div className="absolute inset-0 bg-school-dark/40" />
                       <Image
                         src={item.img}
                         alt={item.title}
@@ -217,7 +192,6 @@ export default function Page() {
                         className="object-contain"
                         priority
                       />
-                      <div className="absolute inset-0 bg-school-dark/65" />
                     </>
                   ) : (
                     <>
@@ -226,7 +200,7 @@ export default function Page() {
                         alt={item.title}
                         fill
                         sizes="(min-width: 1024px) 1024px, 100vw"
-                        className="object-cover"
+                        className="object-contain"
                         priority
                       />
                       <div className="absolute inset-0 bg-school-dark/35" />
