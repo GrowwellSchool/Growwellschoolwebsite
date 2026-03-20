@@ -130,7 +130,7 @@ const CircularGalleryDemo = () => {
       </div>
 
       <div className="w-full h-[500px] flex items-center justify-center">
-        <CircularGallery items={items} radius={600} fit={fit} />
+        <CircularGallery items={items} radius={600} fit={fit} autoRotateSpeed={0.06} />
       </div>
     </section>
   )
