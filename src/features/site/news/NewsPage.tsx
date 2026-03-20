@@ -16,7 +16,32 @@ type NewsItem = {
   excerpt: string;
   href: string;
   image: string;
+  updatedAt?: string;
 };
+
+type NewsFit = "cover" | "contain";
+
+type SiteSettingsValue = { fit?: "cover" | "contain"; version?: string | number };
+
+type NewsRow = {
+  id: string;
+  tag: string;
+  date: string;
+  title: string;
+  excerpt: string;
+  href: string;
+  image: string;
+  updated_at?: string;
+};
+
+// Helper to add cache-busting version to image URLs
+function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+  if (!url || !url.trim()) return "";
+  const trimmed = url.trim();
+  const base = trimmed.split("?")[0];
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
 
 const PAGE_SIZE = 9;
 
@@ -50,7 +75,7 @@ function PageHero() {
   );
 }
 
-function FeaturedSection({ featured }: { featured?: NewsItem }) {
+function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit }) {
   if (!featured) return null;
 
   return (
@@ -75,17 +100,38 @@ function FeaturedSection({ featured }: { featured?: NewsItem }) {
 
         <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
           <div className="grid lg:grid-cols-2">
-            <div className="relative min-h-[260px] lg:min-h-[360px] bg-school-dark">
-              <div className="absolute inset-0 pattern-grid opacity-25" aria-hidden />
-              <Image
-                src={featured.image}
-                alt={featured.title}
-                fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 bg-school-dark/40" />
+            <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
+              {fit === "contain" ? (
+                <>
+                  <Image
+                    src={featured.image}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover scale-110 blur-2xl"
+                    aria-hidden
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-school-dark/40" />
+                  <Image
+                    src={featured.image}
+                    alt={featured.title}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-contain"
+                    priority
+                  />
+                </>
+              ) : (
+                <Image
+                  src={featured.image}
+                  alt={featured.title}
+                  fill
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className="object-contain"
+                  priority
+                />
+              )}
             </div>
             <div className="p-8 lg:p-10">
               <div className="flex items-center justify-between gap-3">
@@ -118,12 +164,14 @@ function NewsListSection({
   items,
   hasMore,
   loading,
-  loadMoreRef, // Received ref for sentinel
+  loadMoreRef,
+  fit,
 }: {
   items: NewsItem[];
   hasMore: boolean;
   loading: boolean;
   loadMoreRef: RefObject<HTMLDivElement | null>;
+  fit: NewsFit;
 }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, amount: 0.2 });
@@ -157,15 +205,36 @@ function NewsListSection({
                 transition={{ duration: 0.5, delay: Math.min(i, 6) * 0.1 }}
                 className="bg-white rounded-2xl border border-black/10 shadow-md hover:shadow-xl transition-shadow overflow-hidden"
               >
-                <div className="relative aspect-[16/10] bg-gray-100">
+                <div className="aspect-[2/3] relative bg-school-dark overflow-hidden">
                   {it.image ? (
-                    <Image
-                      src={it.image}
-                      alt=""
-                      fill
-                      sizes="(min-width: 1024px) 33vw, 100vw"
-                      className="object-cover"
-                    />
+                    fit === "contain" ? (
+                      <>
+                        <Image
+                          src={it.image}
+                          alt=""
+                          fill
+                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          className="object-cover scale-110 blur-2xl"
+                          aria-hidden
+                        />
+                        <div className="absolute inset-0 bg-school-dark/40" />
+                        <Image
+                          src={it.image}
+                          alt={it.title}
+                          fill
+                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          className="object-contain"
+                        />
+                      </>
+                    ) : (
+                      <Image
+                        src={it.image}
+                        alt={it.title}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover"
+                      />
+                    )
                   ) : null}
                 </div>
                 <div className="p-6">
@@ -207,6 +276,7 @@ export default function NewsPage() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [featured, setFeatured] = useState<NewsItem | null>(null);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
+  const [fit, setFit] = useState<NewsFit>("contain");
 
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -244,14 +314,35 @@ export default function NewsPage() {
           setFeaturedId(d.id);
           setFeatured({
             id: d.id, tag: d.tag, date: d.date, title: d.title,
-            excerpt: d.excerpt, href: d.href || "#", image: d.image || "",
+            excerpt: d.excerpt, href: d.href || "#", image: withImageVersion(d.image, d.updated_at),
+            updatedAt: d.updated_at,
           });
         }
       } finally {
         featuredFetchingRef.current = false;
       }
     };
+
+    // Fetch fit setting
+    const fetchFit = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data } = await supabase
+          .from("site_settings")
+          .select("value")
+          .eq("key", "home.news")
+          .maybeSingle();
+        if (data?.value) {
+          const val = data.value as SiteSettingsValue;
+          setFit(val.fit === "contain" ? "contain" : "cover");
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     fetchFeatured();
+    fetchFit();
     return () => { cancelled = true; };
   }, []);
 
@@ -280,9 +371,10 @@ export default function NewsPage() {
         const { data, count, error } = await query;
 
         if (!error && data) {
-          const mapped: NewsItem[] = data.map((d: any) => ({
+          const mapped: NewsItem[] = data.map((d: NewsRow) => ({
             id: d.id, tag: d.tag, date: d.date, title: d.title,
-            excerpt: d.excerpt, href: d.href || "#", image: d.image || "",
+            excerpt: d.excerpt, href: d.href || "#", image: withImageVersion(d.image, d.updated_at),
+            updatedAt: d.updated_at,
           }));
           if (isAppending) setItems((prev) => [...prev, ...mapped]);
           else setItems(mapped);
@@ -332,12 +424,13 @@ export default function NewsPage() {
   return (
     <>
       <PageHero />
-      <FeaturedSection featured={featured || undefined} />
+      <FeaturedSection featured={featured || undefined} fit={fit} />
       <NewsListSection
         items={items}
         hasMore={hasMore}
         loading={loading}
         loadMoreRef={loadMoreRef}
+        fit={fit}
       />
     </>
   );

@@ -199,8 +199,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark aspect-[16/9]">
-                <div className="absolute inset-0 pattern-grid opacity-25" aria-hidden />
+              <div className="relative bg-school-dark aspect-[16/9] lg:aspect-auto lg:h-[500px] min-h-[400px]">
                 {item.img ? (
                   fit === "contain" ? (
                     <>
@@ -213,6 +212,7 @@ export default function Page() {
                         aria-hidden
                         priority
                       />
+                      <div className="absolute inset-0 bg-school-dark/40" />
                       <Image
                         src={item.img}
                         alt={item.title}
@@ -221,7 +221,6 @@ export default function Page() {
                         className="object-contain"
                         priority
                       />
-                      <div className="absolute inset-0 bg-school-dark/65" />
                     </>
                   ) : (
                     <>
@@ -230,15 +229,13 @@ export default function Page() {
                         alt={item.title}
                         fill
                         sizes="(min-width: 1024px) 1024px, 100vw"
-                        className="object-cover"
+                        className="object-contain"
                         priority
                       />
                       <div className="absolute inset-0 bg-school-dark/35" />
                     </>
                   )
-                ) : (
-                  <div className="absolute inset-0 bg-school-dark/60" />
-                )}
+                ) : null}
 
                 <div className="absolute left-5 right-5 bottom-5 md:left-10 md:right-10 md:bottom-10">
                   <div className="flex flex-wrap items-center gap-2 mb-4">

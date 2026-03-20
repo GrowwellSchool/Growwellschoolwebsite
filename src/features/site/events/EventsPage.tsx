@@ -22,10 +22,22 @@ type UpcomingEvent = {
   catColor: string;
   desc: string;
   highlight: boolean;
+  updatedAt?: string;
 };
 
-type PastHighlight = { id: string; img: string; title: string; year: string; desc: string };
+type PastHighlight = { id: string; img: string; title: string; year: string; desc: string; updatedAt?: string };
 type EventsFit = "cover" | "contain";
+
+type SiteSettingsValue = { fit?: "cover" | "contain"; version?: string | number };
+
+// Helper to add cache-busting version to image URLs
+function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+  if (!url || !url.trim()) return "";
+  const trimmed = url.trim();
+  const base = trimmed.split("?")[0];
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
 
 function PageHero() {
   return (
@@ -86,7 +98,7 @@ function UpcomingSection({
             transition={{ duration: 0.6 }}
             className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8 grid lg:grid-cols-2"
           >
-            <div className="img-zoom h-64 lg:h-auto relative bg-school-dark">
+            <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
               {fit === "contain" ? (
                 <>
                   <Image
@@ -97,6 +109,7 @@ function UpcomingSection({
                     className="object-cover scale-110 blur-2xl"
                     aria-hidden
                   />
+                  <div className="absolute inset-0 bg-school-dark/40" />
                   <Image
                     src={event.img}
                     alt={event.title}
@@ -111,7 +124,7 @@ function UpcomingSection({
                   alt={event.title}
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-cover"
+                  className="object-contain"
                 />
               )}
             </div>
@@ -162,7 +175,7 @@ function UpcomingSection({
               transition={{ delay: Math.min(i, 5) * 0.1, duration: 0.5 }}
               className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
             >
-              <div className="img-zoom h-48 relative bg-school-dark">
+              <div className="aspect-[2/3] relative overflow-hidden bg-gray-50">
                 {fit === "contain" ? (
                   <>
                     <Image
@@ -173,7 +186,6 @@ function UpcomingSection({
                       className="object-cover scale-110 blur-2xl"
                       aria-hidden
                     />
-                    <div className="absolute inset-0 bg-school-dark/10" />
                     <Image
                       src={event.img}
                       alt={event.title}
@@ -181,6 +193,7 @@ function UpcomingSection({
                       sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="object-contain"
                     />
+                    <div className="absolute inset-0 bg-school-dark/10" />
                   </>
                 ) : (
                   <Image
@@ -273,7 +286,7 @@ function PastHighlightsSection({
               transition={{ delay: Math.min(i, 5) * 0.1, duration: 0.4 }}
               className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden card-hover group"
             >
-              <div className="img-zoom h-44 relative bg-school-dark">
+              <div className="aspect-[2/3] relative overflow-hidden bg-gray-50">
                 {fit === "contain" ? (
                   <>
                     <Image
@@ -291,6 +304,7 @@ function PastHighlightsSection({
                       sizes="(min-width: 1024px) 25vw, 50vw"
                       className="object-contain"
                     />
+                    <div className="absolute inset-0 bg-school-dark/10" />
                   </>
                 ) : (
                   <Image
@@ -388,7 +402,7 @@ export default function EventsPage() {
         if (cancelled) return;
 
         if (fitData?.value) {
-          const val = fitData.value as any;
+          const val = fitData.value as SiteSettingsValue;
           setFit(val.fit === "contain" ? "contain" : "cover");
         }
 
@@ -396,8 +410,8 @@ export default function EventsPage() {
           setHighlights(
             hData.map((d) => ({
               id: d.id, title: d.title, date: d.date, time: d.time,
-              venue: d.venue, img: d.img, cat: d.cat, catColor: d.cat_color,
-              desc: d.description, highlight: d.highlight,
+              venue: d.venue, img: withImageVersion(d.img, d.updated_at), cat: d.cat, catColor: d.cat_color,
+              desc: d.description, highlight: d.highlight, updatedAt: d.updated_at,
             }))
           );
         }
@@ -430,8 +444,9 @@ export default function EventsPage() {
       if (!error && data) {
         const mapped: UpcomingEvent[] = data.map((d) => ({
           id: d.id, title: d.title, date: d.date, time: d.time,
-          venue: d.venue, img: d.img, cat: d.cat, catColor: d.cat_color,
+          venue: d.venue, img: withImageVersion(d.img, d.updated_at), cat: d.cat, catColor: d.cat_color,
           desc: d.description, highlight: d.highlight,
+          updatedAt: d.updated_at,
         }));
         if (isAppending) setUpcomingEvents((prev) => [...prev, ...mapped]);
         else setUpcomingEvents(mapped);
@@ -461,7 +476,8 @@ export default function EventsPage() {
 
       if (!error && data) {
         const mapped: PastHighlight[] = data.map((d) => ({
-          id: d.id, img: d.img, title: d.title, year: d.year, desc: d.description,
+          id: d.id, img: withImageVersion(d.img, d.updated_at), title: d.title, year: d.year, desc: d.description,
+          updatedAt: d.updated_at,
         }));
         if (isAppending) setPastHighlights((prev) => [...prev, ...mapped]);
         else setPastHighlights(mapped);

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
@@ -12,6 +11,23 @@ const BLOGS_PAGE_KEY = "blogs.page";
 const PAGE_SIZE = 9;
 
 type BlogFit = "cover" | "contain";
+
+type BlogRow = {
+  id: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  date: string;
+  cat: string;
+  img: string;
+  featured: boolean;
+  read_time: string;
+  cat_color: string;
+  updated_at?: string;
+};
+
+type SiteSettingsValue = { fit?: "cover" | "contain"; version?: string | number };
+
 type BlogItem = {
   id: string;
   title: string;
@@ -23,7 +39,17 @@ type BlogItem = {
   featured: boolean;
   readTime: string;
   catColor: string;
+  updatedAt?: string;
 };
+
+// Helper to add cache-busting version to image URLs
+function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+  if (!url || !url.trim()) return "";
+  const trimmed = url.trim();
+  const base = trimmed.split("?")[0];
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
 
 function PageHero() {
   return (
@@ -97,7 +123,7 @@ export default function BlogsPage() {
         if (cancelled) return;
 
         if (fitData?.value) {
-          const raw = fitData.value as any;
+          const raw = fitData.value as SiteSettingsValue;
           setFit(raw.fit === "contain" ? "contain" : "cover");
         }
 
@@ -110,10 +136,11 @@ export default function BlogsPage() {
             author: d.author,
             date: d.date,
             cat: d.cat,
-            img: d.img,
+            img: withImageVersion(d.img, d.updated_at),
             featured: d.featured,
             readTime: d.read_time,
             catColor: d.cat_color,
+            updatedAt: d.updated_at,
           });
         }
 
@@ -160,9 +187,10 @@ export default function BlogsPage() {
         const { data, count, error } = await query;
 
         if (!error && data) {
-          const mapped: BlogItem[] = data.map((d: any) => ({
+          const mapped: BlogItem[] = data.map((d: BlogRow) => ({
             id: d.id, title: d.title, excerpt: d.excerpt, author: d.author, date: d.date,
-            cat: d.cat, img: d.img, featured: d.featured, readTime: d.read_time, catColor: d.cat_color,
+            cat: d.cat, img: withImageVersion(d.img, d.updated_at), featured: d.featured, readTime: d.read_time, catColor: d.cat_color,
+            updatedAt: d.updated_at,
           }));
           if (isAppending) setBlogs((prev) => [...prev, ...mapped]);
           else setBlogs(mapped);
