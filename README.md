@@ -11,7 +11,7 @@ npm run start
 npm run lint
 ```
 
-## Structure
+## Structure 
 
 - Routes live under `src/app`
 - Reusable UI lives under `src/components` and `src/features`
