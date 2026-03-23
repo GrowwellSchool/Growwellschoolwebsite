@@ -23,8 +23,9 @@ const CircularGalleryDemo = () => {
             ? String(versionFromRow)
             : String(Date.now())
 
-      const nextFit =
-        typeof raw === 'object' && raw && (raw as { fit?: unknown }).fit === 'contain' ? 'contain' : 'cover'
+      const rawFit = typeof raw === 'object' && raw ? (raw as { fit?: unknown }).fit : undefined
+      const normalizedFit = typeof rawFit === 'string' ? rawFit.toLowerCase().trim() : ''
+      const nextFit = normalizedFit === 'contain' ? 'contain' : 'cover'
 
       const candidate = Array.isArray(raw)
         ? raw

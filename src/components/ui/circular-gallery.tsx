@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, type HTMLAttributes } from "react";
 import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // A simple utility for conditional class names
 const cn = (...classes: (string | undefined | null | false)[]) => {
@@ -127,6 +128,14 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
 
     const anglePerItem = 360 / items.length;
 
+    const rotateLeft = () => {
+      setRotation((prev) => prev - anglePerItem);
+    };
+
+    const rotateRight = () => {
+      setRotation((prev) => prev + anglePerItem);
+    };
+
     return (
       <div
         ref={(node) => {
@@ -145,6 +154,23 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
         style={{ perspective: "2000px", pointerEvents: "auto" as const }}
         {...props}
       >
+        {/* Left rotation button */}
+        <button
+          onClick={rotateLeft}
+          aria-label="Rotate left"
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all pointer-events-auto"
+        >
+          <ChevronLeft size={24} />
+        </button>
+
+        {/* Right rotation button */}
+        <button
+          onClick={rotateRight}
+          aria-label="Rotate right"
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all pointer-events-auto"
+        >
+          <ChevronRight size={24} />
+        </button>
         <div
           className="relative w-full h-full pointer-events-none"
           style={{

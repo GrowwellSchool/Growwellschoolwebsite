@@ -81,8 +81,9 @@ function HeroCarousel() {
         return `${base}?v=${encodeURIComponent(version)}`;
       });
 
-      const nextFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      const nextFit = normalizedFit === "contain" ? "contain" : "cover";
 
       const merged = heroSlides.map((s, i) => ({
         ...s,
@@ -493,7 +494,9 @@ function ProgramsSection() {
       });
 
       setPrograms(next);
-      setFit(typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover");
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      setFit(normalizedFit === "contain" ? "contain" : "cover");
       setLoadState("ready");
       setLoadError(null);
     };
@@ -689,8 +692,9 @@ function DeskSection() {
           ? ((raw as { principal?: unknown }).principal as Record<string, unknown>)
           : null;
 
-      const loadedFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      const loadedFit = normalizedFit === "contain" ? "contain" : "cover";
       setFit(loadedFit);
 
       if (nextDirector) {
@@ -775,6 +779,9 @@ function DeskSection() {
             Leadership
           </span>
           <h2 className="text-3xl lg:text-4xl font-heading font-black">From The Desk of Our Leaders</h2>
+          <Link href="/leadership" className="btn-secondary mt-4 inline-flex items-center gap-2">
+            View Full Page <ArrowRight size={16} />
+          </Link>
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -1083,8 +1090,9 @@ function NewsAnnouncementsSlider() {
          .slice(0, 4);
 
       if (cancelled) return;
-      const loadedFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      const loadedFit = normalizedFit === "contain" ? "contain" : "cover";
       setSlides(mapped);
       setActive((prev) => (mapped.length === 0 ? 0 : Math.min(prev, mapped.length - 1)));
       setFit(loadedFit);
@@ -1277,8 +1285,9 @@ function GalleryPreview() {
             ? String(versionFromRow)
             : String(Date.now());
 
-      const nextFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      const nextFit = normalizedFit === "contain" ? "contain" : "cover";
 
       const candidate =
         typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
@@ -1477,8 +1486,9 @@ function AboutSection() {
         return `${base}?v=${encodeURIComponent(version)}`;
       });
 
-      const nextFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      const nextFit = normalizedFit === "contain" ? "contain" : "cover";
       const nextDetails =
         typeof raw === "object" && raw && typeof (raw as { details?: unknown }).details === "string"
           ? String((raw as { details: string }).details)
