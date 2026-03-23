@@ -41,10 +41,28 @@ const heroSlides = [
   },
 ];
 
+const HERO_CACHE_KEY = "cache:home.heroImages";
+
 function HeroCarousel() {
   const [slides, setSlides] = useState(heroSlides);
   const [active, setActive] = useState(0);
   const [fit, setFit] = useState<"cover" | "contain">("cover");
+
+  // Load from cache immediately on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(HERO_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed?.slides) && parsed.slides.length === heroSlides.length) {
+          setSlides(parsed.slides);
+          if (parsed.fit === "contain" || parsed.fit === "cover") {
+            setFit(parsed.fit);
+          }
+        }
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -89,6 +107,11 @@ function HeroCarousel() {
         ...s,
         img: urls[i] || "",
       }));
+
+      // Cache to localStorage
+      try {
+        localStorage.setItem(HERO_CACHE_KEY, JSON.stringify({ slides: merged, fit: nextFit }));
+      } catch {}
 
       setSlides(merged);
       setFit(nextFit);
