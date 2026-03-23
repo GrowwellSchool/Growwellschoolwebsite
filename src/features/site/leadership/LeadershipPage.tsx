@@ -154,7 +154,7 @@ export default function LeadershipPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="relative bg-school-dark text-white py-24 overflow-hidden">
+      <section className="relative bg-school-dark text-white py-16 md:py-24 overflow-hidden">
         <div className="absolute inset-0 pattern-grid opacity-10" />
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-school-gold/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-school-green/10 rounded-full blur-3xl" />
@@ -166,13 +166,13 @@ export default function LeadershipPage() {
             transition={{ duration: 0.6 }}
             className="text-center"
           >
-            <span className="inline-block bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-6">
+            <span className="inline-block bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4 md:mb-6">
               Leadership
             </span>
-            <h1 className="text-4xl lg:text-6xl font-heading font-black mb-4">
+            <h1 className="text-3xl md:text-4xl lg:text-6xl font-heading font-black mb-4">
               From The Desk of Our Leaders
             </h1>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">
               Meet the visionaries guiding Growwell School towards excellence in education and holistic development.
             </p>
           </motion.div>
@@ -180,7 +180,7 @@ export default function LeadershipPage() {
       </section>
 
       {/* Director Section */}
-      <section className="py-20" ref={ref}>
+      <section className="py-12 md:py-20" ref={ref}>
         <div className="max-w-7xl mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -190,10 +190,10 @@ export default function LeadershipPage() {
           >
             <div className="grid lg:grid-cols-2 gap-0">
               {/* Image Side */}
-              <div className="relative min-h-[500px] lg:min-h-[650px] bg-gradient-to-br from-school-green to-school-green/80">
+              <div className="relative min-h-[300px] sm:min-h-[400px] md:min-h-[500px] lg:min-h-[650px] bg-gradient-to-br from-school-green to-school-green/80">
                 <div className="absolute inset-0 pattern-grid opacity-10" />
-                <div className="absolute inset-8 flex items-center justify-center">
-                  <div className="relative w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl">
+                <div className="absolute inset-4 sm:inset-6 md:inset-8 flex items-center justify-center">
+                  <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden border-2 sm:border-4 border-white/20 shadow-2xl">
                     {directorImage ? (
                       fit === "contain" ? (
                         <>
@@ -226,7 +226,7 @@ export default function LeadershipPage() {
                         />
                       )
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-school-gold text-school-dark font-heading font-black text-5xl">
+                      <div className="w-full h-full flex items-center justify-center bg-school-gold text-school-dark font-heading font-black text-3xl sm:text-4xl md:text-5xl">
                         {initials(directorName || "Director")}
                       </div>
                     )}
@@ -234,53 +234,53 @@ export default function LeadershipPage() {
                 </div>
 
                 {/* Decorative elements */}
-                <div className="absolute top-8 left-8 w-20 h-20 border-2 border-white/20 rounded-2xl" />
-                <div className="absolute bottom-8 right-8 w-32 h-32 border-2 border-school-gold/30 rounded-2xl" />
+                <div className="absolute top-4 left-4 sm:top-8 sm:left-8 w-12 h-12 sm:w-20 sm:h-20 border-2 border-white/20 rounded-xl sm:rounded-2xl" />
+                <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 w-16 h-16 sm:w-32 sm:h-32 border-2 border-school-gold/30 rounded-xl sm:rounded-2xl" />
               </div>
 
               {/* Content Side */}
-              <div className="p-8 lg:p-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-school-gold/10 rounded-full flex items-center justify-center">
-                    <Award className="w-6 h-6 text-school-gold" />
+              <div className="p-6 sm:p-8 lg:p-12">
+                <div className="flex items-center gap-3 mb-4 md:mb-6">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-school-gold/10 rounded-full flex items-center justify-center">
+                    <Award className="w-5 h-5 sm:w-6 sm:h-6 text-school-gold" />
                   </div>
-                  <span className="text-school-gold text-sm font-bold tracking-widest uppercase">
+                  <span className="text-school-gold text-xs sm:text-sm font-bold tracking-widest uppercase">
                     {directorRole || "Director"}
                   </span>
                 </div>
 
-                <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-6">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-black text-gray-900 mb-4 md:mb-6">
                   {directorName || "Director"}
                 </h2>
 
                 {directorMotto.trim().length > 0 && (
-                  <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-6">
-                    <div className="text-school-gold text-sm font-heading font-bold tracking-widest uppercase mb-1">
+                  <div className="bg-school-gold/10 border-l-4 border-school-gold px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 md:mb-6">
+                    <div className="text-school-gold text-xs sm:text-sm font-heading font-bold tracking-widest uppercase mb-1">
                       Our Motto
                     </div>
-                    <div className="text-gray-700 italic">{directorMotto}</div>
+                    <div className="text-gray-700 text-sm sm:text-base italic">{directorMotto}</div>
                   </div>
                 )}
 
-                <Quote size={32} className="text-school-green/30 mb-4" />
+                <Quote size={28} className="sm:w-8 sm:h-8 text-school-green/30 mb-3 sm:mb-4" />
 
                 {directorMessage.trim().length > 0 && (
-                  <p className="text-gray-600 text-lg leading-relaxed mb-6 italic">
+                  <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-4 md:mb-6 italic">
                     &ldquo;{directorMessage}&rdquo;
                   </p>
                 )}
 
                 {directorQualifications.trim().length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="font-heading font-bold text-gray-900 mb-2">Qualifications</h4>
-                    <p className="text-gray-600">{directorQualifications}</p>
+                  <div className="mb-3 sm:mb-4">
+                    <h4 className="font-heading font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Qualifications</h4>
+                    <p className="text-gray-600 text-sm sm:text-base">{directorQualifications}</p>
                   </div>
                 )}
 
                 {directorExperience.trim().length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="font-heading font-bold text-gray-900 mb-2">Experience</h4>
-                    <p className="text-gray-600">{directorExperience}</p>
+                  <div className="mb-4 sm:mb-6">
+                    <h4 className="font-heading font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Experience</h4>
+                    <p className="text-gray-600 text-sm sm:text-base">{directorExperience}</p>
                   </div>
                 )}
               </div>
@@ -290,7 +290,7 @@ export default function LeadershipPage() {
       </section>
 
       {/* Principal Section */}
-      <section className="py-20 bg-school-dark text-white">
+      <section className="py-12 md:py-20 bg-school-dark text-white">
         <div className="max-w-7xl mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -300,57 +300,57 @@ export default function LeadershipPage() {
           >
             <div className="grid lg:grid-cols-2 gap-0">
               {/* Content Side */}
-              <div className="p-8 lg:p-12 order-2 lg:order-1">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-school-orange/20 rounded-full flex items-center justify-center">
-                    <BookOpen className="w-6 h-6 text-school-orange" />
+              <div className="p-6 sm:p-8 lg:p-12 order-2 lg:order-1">
+                <div className="flex items-center gap-3 mb-4 md:mb-6">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-school-orange/20 rounded-full flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-school-orange" />
                   </div>
-                  <span className="text-school-orange text-sm font-bold tracking-widest uppercase">
+                  <span className="text-school-orange text-xs sm:text-sm font-bold tracking-widest uppercase">
                     {principalRole || "Principal"}
                   </span>
                 </div>
 
-                <h2 className="text-3xl lg:text-4xl font-heading font-black text-white mb-6">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-black text-white mb-4 md:mb-6">
                   {principalName || "Principal"}
                 </h2>
 
                 {principalQuote.trim().length > 0 && (
-                  <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-6">
-                    <div className="text-school-gold text-sm font-heading font-bold tracking-widest uppercase mb-1">
+                  <div className="bg-school-gold/10 border-l-4 border-school-gold px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 md:mb-6">
+                    <div className="text-school-gold text-xs sm:text-sm font-heading font-bold tracking-widest uppercase mb-1">
                       Quote
                     </div>
-                    <div className="text-gray-200 italic">{principalQuote}</div>
+                    <div className="text-gray-200 text-sm sm:text-base italic">{principalQuote}</div>
                   </div>
                 )}
 
-                <Quote size={32} className="text-school-orange/30 mb-4" />
+                <Quote size={28} className="sm:w-8 sm:h-8 text-school-orange/30 mb-3 sm:mb-4" />
 
                 {principalMessage.trim().length > 0 && (
-                  <p className="text-gray-300 text-lg leading-relaxed mb-6 italic">
+                  <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-4 md:mb-6 italic">
                     &ldquo;{principalMessage}&rdquo;
                   </p>
                 )}
 
                 {principalQualifications.trim().length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="font-heading font-bold text-white mb-2">Qualifications</h4>
-                    <p className="text-gray-300">{principalQualifications}</p>
+                  <div className="mb-3 sm:mb-4">
+                    <h4 className="font-heading font-bold text-white mb-1 sm:mb-2 text-sm sm:text-base">Qualifications</h4>
+                    <p className="text-gray-300 text-sm sm:text-base">{principalQualifications}</p>
                   </div>
                 )}
 
                 {principalExperience.trim().length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="font-heading font-bold text-white mb-2">Experience</h4>
-                    <p className="text-gray-300">{principalExperience}</p>
+                  <div className="mb-4 sm:mb-6">
+                    <h4 className="font-heading font-bold text-white mb-1 sm:mb-2 text-sm sm:text-base">Experience</h4>
+                    <p className="text-gray-300 text-sm sm:text-base">{principalExperience}</p>
                   </div>
                 )}
               </div>
 
               {/* Image Side */}
-              <div className="relative min-h-[500px] lg:min-h-[650px] bg-gradient-to-br from-school-orange to-school-orange/80 order-1 lg:order-2">
+              <div className="relative min-h-[300px] sm:min-h-[400px] md:min-h-[500px] lg:min-h-[650px] bg-gradient-to-br from-school-orange to-school-orange/80 order-1 lg:order-2">
                 <div className="absolute inset-0 pattern-grid opacity-10" />
-                <div className="absolute inset-8 flex items-center justify-center">
-                  <div className="relative w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl">
+                <div className="absolute inset-4 sm:inset-6 md:inset-8 flex items-center justify-center">
+                  <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden border-2 sm:border-4 border-white/20 shadow-2xl">
                     {principalImage ? (
                       fit === "contain" ? (
                         <>
@@ -383,7 +383,7 @@ export default function LeadershipPage() {
                         />
                       )
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-school-orange text-white font-heading font-black text-5xl">
+                      <div className="w-full h-full flex items-center justify-center bg-school-orange text-white font-heading font-black text-3xl sm:text-4xl md:text-5xl">
                         {initials(principalName || "Principal")}
                       </div>
                     )}
@@ -391,8 +391,8 @@ export default function LeadershipPage() {
                 </div>
 
                 {/* Decorative elements */}
-                <div className="absolute top-8 right-8 w-20 h-20 border-2 border-white/20 rounded-2xl" />
-                <div className="absolute bottom-8 left-8 w-32 h-32 border-2 border-school-gold/30 rounded-2xl" />
+                <div className="absolute top-4 right-4 sm:top-8 sm:right-8 w-12 h-12 sm:w-20 sm:h-20 border-2 border-white/20 rounded-xl sm:rounded-2xl" />
+                <div className="absolute bottom-4 left-4 sm:bottom-8 sm:left-8 w-16 h-16 sm:w-32 sm:h-32 border-2 border-school-gold/30 rounded-xl sm:rounded-2xl" />
               </div>
             </div>
           </motion.div>
@@ -401,35 +401,35 @@ export default function LeadershipPage() {
 
       {/* Mission & Vision Section */}
       {(schoolMission || schoolVision) && (
-        <section className="py-20 bg-white">
+        <section className="py-12 md:py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-center mb-12"
+              className="text-center mb-8 md:mb-12"
             >
-              <span className="inline-block bg-school-green/10 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+              <span className="inline-block bg-school-green/10 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-3 md:mb-4">
                 Our Foundation
               </span>
-              <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-black text-gray-900">
                 Mission & Vision
               </h2>
             </motion.div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-6 md:gap-8">
               {schoolMission && (
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   animate={inView ? { opacity: 1, x: 0 } : {}}
                   transition={{ duration: 0.6, delay: 0.4 }}
-                  className="bg-school-green/5 border border-school-green/20 rounded-2xl p-8"
+                  className="bg-school-green/5 border border-school-green/20 rounded-2xl p-6 sm:p-8"
                 >
-                  <div className="w-14 h-14 bg-school-green rounded-full flex items-center justify-center mb-6">
-                    <Users className="w-7 h-7 text-white" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-school-green rounded-full flex items-center justify-center mb-4 sm:mb-6">
+                    <Users className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                   </div>
-                  <h3 className="text-2xl font-heading font-bold text-school-green mb-4">Our Mission</h3>
-                  <p className="text-gray-600 leading-relaxed">{schoolMission}</p>
+                  <h3 className="text-xl sm:text-2xl font-heading font-bold text-school-green mb-3 sm:mb-4">Our Mission</h3>
+                  <p className="text-gray-600 text-sm sm:text-base leading-relaxed">{schoolMission}</p>
                 </motion.div>
               )}
 
@@ -438,13 +438,13 @@ export default function LeadershipPage() {
                   initial={{ opacity: 0, x: 30 }}
                   animate={inView ? { opacity: 1, x: 0 } : {}}
                   transition={{ duration: 0.6, delay: 0.5 }}
-                  className="bg-school-gold/5 border border-school-gold/20 rounded-2xl p-8"
+                  className="bg-school-gold/5 border border-school-gold/20 rounded-2xl p-6 sm:p-8"
                 >
-                  <div className="w-14 h-14 bg-school-gold rounded-full flex items-center justify-center mb-6">
-                    <Award className="w-7 h-7 text-school-dark" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-school-gold rounded-full flex items-center justify-center mb-4 sm:mb-6">
+                    <Award className="w-6 h-6 sm:w-7 sm:h-7 text-school-dark" />
                   </div>
-                  <h3 className="text-2xl font-heading font-bold text-school-gold mb-4">Our Vision</h3>
-                  <p className="text-gray-600 leading-relaxed">{schoolVision}</p>
+                  <h3 className="text-xl sm:text-2xl font-heading font-bold text-school-gold mb-3 sm:mb-4">Our Vision</h3>
+                  <p className="text-gray-600 text-sm sm:text-base leading-relaxed">{schoolVision}</p>
                 </motion.div>
               )}
             </div>
@@ -454,37 +454,37 @@ export default function LeadershipPage() {
 
       {/* Values Section */}
       {schoolValues.length > 0 && (
-        <section className="py-20 bg-gray-50">
+        <section className="py-12 md:py-20 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-center mb-12"
+              className="text-center mb-8 md:mb-12"
             >
-              <span className="inline-block bg-school-purple/10 text-school-purple text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+              <span className="inline-block bg-school-purple/10 text-school-purple text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-3 md:mb-4">
                 Core Values
               </span>
-              <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-black text-gray-900">
                 What We Stand For
               </h2>
             </motion.div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {schoolValues.map((value, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 30 }}
                   animate={inView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.5, delay: 0.1 * index }}
-                  className="bg-white rounded-xl p-6 text-center shadow-md card-hover"
+                  className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md card-hover"
                 >
-                  <div className="w-12 h-12 bg-school-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-school-gold font-heading font-black text-lg">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-school-gold/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                    <span className="text-school-gold font-heading font-black text-base sm:text-lg">
                       {index + 1}
                     </span>
                   </div>
-                  <h4 className="font-heading font-bold text-gray-900">{value}</h4>
+                  <h4 className="font-heading font-bold text-gray-900 text-sm sm:text-base">{value}</h4>
                 </motion.div>
               ))}
             </div>

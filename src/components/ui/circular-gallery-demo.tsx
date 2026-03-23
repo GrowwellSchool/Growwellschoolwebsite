@@ -10,6 +10,14 @@ const HOME_MEMORIES_KEY = 'home.memories'
 const CircularGalleryDemo = () => {
   const [items, setItems] = useState<GalleryItem[]>([])
   const [fit, setFit] = useState<'cover' | 'contain'>('cover')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -120,18 +128,16 @@ const CircularGalleryDemo = () => {
   if (items.length === 0) return null
 
   return (
-    <section className="w-full bg-school-dark text-white relative py-20 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 text-center relative z-10 mb-10">
-        <span className="inline-block bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+    <section className="w-full bg-school-dark text-white relative py-10 md:py-20 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 text-center relative z-10 mb-4 md:mb-10">
+        <span className="inline-block bg-school-gold/20 text-school-gold text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-2 md:mb-4">
           Gallery
         </span>
 			  <h2 className="text-3xl lg:text-4xl font-heading font-black text-white">Memories at Growwell</h2>
-			<br />
-        <p className="text-gray-400 mt-2"></p>
       </div>
 
-      <div className="w-full h-[500px] flex items-center justify-center">
-        <CircularGallery items={items} radius={600} fit={fit} autoRotateSpeed={0.06} />
+      <div className="w-full h-[350px] md:h-[500px] flex items-center justify-center">
+        <CircularGallery items={items} radius={isMobile ? 280 : 600} fit={fit} autoRotateSpeed={0.06} />
       </div>
     </section>
   )

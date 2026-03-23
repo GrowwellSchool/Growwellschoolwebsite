@@ -129,11 +129,7 @@ export default function Footer() {
               </li>
             </ul>
 
-            {/* CBSE badge */}
-            <div className="mt-6 inline-block bg-school-green/20 border border-school-green/40 rounded-lg px-4 py-2">
-              <div className="text-xs text-school-lime font-semibold">CBSE Affiliated</div>
-              <div className="text-xs text-gray-400">Co-Educational Middle School</div>
-            </div>
+           
           </div>
         </div>
       </div>
@@ -142,7 +138,8 @@ export default function Footer() {
       <div className="border-t border-white/10 py-4 px-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2 text-sm text-gray-500">
           <p>© 2026 Growwell School, Kharar. All rights reserved.</p>
-          <p>Established April 2, 2011 | By S. Ishwar Pal Singh & Ms. Amrit K. Vohi</p>
+          <p className="text-school-gold text-sm hover:underline">Designed & Developed by MPS INFOTECH</p>
+          <p>Established April 2, 2011 | By Salndeep.S.Sohi & Ms. Amrit K. Vohi</p>
         </div>
       </div>
     </footer>

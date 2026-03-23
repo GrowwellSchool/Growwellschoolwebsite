@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Sun, Moon } from "lucide-react";
@@ -17,11 +17,19 @@ export default function OrbitCarousel({
   const [isDark, setIsDark] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef(null);
 
-  const zDepth = 450;
-  const imageSize = 250;
-  const borderRadius = 12;
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const zDepth = isMobile ? 180 : 450;
+  const imageSize = isMobile ? 100 : 250;
+  const borderRadius = isMobile ? 8 : 12;
   const backfaceVisible = false;
   const pauseOnHover = true;
   const visibleImages = images.filter((img) => img.url.trim().length > 0);
@@ -49,7 +57,7 @@ export default function OrbitCarousel({
 
   return (
     <div
-      className={`w-full min-h-[600px] py-12 transition-colors duration-300 ${isDark ? "bg-gray-900" : "bg-transparent"}`}
+      className={`w-full min-h-[300px] md:min-h-[600px] py-6 md:py-12 transition-colors duration-300 ${isDark ? "bg-gray-900" : "bg-transparent"}`}
     >
       {/* Orthogonal Grid Background */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
@@ -66,21 +74,21 @@ export default function OrbitCarousel({
       {/* Theme Toggle */}
       <button
         onClick={() => setIsDark(!isDark)}
-        className={`absolute top-6 right-6 z-50 p-3 rounded-full transition-all ${
+        className={`absolute top-3 right-3 md:top-6 md:right-6 z-50 p-2 md:p-3 rounded-full transition-all ${
           isDark
             ? "bg-gray-800 text-yellow-400 hover:bg-gray-700"
             : "bg-white text-gray-800 hover:bg-gray-100 shadow-lg"
         }`}
       >
-        {isDark ? <Sun size={24} /> : <Moon size={24} />}
+        {isDark ? <Sun size={18} className="md:w-6 md:h-6" /> : <Moon size={18} className="md:w-6 md:h-6" />}
       </button>
 
-      <div className="relative w-full h-[500px] flex flex-col items-center justify-center overflow-hidden">
+      <div className="relative w-full h-[250px] md:h-[500px] flex flex-col items-center justify-center overflow-hidden">
         {/* 3D Carousel Container */}
         <div
           ref={containerRef}
           className="relative w-full h-full flex items-center justify-center"
-          style={{ perspective: "1200px" }}
+          style={{ perspective: isMobile ? "600px" : "1200px" }}
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
         >
@@ -138,7 +146,7 @@ export default function OrbitCarousel({
                             src={image.url}
                             alt=""
                             fill
-                            sizes="250px"
+                            sizes="(max-width: 768px) 100px, 250px"
                             className="object-cover scale-110 blur-2xl"
                             aria-hidden
                           />
@@ -146,7 +154,7 @@ export default function OrbitCarousel({
                             src={image.url}
                             alt={image.label ?? "Image"}
                             fill
-                            sizes="250px"
+                            sizes="(max-width: 768px) 100px, 250px"
                             className="object-contain"
                           />
                         </>
@@ -155,7 +163,7 @@ export default function OrbitCarousel({
                           src={image.url}
                           alt={image.label ?? "Image"}
                           fill
-                          sizes="250px"
+                          sizes="(max-width: 768px) 100px, 250px"
                           className="object-cover"
                         />
                       )}
@@ -163,7 +171,7 @@ export default function OrbitCarousel({
 
                     {/* Overlay Label */}
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <div className="text-white text-center font-bold text-lg drop-shadow-lg">{image.label ?? ""}</div>
+                      <div className="text-white text-center font-bold text-sm md:text-lg drop-shadow-lg">{image.label ?? ""}</div>
                     </div>
                   </div>
                 </motion.div>
@@ -174,8 +182,8 @@ export default function OrbitCarousel({
       </div>
 
       {/* Tip Footer */}
-      <div className="absolute bottom-8 left-8">
-        <p className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+      <div className="absolute bottom-4 left-4 md:bottom-8 md:left-8">
+        <p className={`text-xs md:text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
           💡 Click any image to snap it to the front • Hover to pause
         </p>
       </div>

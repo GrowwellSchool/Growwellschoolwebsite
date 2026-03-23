@@ -137,66 +137,65 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
     };
 
     return (
-      <div
-        ref={(node) => {
-          // Handle both refs
-          (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          if (typeof ref === 'function') ref(node);
-          else if (ref) ref.current = node;
-        }}
-        role="region"
-        aria-label="Circular 3D Gallery - drag to rotate"
-        className={cn(
-          "relative w-full h-full flex items-center justify-center select-none touch-none",
-          isDragging ? "cursor-grabbing" : "cursor-grab",
-          className
-        )}
-        style={{ perspective: "2000px", pointerEvents: "auto" as const }}
-        {...props}
-      >
-        {/* Left rotation button */}
-        <button
-          onClick={rotateLeft}
-          aria-label="Rotate left"
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all pointer-events-auto"
-        >
-          <ChevronLeft size={24} />
-        </button>
-
-        {/* Right rotation button */}
-        <button
-          onClick={rotateRight}
-          aria-label="Rotate right"
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all pointer-events-auto"
-        >
-          <ChevronRight size={24} />
-        </button>
+      <div className="relative w-full h-full">
         <div
-          className="relative w-full h-full pointer-events-none"
-          style={{
-            transform: `rotateY(${rotation + manualRotation}deg)`,
-            transformStyle: "preserve-3d",
+          ref={(node) => {
+            // Handle both refs
+            (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+            if (typeof ref === 'function') ref(node);
+            else if (ref) ref.current = node;
           }}
+          role="region"
+          aria-label="Circular 3D Gallery - drag to rotate"
+          className={cn(
+            "relative w-full h-full flex items-center justify-center select-none touch-none",
+            isDragging ? "cursor-grabbing" : "cursor-grab",
+            className
+          )}
+          style={{ perspective: "2000px", pointerEvents: "auto" as const }}
+          {...props}
         >
-          {items.map((item, i) => {
-            const itemAngle = i * anglePerItem;
-            const totalRotation = rotation % 360;
-            const relativeAngle = (itemAngle + totalRotation + 360) % 360;
-            const normalizedAngle = Math.abs(relativeAngle > 180 ? 360 - relativeAngle : relativeAngle);
-            const opacity = Math.max(0.3, 1 - normalizedAngle / 180);
+          {/* Left rotation button - desktop */}
+          <button
+            onClick={rotateLeft}
+            aria-label="Rotate left"
+            className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all pointer-events-auto"
+          >
+            <ChevronLeft size={24} />
+          </button>
 
-            return (
+          {/* Right rotation button - desktop */}
+          <button
+            onClick={rotateRight}
+            aria-label="Rotate right"
+            className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all pointer-events-auto"
+          >
+            <ChevronRight size={24} />
+          </button>
+          <div
+            className="relative w-full h-full pointer-events-none"
+            style={{
+              transform: `rotateY(${rotation + manualRotation}deg)`,
+              transformStyle: "preserve-3d",
+            }}
+          >
+            {items.map((item, i) => {
+              const itemAngle = i * anglePerItem;
+              const totalRotation = rotation % 360;
+              const relativeAngle = (itemAngle + totalRotation + 360) % 360;
+              const normalizedAngle = Math.abs(relativeAngle > 180 ? 360 - relativeAngle : relativeAngle);
+              const opacity = Math.max(0.3, 1 - normalizedAngle / 180);
+
+              return (
               <div
                 key={item.photo.url}
                 role="group"
                 aria-label={item.common}
-                className="absolute w-[300px] h-[400px]"
+                className="absolute w-[180px] h-[240px] md:w-[300px] md:h-[400px] ml-[-90px] mt-[-120px] md:ml-[-150px] md:mt-[-200px]"
                 style={{
                   transform: `rotateY(${itemAngle}deg) translateZ(${radius}px)`,
                   left: "50%",
                   top: "50%",
-                  marginLeft: "-150px",
-                  marginTop: "-200px",
                   opacity: opacity,
                   transition: "opacity 0.3s linear",
                 }}
@@ -249,7 +248,9 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
           })}
         </div>
       </div>
-    );
+
+    </div>
+  );
   },
 );
 

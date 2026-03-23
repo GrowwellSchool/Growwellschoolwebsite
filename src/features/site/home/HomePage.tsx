@@ -218,14 +218,14 @@ function HeroCarousel() {
       <button
         onClick={() => go((active - 1 + slides.length) % slides.length)}
         aria-label="Previous slide"
-        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
+        className="absolute left-1/2 -translate-x-20 bottom-4 md:left-4 md:top-1/2 md:-translate-y-1/2 md:translate-x-0 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
       >
         <ChevronLeft size={20} />
       </button>
       <button
         onClick={() => go((active + 1) % slides.length)}
         aria-label="Next slide"
-        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
+        className="absolute left-1/2 translate-x-10 bottom-4 md:right-4 md:left-auto md:translate-x-0 md:top-1/2 md:-translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-school-gold hover:text-black transition-all"
       >
         <ChevronRight size={20} />
       </button>
@@ -651,38 +651,20 @@ function ProgramsSection() {
 function DeskSection() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
-  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
-  const [fit, setFit] = useState<"cover" | "contain">("cover");
   const [directorMessage, setDirectorMessage] = useState("");
   const [directorMotto, setDirectorMotto] = useState("");
   const [directorName, setDirectorName] = useState("");
   const [directorRole, setDirectorRole] = useState("");
-  const [directorImage, setDirectorImage] = useState("");
 
   const [principalQuote, setPrincipalQuote] = useState("");
   const [principalMessage, setPrincipalMessage] = useState("");
   const [principalName, setPrincipalName] = useState("");
   const [principalRole, setPrincipalRole] = useState("");
-  const [principalImage, setPrincipalImage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
-    const getBaseUrl = (value: unknown) => {
-      if (typeof value !== "string") return "";
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed.split("?")[0] : "";
-    };
-
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
-
+    const applySetting = (raw: unknown) => {
       const nextDirector =
         typeof raw === "object" && raw && typeof (raw as { director?: unknown }).director === "object"
           ? ((raw as { director?: unknown }).director as Record<string, unknown>)
@@ -692,18 +674,11 @@ function DeskSection() {
           ? ((raw as { principal?: unknown }).principal as Record<string, unknown>)
           : null;
 
-      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
-      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
-      const loadedFit = normalizedFit === "contain" ? "contain" : "cover";
-      setFit(loadedFit);
-
       if (nextDirector) {
         setDirectorMessage(typeof nextDirector.message === "string" ? nextDirector.message.trim() : "");
         setDirectorMotto(typeof nextDirector.motto === "string" ? nextDirector.motto.trim() : "");
         setDirectorName(typeof nextDirector.name === "string" ? nextDirector.name.trim() : "");
         setDirectorRole(typeof nextDirector.role === "string" ? nextDirector.role.trim() : "");
-        const img = getBaseUrl(nextDirector.image);
-        setDirectorImage(img ? `${img}?v=${encodeURIComponent(version)}` : "");
       }
 
       if (nextPrincipal) {
@@ -711,11 +686,7 @@ function DeskSection() {
         setPrincipalMessage(typeof nextPrincipal.message === "string" ? nextPrincipal.message.trim() : "");
         setPrincipalName(typeof nextPrincipal.name === "string" ? nextPrincipal.name.trim() : "");
         setPrincipalRole(typeof nextPrincipal.role === "string" ? nextPrincipal.role.trim() : "");
-        const img = getBaseUrl(nextPrincipal.image);
-        setPrincipalImage(img ? `${img}?v=${encodeURIComponent(version)}` : "");
       }
-
-      setDisplayVersion(Number.isNaN(Number(version)) ? Date.now() : Number(version));
     };
 
     const load = async () => {
@@ -727,8 +698,7 @@ function DeskSection() {
           .eq("key", HOME_DESK_KEY)
           .maybeSingle();
         if (cancelled || error || !data?.value) return;
-        const version = (data.value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
-        applySetting(data.value as unknown, version);
+        applySetting(data.value as unknown);
       } catch {
         return;
       }
@@ -743,10 +713,7 @@ function DeskSection() {
         (payload) => {
           if (cancelled) return;
           const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
-          applySetting(row?.value, version);
+          applySetting(row?.value);
         },
       )
       .subscribe();
@@ -758,17 +725,8 @@ function DeskSection() {
     };
   }, []);
 
-  const initials = (name: string) =>
-    name
-      .split(/\s+/g)
-      .map((w) => w.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .join("");
-
   return (
-    <section className="pt-20 pb-32 bg-school-dark text-white" ref={ref}>
+    <section className="pt-20 pb-32 bg-school-dark text-white overflow-x-hidden" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -789,48 +747,10 @@ function DeskSection() {
             initial={{ opacity: 0, x: -40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="bg-white/5 border border-white/10 rounded-2xl p-8 pt-40 relative overflow-visible"
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8 relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-school-green/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-school-gold/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-48 h-48 md:w-56 md:h-56 rounded-3xl overflow-hidden border border-white/15 shadow-2xl bg-white/10 z-10">
-              {directorImage ? (
-                fit === "contain" ? (
-                  <>
-                    <Image
-                      src={directorImage}
-                      alt=""
-                      fill
-                      sizes="224px"
-                      className="object-cover scale-110 blur-2xl"
-                      aria-hidden
-                      key={`${directorImage}-bg-${displayVersion}`}
-                    />
-                    <Image
-                      src={directorImage}
-                      alt={directorName ? `${directorName} photo` : "Director photo"}
-                      fill
-                      sizes="224px"
-                      className="object-contain"
-                      key={`${directorImage}-fg-${displayVersion}`}
-                    />
-                  </>
-                ) : (
-                  <Image
-                    src={directorImage}
-                    alt={directorName ? `${directorName} photo` : "Director photo"}
-                    fill
-                    sizes="224px"
-                    className="object-cover"
-                    key={`${directorImage}-${displayVersion}`}
-                  />
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-school-gold text-school-dark font-heading font-black text-4xl">
-                  {initials(directorName || "Director")}
-                </div>
-              )}
-            </div>
+            <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-school-green/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-16 h-16 md:w-24 md:h-24 bg-school-gold/10 rounded-full translate-y-1/2 -translate-x-1/2" />
             <Quote size={36} className="text-school-gold mb-4" />
             {directorMessage.trim().length > 0 ? (
               <p className="text-gray-300 text-base leading-relaxed mb-4 italic">{directorMessage}</p>
@@ -857,48 +777,10 @@ function DeskSection() {
             initial={{ opacity: 0, x: 40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white/5 border border-white/10 rounded-2xl p-8 pt-40 relative overflow-visible mt-14 lg:mt-0"
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8 relative overflow-hidden mt-8 lg:mt-0"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-school-purple/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-school-orange/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-48 h-48 md:w-56 md:h-56 rounded-3xl overflow-hidden border border-white/15 shadow-2xl bg-white/10 z-10">
-              {principalImage ? (
-                fit === "contain" ? (
-                  <>
-                    <Image
-                      src={principalImage}
-                      alt=""
-                      fill
-                      sizes="224px"
-                      className="object-cover scale-110 blur-2xl"
-                      aria-hidden
-                      key={`${principalImage}-bg-${displayVersion}`}
-                    />
-                    <Image
-                      src={principalImage}
-                      alt={principalName ? `${principalName} photo` : "Principal photo"}
-                      fill
-                      sizes="224px"
-                      className="object-contain"
-                      key={`${principalImage}-fg-${displayVersion}`}
-                    />
-                  </>
-                ) : (
-                  <Image
-                    src={principalImage}
-                    alt={principalName ? `${principalName} photo` : "Principal photo"}
-                    fill
-                    sizes="224px"
-                    className="object-cover"
-                    key={`${principalImage}-${displayVersion}`}
-                  />
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-school-orange text-white font-heading font-black text-4xl">
-                  {initials(principalName || "Principal")}
-                </div>
-              )}
-            </div>
+            <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-school-purple/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-16 h-16 md:w-24 md:h-24 bg-school-orange/10 rounded-full translate-y-1/2 -translate-x-1/2" />
             <Quote size={36} className="text-school-orange mb-4" />
             {principalQuote.trim().length > 0 ? (
               <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-4 italic text-school-gold text-sm">
@@ -1158,28 +1040,28 @@ function NewsAnnouncementsSlider() {
   const slide = slides[active];
 
   return (
-    <section className="pt-12 pb-16 bg-school-dark text-white relative overflow-hidden" ref={ref}>
+    <section className="pt-6 pb-8 md:pt-12 md:pb-16 bg-school-dark text-white relative overflow-hidden" ref={ref}>
       <div className="absolute inset-0 pattern-grid opacity-20" />
-      <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-school-gold/15 blur-3xl" aria-hidden />
-      <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-school-green/15 blur-3xl" aria-hidden />
+      <div className="absolute -top-20 -right-20 w-40 md:w-80 h-40 md:h-80 rounded-full bg-school-gold/15 blur-3xl" aria-hidden />
+      <div className="absolute -bottom-20 -left-20 w-40 md:w-80 h-40 md:h-80 rounded-full bg-school-green/15 blur-3xl" aria-hidden />
 
       <div className="max-w-7xl mx-auto px-4 relative">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
-          className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8"
+          className="flex flex-col md:flex-row md:items-end justify-between gap-2 md:gap-4 mb-4 md:mb-8"
         >
           <div>
-            <span className="inline-block bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+            <span className="inline-block bg-school-gold text-school-dark text-[10px] md:text-xs font-bold tracking-widest uppercase px-2.5 md:px-4 py-1 md:py-1.5 rounded mb-2 md:mb-4">
               Updates
             </span>
-            <h2 className="text-3xl lg:text-4xl font-heading font-black">News & Announcements</h2>
-            <p className="text-gray-300 mt-3 max-w-xl">
+            <h2 className="text-xl md:text-3xl lg:text-4xl font-heading font-black">News & Announcements</h2>
+            <p className="text-gray-300 mt-1 md:mt-3 max-w-xl text-sm md:text-base">
               Latest notices, key dates and highlights from around the campus.
             </p>
           </div>
 
-          <Link href="/news" className="btn-secondary self-start">
+          <Link href="/news" className="btn-secondary self-start text-sm px-4 py-2 md:px-6 md:py-3">
             View All
           </Link>
         </motion.div>
@@ -1191,27 +1073,27 @@ function NewsAnnouncementsSlider() {
               initial={{ opacity: 0, x: 160, rotate: 10 }}
               animate={inView ? { opacity: 1, x: 0, rotate: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.05, type: "spring", bounce: 0.35 }}
-              className="relative overflow-hidden rounded-3xl border border-school-gold/20 bg-white/5 backdrop-blur shadow-2xl"
+              className="relative overflow-hidden rounded-xl md:rounded-3xl border border-school-gold/20 bg-white/5 backdrop-blur shadow-2xl"
             >
               <div className="absolute inset-0 pattern-grid opacity-20" aria-hidden />
 
-              <div className="relative p-8 md:p-10 grid md:grid-cols-[1fr_240px] gap-10 items-center">
+              <div className="relative p-4 md:p-8 lg:p-10 grid md:grid-cols-[1fr_240px] gap-4 md:gap-10 items-center">
                 <div>
-                  <div className="flex flex-wrap items-center gap-3 mb-5">
-                    <span className="inline-flex items-center gap-2 bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-5">
+                    <span className="inline-flex items-center gap-2 bg-school-gold text-school-dark text-[10px] md:text-xs font-bold tracking-widest uppercase px-2.5 md:px-3 py-1 md:py-1.5 rounded-full">
                       {slide.tag}
                     </span>
-                    <span className="text-xs text-gray-200/80 font-semibold tracking-wide">{slide.date}</span>
+                    <span className="text-[10px] md:text-xs text-gray-200/80 font-semibold tracking-wide">{slide.date}</span>
                   </div>
 
-                  <h3 className="text-2xl md:text-3xl font-heading font-black leading-tight">{slide.title}</h3>
-                  <p className="text-gray-200 mt-3 leading-relaxed max-w-2xl line-clamp-2">{slide.desc}</p>
+                  <h3 className="text-lg md:text-2xl lg:text-3xl font-heading font-black leading-tight">{slide.title}</h3>
+                  <p className="text-gray-200 mt-2 md:mt-3 leading-relaxed max-w-2xl line-clamp-2 text-sm md:text-base">{slide.desc}</p>
 
-                  <div className="mt-7 flex flex-wrap items-center gap-4">
-                    <Link href={slide.href} className="btn-primary border border-white/20">
+                  <div className="mt-4 md:mt-7 flex flex-col sm:flex-row items-start sm:items-center gap-2 md:gap-4">
+                    <Link href={slide.href} className="btn-primary border border-white/20 text-sm px-4 py-2 md:px-6 md:py-3">
                       Read More
                     </Link>
-                    <Link href="/admission" className="btn-secondary">
+                    <Link href="/admission" className="btn-secondary text-sm px-4 py-2 md:px-6 md:py-3">
                       Apply Now
                     </Link>
                   </div>
@@ -1241,23 +1123,23 @@ function NewsAnnouncementsSlider() {
               </div>
             </motion.div>
 
-            <div className="mt-8 flex justify-center gap-3">
+            <div className="mt-4 md:mt-8 flex justify-center gap-2 md:gap-3">
               {slides.map((it, i) => (
                 <button
                   key={it.id}
                   onClick={() => go(i)}
                   aria-label={`Go to update ${i + 1}`}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === active ? "bg-school-gold w-8" : "bg-white/30 w-2 hover:bg-white/50"
+                  className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
+                    i === active ? "bg-school-gold w-6 md:w-8" : "bg-white/30 w-1.5 md:w-2 hover:bg-white/50"
                   }`}
                 />
               ))}
             </div>
           </>
         ) : (
-          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur shadow-2xl p-10 text-center">
-            <div className="text-school-gold font-heading font-black text-xl mb-2">No announcements yet</div>
-            <div className="text-gray-200/80 text-sm">
+          <div className="rounded-xl md:rounded-3xl border border-white/10 bg-white/5 backdrop-blur shadow-2xl p-6 md:p-10 text-center">
+            <div className="text-school-gold font-heading font-black text-lg md:text-xl mb-2">No announcements yet</div>
+            <div className="text-gray-200/80 text-xs md:text-sm">
               Updates will appear here once they are added from the admin panel.
             </div>
           </div>
@@ -1374,30 +1256,30 @@ function GalleryPreview() {
   }, []);
 
   return (
-    <section className="py-20 pattern-zigzag bg-gray-50 overflow-hidden" ref={ref}>
+    <section className="py-10 md:py-20 pattern-zigzag bg-gray-50 overflow-hidden" ref={ref}>
       <div className="max-w-7xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
-          className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4"
+          className="flex flex-col md:flex-row md:items-end justify-between mb-6 md:mb-10 gap-2 md:gap-4"
         >
           <div>
-            <span className="inline-block bg-purple-100 text-school-purple text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
+            <span className="inline-block bg-purple-100 text-school-purple text-[10px] md:text-xs font-bold tracking-widest uppercase px-2.5 md:px-4 py-1 md:py-1.5 rounded mb-2 md:mb-4">
               Gallery
             </span>
-            <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">Life at Growwell School</h2>
+            <h2 className="text-xl md:text-3xl lg:text-4xl font-heading font-black text-gray-900">Life at Growwell School</h2>
           </div>
-          <Link href="/gallery" className="btn-primary self-start">
-            View All Photos <ArrowRight size={18} />
+          <Link href="/gallery" className="btn-primary self-start text-sm px-4 py-2 md:px-6 md:py-3">
+            View All Photos <ArrowRight size={16} className="hidden sm:inline" />
           </Link>
         </motion.div>
 
         {items.length > 0 ? (
-          <div className="mt-8 relative z-10 w-full overflow-visible rounded-3xl bg-black/5 p-4 shadow-inner">
+          <div className="mt-4 md:mt-8 relative z-10 w-full overflow-visible rounded-xl md:rounded-3xl bg-black/5 p-2 md:p-4 shadow-inner">
             <OrbitCarousel images={items} fit={fit} />
           </div>
         ) : (
-          <div className="mt-8 rounded-3xl border border-black/10 bg-white p-8 text-center text-sm text-gray-500">
+          <div className="mt-4 md:mt-8 rounded-xl md:rounded-3xl border border-black/10 bg-white p-6 md:p-8 text-center text-xs md:text-sm text-gray-500">
             Photos will appear here soon.
           </div>
         )}
