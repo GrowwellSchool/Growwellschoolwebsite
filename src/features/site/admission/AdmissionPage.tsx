@@ -209,7 +209,7 @@ function WhySection() {
   const reasons = [
     {
       icon: <BookOpen size={24} />,
-      title: "CBSE Curriculum",
+      title: "Quality Curriculum",
       desc: "Nationally recognized curriculum ensuring quality education.",
       color: "bg-school-green",
     },

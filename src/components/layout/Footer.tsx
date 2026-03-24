@@ -138,7 +138,7 @@ export default function Footer() {
       <div className="border-t border-white/10 py-4 px-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2 text-sm text-gray-500">
           <p>© 2026 Growwell School, Kharar. All rights reserved.</p>
-          <p className="text-school-gold text-sm hover:underline">Designed & Developed by MPS INFOTECH</p>
+          <a href="https://mpsinfotech.in/" target="_blank" rel="noopener noreferrer" className="text-school-gold text-sm hover:underline">Designed & Developed by MPS INFOTECH</a>
           <p>Established April 2, 2011 | By Salndeep.S.Sohi & Ms. Amrit K. Vohi</p>
         </div>
       </div>

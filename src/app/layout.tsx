@@ -21,12 +21,11 @@ export const metadata: Metadata = {
     default: "Growwell School | Growing To The Optimum",
   },
   description:
-    "Growwell School, Kharar — CBSE affiliated co-educational school focused on holistic learning. Admissions open for session 2026-27.",
+    "Growwell School, Kharar — co-educational school focused on holistic learning. Admissions open for session 2026-27.",
   applicationName: "Growwell School",
   keywords: [
     "Growwell School",
     "Growwell School Kharar",
-    "CBSE school in Kharar",
     "Best school in Kharar",
     "Admissions 2026-27",
     "Co-educational school",
@@ -34,14 +33,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Growwell School | Growing To The Optimum",
     description:
-      "Growwell School, Kharar — CBSE affiliated co-educational school focused on holistic learning. Admissions open for session 2026-27.",
+      "Growwell School, Kharar — co-educational school focused on holistic learning. Admissions open for session 2026-27.",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "Growwell School | Growing To The Optimum",
     description:
-      "Growwell School, Kharar — CBSE affiliated co-educational school focused on holistic learning. Admissions open for session 2026-27.",
+      "Growwell School, Kharar — co-educational school focused on holistic learning. Admissions open for session 2026-27.",
   },
   icons: {
     icon: [{ url: "/images/logo.png", type: "image/png" }],

@@ -401,7 +401,7 @@ function OurJourneySection() {
 
   const milestones = [
     { year: "2011", text: "Growwell School established on April 2 by S. Ishwar Pal Singh and Ms Amrit K. Vohi" },
-    { year: "2015", text: "Recognition as co-educational middle school following CBSE curriculum" },
+    { year: "2015", text: "Recognition as co-educational middle school" },
     { year: "2020", text: "Adopted NEP 2020 guidelines, expanding holistic development programs" },
     { year: "2024", text: "Progressive addition of classes, now serving Play Class through Grade 9" },
     { year: "2026", text: "Continuing to grow — admissions open for Session 2026-27" },
@@ -856,7 +856,7 @@ function AcademicSection() {
             <div className="space-y-3 mb-8">
               {[
                 {
-                  label: "CBSE Curriculum",
+                  label: "Quality Curriculum",
                   sub: "National standard of education",
                   color: "text-school-green",
                   bg: "bg-green-50",
@@ -1008,7 +1008,8 @@ function NewsAnnouncementsSlider() {
         const supabase = getSupabaseBrowserClient();
         const [settingsRes, newsRes] = await Promise.all([
           supabase.from("site_settings").select("value, updated_at").eq("key", HOME_NEWS_KEY).maybeSingle(),
-          supabase.from("news").select("*").order("created_at", { ascending: false })
+          // OPTIMIZED: Only fetch 4 items instead of all
+          supabase.from("news").select("*").order("created_at", { ascending: false }).limit(4)
         ]);
 
         if (cancelled) return;

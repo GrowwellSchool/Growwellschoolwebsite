@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Award, BookOpen, Calendar, FileText, Image as ImageIcon, MessageSquare, Star, Users } from "lucide-react";
+import { Award, BookOpen, Calendar, ChevronLeft, ChevronRight, FileText, Image as ImageIcon, MessageSquare, Star, Users } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { AdminNav } from "@/features/admin/dashboard/components/AdminNav";
@@ -40,6 +40,91 @@ import { ContactMessagesViewer } from "@/features/admin/dashboard/sections/Conta
 
 import type { AdminNavItem, AdminSectionKey } from "@/features/admin/dashboard/types";
 import { capitalizeFirstLetter } from "@/features/admin/dashboard/utils";
+
+// Reusable Pagination Component
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  totalItems,
+  itemName = "items",
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  totalItems: number;
+  itemName?: string;
+}) {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages: (number | "...")[] = [];
+    const showPages = 5;
+
+    if (totalPages <= showPages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t mt-4">
+      <div className="text-sm text-gray-500">
+        Showing page {currentPage} of {totalPages} ({totalItems} {itemName})
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        {getPageNumbers().map((page, idx) =>
+          page === "..." ? (
+            <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+          ) : (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`w-9 h-9 rounded-lg text-sm font-medium ${
+                currentPage === page
+                  ? "bg-school-green text-white"
+                  : "border hover:bg-gray-50"
+              }`}
+            >
+              {page}
+            </button>
+          )
+        )}
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function HeroImagesEditor() {
   const [loading, setLoading] = useState(false);
@@ -1877,6 +1962,18 @@ function HomeNewsEditor() {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [displayVersion, setDisplayVersion] = useState(() => Date.now());
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const paginatedItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  useEffect(() => {
+    if (page > Math.ceil(items.length / itemsPerPage)) {
+      setPage(Math.max(1, Math.ceil(items.length / itemsPerPage)));
+    }
+  }, [items.length, page]);
+
   useEffect(() => {
     return () => {
       Object.values(previews).forEach((p) => {
@@ -2264,7 +2361,8 @@ function HomeNewsEditor() {
       ) : null}
 
       <div className="space-y-4">
-        {items.map((it, idx) => {
+        {paginatedItems.map((it, idx) => {
+          const globalIdx = (page - 1) * itemsPerPage + idx;
           const preview = previews[it.id];
           const src =
             preview || (it.image ? `${it.image.split("?")[0]}?v=${encodeURIComponent(String(displayVersion))}` : "");
@@ -2276,7 +2374,7 @@ function HomeNewsEditor() {
                   <button
                     type="button"
                     onClick={() => moveItem(it.id, -1)}
-                    disabled={saving || loading || idx === 0}
+                    disabled={saving || loading || globalIdx === 0}
                     className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
                   >
                     Up
@@ -2284,7 +2382,7 @@ function HomeNewsEditor() {
                   <button
                     type="button"
                     onClick={() => moveItem(it.id, 1)}
-                    disabled={saving || loading || idx === items.length - 1}
+                    disabled={saving || loading || globalIdx === items.length - 1}
                     className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
                   >
                     Down
@@ -2430,7 +2528,15 @@ function HomeNewsEditor() {
           );
         })}
 
-        {items.length === 0 ? <div className="text-sm text-gray-500">No announcements yet.</div> : null}
+        {items.length === 0 ? <div className="text-sm text-gray-500">No announcements yet.</div> : (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalItems={items.length}
+            itemName="announcements"
+          />
+        )}
       </div>
     </div>
   );
@@ -2836,6 +2942,19 @@ function GalleryEditor() {
   const [newFiles, setNewFiles] = useState<Record<string, File>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(sections.length / itemsPerPage);
+  const paginatedSections = sections.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  // Reset page when sections change significantly
+  useEffect(() => {
+    if (page > Math.ceil(sections.length / itemsPerPage)) {
+      setPage(Math.max(1, Math.ceil(sections.length / itemsPerPage)));
+    }
+  }, [sections.length, page]);
 
   useEffect(() => {
     return () => {
@@ -3280,6 +3399,81 @@ function GalleryEditor() {
     }
   };
 
+  const saveAll = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      // Find sections that were removed (exist on server but not in local state)
+      const currentSectionIds = new Set(sections.map(s => s.id));
+      const removedSections = serverSections.filter(s => !currentSectionIds.has(s.id));
+
+      // Delete removed sections from storage and database
+      for (const removedSection of removedSections) {
+        // Delete all images from storage
+        const pathsToRemove = removedSection.images.map(img => img.path).filter(p => !!p);
+        if (pathsToRemove.length > 0) {
+          await supabase.storage.from(STORAGE_BUCKET).remove(pathsToRemove);
+        }
+
+        // Delete all rows from galleries table for this category
+        const { error: deleteError } = await supabase
+          .from("galleries")
+          .delete()
+          .eq("cat", removedSection.id);
+        if (deleteError) console.warn("Failed to delete gallery rows for removed section:", deleteError.message);
+      }
+
+      // Update site_settings to remove deleted sections
+      if (removedSections.length > 0) {
+        const { data: currentSettings } = await supabase
+          .from(SITE_SETTINGS_TABLE)
+          .select("value")
+          .eq("key", GALLERY_PAGE_KEY)
+          .maybeSingle();
+
+        let allSectionsMetadata: any[] = [];
+        if (currentSettings?.value && Array.isArray((currentSettings.value as any).sections)) {
+          allSectionsMetadata = (currentSettings.value as any).sections;
+        }
+
+        // Filter out removed sections
+        const remainingMetadata = allSectionsMetadata.filter(
+          (m: any) => currentSectionIds.has(m.id)
+        );
+
+        const { error: settingsError } = await supabase
+          .from(SITE_SETTINGS_TABLE)
+          .upsert({
+            key: GALLERY_PAGE_KEY,
+            value: { sections: remainingMetadata, version: Date.now() }
+          }, { onConflict: "key" });
+
+        if (settingsError) throw new Error(settingsError.message);
+      }
+
+      // Update server state
+      setServerSections(sections);
+
+      // Clear new files and previews for remaining sections
+      setNewFiles({});
+      setPreviews((prev) => {
+        Object.values(prev).forEach((p) => {
+          if (p.startsWith("blob:")) URL.revokeObjectURL(p);
+        });
+        return {};
+      });
+
+      setDisplayVersion(Date.now());
+      setMessage({ type: "success", text: "All changes saved successfully" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save changes" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="border rounded-2xl p-6">
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -3304,6 +3498,15 @@ function GalleryEditor() {
             {loading ? "Loading..." : "Reload"}
           </button>
           {dirty && (
+            <button
+              onClick={saveAll}
+              disabled={loading || Object.values(savingSections).some(Boolean)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 font-bold shadow-sm"
+            >
+              Save All
+            </button>
+          )}
+          {dirty && (
              <div className="text-[10px] text-orange-500 font-bold uppercase animate-pulse">Unsaved Changes</div>
           )}
         </div>
@@ -3322,7 +3525,7 @@ function GalleryEditor() {
       ) : null}
 
       <div className="space-y-6">
-        {sections.map((section) => (
+        {paginatedSections.map((section) => (
           <div key={section.id} className="border rounded-2xl p-5">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="font-semibold">{section.title.trim() || "Untitled Section"}</div>
@@ -3526,6 +3729,13 @@ function GalleryEditor() {
             </div>
           </div>
         ))}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          totalItems={sections.length}
+          itemName="sections"
+        />
       </div>
     </div>
   );
@@ -3563,6 +3773,28 @@ function EventsEditor() {
   const [newFiles, setNewFiles] = useState<Record<string, File>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  // Pagination for calendar and moments tabs
+  const [calendarPage, setCalendarPage] = useState(1);
+  const [momentsPage, setMomentsPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const calendarTotalPages = Math.ceil(calendar.length / itemsPerPage);
+  const momentsTotalPages = Math.ceil(moments.length / itemsPerPage);
+  const paginatedCalendar = calendar.slice((calendarPage - 1) * itemsPerPage, calendarPage * itemsPerPage);
+  const paginatedMoments = moments.slice((momentsPage - 1) * itemsPerPage, momentsPage * itemsPerPage);
+
+  useEffect(() => {
+    if (calendarPage > Math.ceil(calendar.length / itemsPerPage)) {
+      setCalendarPage(Math.max(1, Math.ceil(calendar.length / itemsPerPage)));
+    }
+  }, [calendar.length, calendarPage]);
+
+  useEffect(() => {
+    if (momentsPage > Math.ceil(moments.length / itemsPerPage)) {
+      setMomentsPage(Math.max(1, Math.ceil(moments.length / itemsPerPage)));
+    }
+  }, [moments.length, momentsPage]);
 
   useEffect(() => {
     return () => {
@@ -4128,7 +4360,7 @@ function EventsEditor() {
           </div>
 
           <div className="space-y-5">
-            {calendar.map((event) => {
+            {paginatedCalendar.map((event) => {
               const preview = previews[keyFor("calendar", event.id)];
               const src = preview || (event.img ? `${event.img}?v=${encodeURIComponent(String(displayVersion))}` : "");
               return (
@@ -4323,7 +4555,15 @@ function EventsEditor() {
               );
             })}
 
-            {calendar.length === 0 ? <div className="text-sm text-gray-500">No events yet.</div> : null}
+            {calendar.length === 0 ? <div className="text-sm text-gray-500">No events yet.</div> : (
+              <Pagination
+                currentPage={calendarPage}
+                totalPages={calendarTotalPages}
+                onPageChange={setCalendarPage}
+                totalItems={calendar.length}
+                itemName="events"
+              />
+            )}
           </div>
         </div>
 
@@ -4344,7 +4584,7 @@ function EventsEditor() {
           </div>
 
           <div className="space-y-5">
-            {moments.map((moment) => {
+            {paginatedMoments.map((moment) => {
               const preview = previews[keyFor("moments", moment.id)];
               const src =
                 preview || (moment.img ? `${moment.img}?v=${encodeURIComponent(String(displayVersion))}` : "");
@@ -4460,7 +4700,15 @@ function EventsEditor() {
               );
             })}
 
-            {moments.length === 0 ? <div className="text-sm text-gray-500">No moments yet.</div> : null}
+            {moments.length === 0 ? <div className="text-sm text-gray-500">No moments yet.</div> : (
+              <Pagination
+                currentPage={momentsPage}
+                totalPages={momentsTotalPages}
+                onPageChange={setMomentsPage}
+                totalItems={moments.length}
+                itemName="moments"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -4496,6 +4744,18 @@ function BlogsEditor() {
   const [newFiles, setNewFiles] = useState<Record<string, File>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const paginatedItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  useEffect(() => {
+    if (page > Math.ceil(items.length / itemsPerPage)) {
+      setPage(Math.max(1, Math.ceil(items.length / itemsPerPage)));
+    }
+  }, [items.length, page]);
 
   useEffect(() => {
     return () => {
@@ -4931,7 +5191,8 @@ function BlogsEditor() {
       </div>
 
       <div className="space-y-5">
-        {items.map((blog, idx) => {
+        {paginatedItems.map((blog, idx) => {
+          const globalIdx = (page - 1) * itemsPerPage + idx;
           const preview = previews[blog.id];
           const src = preview || (blog.img ? `${blog.img}?v=${encodeURIComponent(String(displayVersion))}` : "");
           return (
@@ -4942,7 +5203,7 @@ function BlogsEditor() {
                   <button
                     type="button"
                     onClick={() => moveItem(blog.id, -1)}
-                    disabled={saving || loading || idx === 0}
+                    disabled={saving || loading || globalIdx === 0}
                     className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
                   >
                     Up
@@ -4950,7 +5211,7 @@ function BlogsEditor() {
                   <button
                     type="button"
                     onClick={() => moveItem(blog.id, 1)}
-                    disabled={saving || loading || idx === items.length - 1}
+                    disabled={saving || loading || globalIdx === items.length - 1}
                     className="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-60"
                   >
                     Down
@@ -5132,7 +5393,15 @@ function BlogsEditor() {
           );
         })}
 
-        {items.length === 0 ? <div className="text-sm text-gray-500">No blogs yet.</div> : null}
+        {items.length === 0 ? <div className="text-sm text-gray-500">No blogs yet.</div> : (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalItems={items.length}
+            itemName="blogs"
+          />
+        )}
       </div>
     </div>
   );

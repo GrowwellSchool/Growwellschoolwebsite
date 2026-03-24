@@ -7,6 +7,7 @@ import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { useSiteSetting } from "@/lib/supabase/SiteSettingsContext";
 
 type NewsItem = {
   id: string;
@@ -44,6 +45,7 @@ function withImageVersion(url: string | undefined | null, version?: string | num
 }
 
 const PAGE_SIZE = 9;
+const INITIAL_FETCH_LIMIT = PAGE_SIZE + 1; // +1 for featured item
 
 function PageHero() {
   return (

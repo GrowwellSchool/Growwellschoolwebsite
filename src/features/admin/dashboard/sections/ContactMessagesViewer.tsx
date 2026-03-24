@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle, Trash2 } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
@@ -32,6 +32,10 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
+
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
@@ -47,7 +51,6 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
         setMessage({ type: "error", text: error.message });
         return;
       }
-
       setItems((data ?? []) as ContactMessageRow[]);
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load messages" });
@@ -76,7 +79,6 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
           setMessage({ type: "error", text: error.message });
           return;
         }
-
         setItems((prev) =>
           prev.map((row) =>
             row.id === id
@@ -105,12 +107,10 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
     try {
       const supabase = getSupabaseBrowserClient();
       const { error } = await supabase.from(CONTACT_MESSAGES_TABLE).delete().eq("id", id);
-
       if (error) {
         setMessage({ type: "error", text: error.message });
         return;
       }
-
       setItems((prev) => prev.filter((row) => row.id !== id));
       setMessage({ type: "success", text: "Message deleted successfully" });
     } catch (err) {
@@ -154,6 +154,72 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
     }
     return { pending, replied, total: items.length };
   }, [items]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredMessages.length / itemsPerPage);
+  const paginatedMessages = filteredMessages.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(1);
+    }
+  }, [filteredMessages.length, totalPages, page]);
+
+  // Pagination component
+  function Pagination({
+    currentPage,
+    totalPages,
+    onPageChange,
+    totalItems,
+    itemName = "items",
+  }: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    totalItems: number;
+    itemName?: string;
+  }) {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t mt-4">
+        <div className="text-sm text-gray-500">
+          Showing page {currentPage} of {totalPages} ({totalItems} {itemName})
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-40"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={`w-9 h-9 rounded-lg text-sm font-medium ${
+                currentPage === p ? "bg-school-green text-white" : "border hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-40"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -229,7 +295,7 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredMessages.map((row) => (
+                {paginatedMessages.map((row) => (
                   <tr key={row.id} className="align-top hover:bg-gray-50/60">
                     <td className="px-4 py-3 whitespace-nowrap text-gray-600">
                       {row.created_at ? new Date(row.created_at).toLocaleString() : "-"}
@@ -250,7 +316,7 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-700 min-w-[420px] whitespace-pre-wrap break-words">
+                    <td className="px-4 py-3 text-gray-700 min-w-[200px] max-w-[420px] whitespace-pre-wrap break-words">
                       {row.message}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
@@ -297,13 +363,19 @@ export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string })
                 ))}
               </tbody>
             </table>
-            {!loading && filteredMessages.length === 0 ? (
+            {!loading && paginatedMessages.length === 0 ? (
               <div className="p-10 text-center text-sm text-gray-500">No messages found.</div>
             ) : null}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              totalItems={filteredMessages.length}
+              itemName="messages"
+            />
           </div>
         </div>
       ) : null}
     </div>
   );
 }
-
