@@ -160,7 +160,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark aspect-[16/9] lg:aspect-auto lg:h-[500px] min-h-[400px]">
+              <div className="relative bg-school-dark h-[300px] sm:h-[350px] lg:aspect-auto lg:h-[500px]">
                 {item.image ? (
                   fit === "contain" ? (
                     <>
@@ -168,7 +168,7 @@ export default function Page() {
                         src={item.image}
                         alt=""
                         fill
-                        sizes="(min-width: 1024px) 1024px, 100vw"
+                        sizes="100vw"
                         className="object-cover scale-110 blur-2xl"
                         aria-hidden
                         priority
@@ -178,7 +178,7 @@ export default function Page() {
                         src={item.image}
                         alt={item.title}
                         fill
-                        sizes="(min-width: 1024px) 1024px, 100vw"
+                        sizes="100vw"
                         className="object-contain"
                         priority
                       />
@@ -189,7 +189,7 @@ export default function Page() {
                         src={item.image}
                         alt={item.title}
                         fill
-                        sizes="(min-width: 1024px) 1024px, 100vw"
+                        sizes="100vw"
                         className="object-contain"
                         priority
                       />
@@ -198,22 +198,20 @@ export default function Page() {
                   )
                 ) : null}
 
-                <div className="absolute left-5 right-5 bottom-5 md:left-10 md:right-10 md:bottom-10">
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
-                    <span className="bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">
-                      {item.tag}
-                    </span>
-                    <span className="bg-white/10 border border-white/15 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-                      {item.date}
-                    </span>
-                  </div>
-                  <h1 className="text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-white max-w-4xl">
-                    {item.title}
-                  </h1>
-                </div>
               </div>
 
               <div className="p-6 md:p-10">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="bg-school-gold text-school-dark text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">
+                    {item.tag}
+                  </span>
+                  <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    {item.date}
+                  </span>
+                </div>
+                <h1 className="text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-gray-900 max-w-4xl mb-6">
+                  {item.title}
+                </h1>
                 <div className="w-full">
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px] md:text-base">
                     {item.desc}

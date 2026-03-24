@@ -377,16 +377,18 @@ export default function BlogsPage() {
                       className="object-cover"
                     />
                   )}
-                  <span
-                    className={`absolute top-3 left-3 ${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
-                  >
-                    {blog.cat}
-                  </span>
-                  <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded backdrop-blur-sm">
-                    {blog.readTime}
-                  </span>
                 </div>
                 <div className="p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className={`${blog.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
+                    >
+                      {blog.cat}
+                    </span>
+                    <span className="bg-gray-100 text-gray-600 text-[10px] px-2.5 py-1 rounded">
+                      {blog.readTime}
+                    </span>
+                  </div>
                   <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">
                     <Link href={`/blogs/${encodeURIComponent(blog.id)}`}>{blog.title}</Link>
                   </h3>

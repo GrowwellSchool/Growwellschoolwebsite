@@ -169,7 +169,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark aspect-[16/9] lg:aspect-auto lg:h-[500px] min-h-[400px]">
+              <div className="relative bg-school-dark h-[300px] sm:h-[350px] lg:aspect-auto lg:h-[500px]">
                 <div className="absolute inset-0 pattern-grid opacity-25" aria-hidden />
                 {item.img ? (
                   fit === "contain" ? (
@@ -178,7 +178,7 @@ export default function Page() {
                         src={item.img}
                         alt=""
                         fill
-                        sizes="(min-width: 1024px) 1024px, 100vw"
+                        sizes="100vw"
                         className="object-cover scale-110 blur-2xl"
                         aria-hidden
                         priority
@@ -188,7 +188,7 @@ export default function Page() {
                         src={item.img}
                         alt={item.title}
                         fill
-                        sizes="(min-width: 1024px) 1024px, 100vw"
+                        sizes="100vw"
                         className="object-contain"
                         priority
                       />
@@ -199,7 +199,7 @@ export default function Page() {
                         src={item.img}
                         alt={item.title}
                         fill
-                        sizes="(min-width: 1024px) 1024px, 100vw"
+                        sizes="100vw"
                         className="object-contain"
                         priority
                       />
@@ -210,36 +210,34 @@ export default function Page() {
                   <div className="absolute inset-0 bg-school-dark/60" />
                 )}
 
-                <div className="absolute left-5 right-5 bottom-5 md:left-10 md:right-10 md:bottom-10">
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
-                    <span
-                      className={`${item.catColor} text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full`}
-                    >
-                      {item.cat || "Blog"}
-                    </span>
-                    {item.date ? (
-                      <span className="bg-white/10 border border-white/15 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-                        {item.date}
-                      </span>
-                    ) : null}
-                    {item.readTime ? (
-                      <span className="bg-white/10 border border-white/15 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-                        {item.readTime}
-                      </span>
-                    ) : null}
-                    {item.author ? (
-                      <span className="bg-white/10 border border-white/15 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-                        {item.author}
-                      </span>
-                    ) : null}
-                  </div>
-                  <h1 className="text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-white max-w-4xl">
-                    {item.title}
-                  </h1>
-                </div>
               </div>
 
               <div className="p-6 md:p-10">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span
+                    className={`${item.catColor} text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded-full`}
+                  >
+                    {item.cat || "Blog"}
+                  </span>
+                  {item.date ? (
+                    <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+                      {item.date}
+                    </span>
+                  ) : null}
+                  {item.readTime ? (
+                    <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+                      {item.readTime}
+                    </span>
+                  ) : null}
+                  {item.author ? (
+                    <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+                      {item.author}
+                    </span>
+                  ) : null}
+                </div>
+                <h1 className="text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-gray-900 max-w-4xl mb-6">
+                  {item.title}
+                </h1>
                 <div className="w-full">
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px] md:text-base">
                     {item.content || item.excerpt}
