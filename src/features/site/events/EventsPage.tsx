@@ -15,7 +15,8 @@ type UpcomingEvent = {
   id: string;
   title: string;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   venue: string;
   img: string;
   cat: string;
@@ -24,6 +25,16 @@ type UpcomingEvent = {
   highlight: boolean;
   updatedAt?: string;
 };
+
+// Helper function to convert 24-hour time to 12-hour format with AM/PM
+function formatTime12Hour(time24: string): string {
+  if (!time24) return "";
+  const [hours24, minutes] = time24.split(":").map(Number);
+  if (isNaN(hours24) || isNaN(minutes)) return time24;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
+}
 
 type PastHighlight = { id: string; img: string; title: string; year: string; desc: string; updatedAt?: string };
 type EventsFit = "cover" | "contain";
@@ -148,7 +159,14 @@ function UpcomingSection({
                   <Calendar size={16} className="text-school-green" /> {event.date}
                 </div>
                 <div className="flex items-center gap-3 text-gray-600 text-sm">
-                  <Clock size={16} className="text-school-green" /> {event.time}
+                  <Clock size={16} className="text-school-green" /> 
+                  {event.startTime && event.endTime 
+                    ? `${formatTime12Hour(event.startTime)} – ${formatTime12Hour(event.endTime)}`
+                    : event.startTime 
+                      ? formatTime12Hour(event.startTime)
+                      : event.endTime
+                        ? formatTime12Hour(event.endTime)
+                        : "—"}
                 </div>
                 <div className="flex items-center gap-3 text-gray-600 text-sm">
                   <MapPin size={16} className="text-school-green" /> {event.venue}
@@ -225,6 +243,16 @@ function UpcomingSection({
                   <div className="flex items-center gap-2 text-gray-500 text-xs">
                     <Calendar size={13} className="text-school-green" /> {event.date}
                   </div>
+                  {(event.startTime || event.endTime) && (
+                    <div className="flex items-center gap-2 text-gray-500 text-xs">
+                      <Clock size={13} className="text-school-green" /> 
+                      {event.startTime && event.endTime 
+                        ? `${formatTime12Hour(event.startTime)} – ${formatTime12Hour(event.endTime)}`
+                        : event.startTime 
+                          ? formatTime12Hour(event.startTime)
+                          : formatTime12Hour(event.endTime)}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-gray-500 text-xs">
                     <MapPin size={13} className="text-school-green" /> {event.venue}
                   </div>
@@ -409,7 +437,7 @@ export default function EventsPage() {
         if (hData) {
           setHighlights(
             hData.map((d) => ({
-              id: d.id, title: d.title, date: d.date, time: d.time,
+              id: d.id, title: d.title, date: d.date, startTime: d.start_time, endTime: d.end_time,
               venue: d.venue, img: withImageVersion(d.img, d.updated_at), cat: d.cat, catColor: d.cat_color,
               desc: d.description, highlight: d.highlight, updatedAt: d.updated_at,
             }))
@@ -443,7 +471,7 @@ export default function EventsPage() {
 
       if (!error && data) {
         const mapped: UpcomingEvent[] = data.map((d) => ({
-          id: d.id, title: d.title, date: d.date, time: d.time,
+          id: d.id, title: d.title, date: d.date, startTime: d.start_time, endTime: d.end_time,
           venue: d.venue, img: withImageVersion(d.img, d.updated_at), cat: d.cat, catColor: d.cat_color,
           desc: d.description, highlight: d.highlight,
           updatedAt: d.updated_at,

@@ -2502,9 +2502,9 @@ function HomeNewsEditor() {
                     </label>
                     <input
                       id={`admin-news-${it.id}-date`}
+                      type="date"
                       value={it.date}
                       onChange={(e) => updateItem(it.id, { date: e.target.value })}
-                      placeholder="Date (e.g., March 2026)"
                       className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
                       disabled={saving || loading}
                     />
@@ -3745,7 +3745,8 @@ type EventsCalendarItem = {
   id: string;
   title: string;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   venue: string;
   img: string;
   path: string;
@@ -3834,7 +3835,8 @@ function EventsEditor() {
       const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : makeId();
       const title = typeof obj?.title === "string" ? obj.title : "";
       const date = typeof obj?.date === "string" ? obj.date : "";
-      const time = typeof obj?.time === "string" ? obj.time : "";
+      const startTime = typeof obj?.start_time === "string" ? obj.start_time : "";
+      const endTime = typeof obj?.end_time === "string" ? obj.end_time : "";
       const venue = typeof obj?.venue === "string" ? obj.venue : "";
       const img = baseUrl(obj?.img);
       const path =
@@ -3845,7 +3847,7 @@ function EventsEditor() {
       const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
       const desc = typeof obj?.desc === "string" ? obj.desc : "";
       const highlight = Boolean(obj?.highlight);
-      return { id, title, date, time, venue, img, path, cat, catColor, desc, highlight } satisfies EventsCalendarItem;
+      return { id, title, date, startTime, endTime, venue, img, path, cat, catColor, desc, highlight } satisfies EventsCalendarItem;
     });
 
     const nextMoments = momentsRaw.map((row) => {
@@ -3940,7 +3942,6 @@ function EventsEditor() {
     const nextPatch: Partial<EventsCalendarItem> = { ...patch };
     if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
     if (typeof nextPatch.date === "string") nextPatch.date = capitalizeFirstLetter(nextPatch.date);
-    if (typeof nextPatch.time === "string") nextPatch.time = capitalizeFirstLetter(nextPatch.time);
     if (typeof nextPatch.venue === "string") nextPatch.venue = capitalizeFirstLetter(nextPatch.venue);
     if (typeof nextPatch.cat === "string") nextPatch.cat = capitalizeFirstLetter(nextPatch.cat);
     if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
@@ -3963,7 +3964,8 @@ function EventsEditor() {
         id,
         title: "",
         date: "",
-        time: "",
+        startTime: "",
+        endTime: "",
         venue: "",
         img: "",
         path: `${EVENTS_FOLDER}/calendar/${id}`,
@@ -4108,7 +4110,8 @@ function EventsEditor() {
         ...e,
         title: e.title.trim(),
         date: e.date.trim(),
-        time: e.time.trim(),
+        startTime: e.startTime.trim(),
+        endTime: e.endTime.trim(),
         venue: e.venue.trim(),
         img: e.img.trim(),
         path: e.path.trim(),
@@ -4203,7 +4206,8 @@ function EventsEditor() {
             type: "upcoming",
             title: e.title,
             date: e.date,
-            time: e.time,
+            start_time: e.startTime,
+            end_time: e.endTime,
             venue: e.venue,
             img: e.img,
             cat: e.cat,
@@ -4418,8 +4422,8 @@ function EventsEditor() {
                       </div>
                     </div>
 
-                    <div className="grid lg:grid-cols-2 gap-3">
-                      <div className="space-y-1 lg:col-span-2">
+                    <div className="grid lg:grid-cols-3 gap-3">
+                      <div className="space-y-1 lg:col-span-3">
                         <label
                           htmlFor={`admin-event-${event.id}-title`}
                           className="block text-xs font-semibold text-gray-700"
@@ -4444,30 +4448,46 @@ function EventsEditor() {
                         </label>
                         <input
                           id={`admin-event-${event.id}-date`}
+                          type="date"
                           value={event.date}
                           onChange={(e) => updateCalendar(event.id, { date: e.target.value })}
-                          placeholder="Date (e.g., March 21, 2026)"
                           className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
                           disabled={saving || loading}
                         />
                       </div>
                       <div className="space-y-1">
                         <label
-                          htmlFor={`admin-event-${event.id}-time`}
+                          htmlFor={`admin-event-${event.id}-startTime`}
                           className="block text-xs font-semibold text-gray-700"
                         >
-                          Time
+                          Start Time
                         </label>
                         <input
-                          id={`admin-event-${event.id}-time`}
-                          value={event.time}
-                          onChange={(e) => updateCalendar(event.id, { time: e.target.value })}
-                          placeholder="Time (e.g., 9:00 AM – 3:00 PM)"
+                          id={`admin-event-${event.id}-startTime`}
+                          type="time"
+                          value={event.startTime}
+                          onChange={(e) => updateCalendar(event.id, { startTime: e.target.value })}
                           className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
                           disabled={saving || loading}
                         />
                       </div>
-                      <div className="space-y-1 lg:col-span-2">
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`admin-event-${event.id}-endTime`}
+                          className="block text-xs font-semibold text-gray-700"
+                        >
+                          End Time
+                        </label>
+                        <input
+                          id={`admin-event-${event.id}-endTime`}
+                          type="time"
+                          value={event.endTime}
+                          onChange={(e) => updateCalendar(event.id, { endTime: e.target.value })}
+                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                          disabled={saving || loading}
+                        />
+                      </div>
+                      <div className="space-y-1 lg:col-span-3">
                         <label
                           htmlFor={`admin-event-${event.id}-venue`}
                           className="block text-xs font-semibold text-gray-700"
@@ -4522,7 +4542,7 @@ function EventsEditor() {
                         </select>
                       </div>
 
-                      <div className="space-y-1 lg:col-span-2">
+                      <div className="space-y-1 lg:col-span-3">
                         <label
                           htmlFor={`admin-event-${event.id}-desc`}
                           className="block text-xs font-semibold text-gray-700"
@@ -4665,13 +4685,13 @@ function EventsEditor() {
                           htmlFor={`admin-moment-${moment.id}-year`}
                           className="block text-xs font-semibold text-gray-700"
                         >
-                          Year / Month
+                          Date
                         </label>
                         <input
                           id={`admin-moment-${moment.id}-year`}
+                          type="date"
                           value={moment.year}
                           onChange={(e) => updateMoment(moment.id, { year: e.target.value })}
-                          placeholder="Year / Month (e.g., 2025 or May 2024)"
                           className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
                           disabled={saving || loading}
                         />
@@ -5321,9 +5341,9 @@ function BlogsEditor() {
                     </label>
                     <input
                       id={`admin-blog-${blog.id}-date`}
+                      type="date"
                       value={blog.date}
                       onChange={(e) => updateItem(blog.id, { date: e.target.value })}
-                      placeholder="Date (e.g., January 15, 2026)"
                       className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
                       disabled={saving || loading}
                     />

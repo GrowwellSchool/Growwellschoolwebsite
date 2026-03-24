@@ -62,11 +62,27 @@ function ContactSection() {
         message: form.message.trim(),
       };
 
+      // Save to Supabase
       const supabase = getSupabaseBrowserClient();
       const { error: insertError } = await supabase.from("contact_messages").insert(payload);
       if (insertError) {
         setError(insertError.message);
         return;
+      }
+
+      // Send email notification
+      const emailResponse = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!emailResponse.ok) {
+        const emailError = await emailResponse.json();
+        console.error("Failed to send email:", emailError);
+        // Don't block the user - the message was saved to database
       }
 
       setForm({ name: "", email: "", phone: "", subject: "", message: "" });
@@ -120,10 +136,10 @@ function ContactSection() {
                 {
                   icon: <Mail size={22} />,
                   label: "Email",
-                  value: "info@growwellschool.in",
+                  value: "growelladmin@gmail.com",
                   sub: "We reply within 24 hours",
                   color: "bg-school-orange",
-                  href: "mailto:info@growwellschool.in",
+                  href: "mailto:growelladmin@gmail.com",
                 },
                 {
                   icon: <Clock size={22} />,

@@ -9,6 +9,16 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 const EVENTS_PAGE_KEY = "events.page";
 
+// Helper function to convert 24-hour time to 12-hour format with AM/PM
+function formatTime12Hour(time24: string): string {
+  if (!time24) return "";
+  const [hours24, minutes] = time24.split(":").map(Number);
+  if (isNaN(hours24) || isNaN(minutes)) return time24;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
+}
+
 type EventsFit = "cover" | "contain";
 
 type CalendarEvent = {
@@ -16,7 +26,8 @@ type CalendarEvent = {
   id: string;
   title: string;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   venue: string;
   img: string;
   cat: string;
@@ -96,7 +107,8 @@ export default function Page() {
             id: dbItem.id,
             title: dbItem.title || "",
             date: dbItem.date || "",
-            time: dbItem.time || "",
+            startTime: dbItem.start_time || "",
+            endTime: dbItem.end_time || "",
             venue: dbItem.venue || "",
             img: image ? normalizeUrl(image) : "",
             cat: dbItem.cat || "",
@@ -257,9 +269,13 @@ export default function Page() {
                       {item.date}
                     </span>
                   ) : null}
-                  {item.kind === "calendar" && item.time ? (
+                  {item.kind === "calendar" && (item.startTime || item.endTime) ? (
                     <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-full">
-                      {item.time}
+                      {item.startTime && item.endTime 
+                        ? `${formatTime12Hour(item.startTime)} – ${formatTime12Hour(item.endTime)}`
+                        : item.startTime 
+                          ? formatTime12Hour(item.startTime)
+                          : formatTime12Hour(item.endTime)}
                     </span>
                   ) : null}
                   {item.kind === "calendar" && item.venue ? (
@@ -292,7 +308,15 @@ export default function Page() {
                         </div>
                         <div className="flex items-center gap-3">
                           <Clock size={16} className="text-school-green" />
-                          <span>{item.time || "—"}</span>
+                          <span>
+                            {item.startTime && item.endTime 
+                              ? `${formatTime12Hour(item.startTime)} – ${formatTime12Hour(item.endTime)}`
+                              : item.startTime 
+                                ? formatTime12Hour(item.startTime)
+                                : item.endTime
+                                  ? formatTime12Hour(item.endTime)
+                                  : "—"}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3">
                           <MapPin size={16} className="text-school-green" />

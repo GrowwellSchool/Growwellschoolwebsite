@@ -50,7 +50,9 @@ export default function Navbar() {
  <span className="text-school-yellow font-medium">Paving the way to a brighter future</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-school-yellow font-medium">Session 2026-27 Admissions Open</span>
+            <Link href="/admission" className="text-school-yellow font-medium ">
+              Session 2026-27 Admissions Open
+            </Link>
           </div>
         </div>
       </div>
