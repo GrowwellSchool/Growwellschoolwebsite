@@ -37,19 +37,62 @@ function ContactSection() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", subject: "", message: "" });
 
+  const validateForm = (): string | null => {
+    const nameTrimmed = form.name.trim();
+    const emailTrimmed = form.email.trim();
+    const phoneTrimmed = form.phone.trim();
+    const subjectTrimmed = form.subject.trim();
+    const messageTrimmed = form.message.trim();
+
+    // Name validation
+    if (nameTrimmed.length < 2) {
+      return "Name must be at least 2 characters long.";
+    }
+    if (!/^[a-zA-Z\s'-]+$/.test(nameTrimmed)) {
+      return "Name can only contain letters, spaces, hyphens and apostrophes.";
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailTrimmed)) {
+      return "Please enter a valid email address.";
+    }
+
+    // Phone validation (if provided)
+    if (phoneTrimmed) {
+      const digits = phoneTrimmed.replace(/\D/g, "");
+      const isValidIndian = digits.length === 10 || (digits.length === 12 && digits.startsWith("91"));
+      if (!isValidIndian) {
+        return "Please enter a valid phone number (10 digits, optional +91).";
+      }
+    }
+
+    // Subject validation
+    if (!subjectTrimmed) {
+      return "Please select a subject.";
+    }
+
+    // Message validation
+    if (messageTrimmed.length < 10) {
+      return "Message must be at least 10 characters long.";
+    }
+    if (messageTrimmed.length > 1000) {
+      return "Message must not exceed 1000 characters.";
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sending) return;
 
     setError(null);
-    const phoneTrimmed = form.phone.trim();
-    if (phoneTrimmed) {
-      const digits = phoneTrimmed.replace(/\D/g, "");
-      const isValidIndian = digits.length === 10 || (digits.length === 12 && digits.startsWith("91"));
-      if (!isValidIndian) {
-        setError("Please enter a valid phone number (10 digits, optional +91).");
-        return;
-      }
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
     }
 
     setSending(true);
