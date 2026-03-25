@@ -7,6 +7,7 @@ import { Award, BookOpen, Calendar, ChevronLeft, ChevronRight, FileText, Image a
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { AdminNav } from "@/features/admin/dashboard/components/AdminNav";
+import { useAutoMessage } from "@/features/admin/dashboard/hooks/useAutoMessage";
 import { MultiImageDropzone, SingleImageDropzone } from "@/features/admin/dashboard/components/Dropzones";
 import {
   ABOUT_FOLDER,
@@ -129,7 +130,7 @@ function Pagination({
 function HeroImagesEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const [serverImages, setServerImages] = useState<string[]>(["", "", ""]);
   const [images, setImages] = useState<string[]>(["", "", ""]);
   const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
@@ -463,7 +464,7 @@ function HeroImagesEditor() {
 function HomeNotificationsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const [serverText, setServerText] = useState("");
   const [text, setText] = useState("");
 
@@ -604,7 +605,7 @@ type AboutFit = "cover" | "contain";
 function AboutEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const [serverImages, setServerImages] = useState<string[]>(["", "", ""]);
   const [images, setImages] = useState<string[]>(["", "", ""]);
   const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
@@ -1025,7 +1026,7 @@ function AboutEditor() {
 function ProgramsActivitiesEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const [serverItems, setServerItems] = useState<ProgramItem[]>(
     Array.from({ length: 6 }, () => ({ title: "", details: "", image: "" })),
   );
@@ -1438,7 +1439,7 @@ type MemoriesItem = {
 function MemoriesEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const emptyItems = useMemo(
     (): MemoriesItem[] =>
       Array.from({ length: 10 }, () => ({
@@ -1951,7 +1952,7 @@ type NewsFit = "cover" | "contain";
 function HomeNewsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
 
   const [serverItems, setServerItems] = useState<NewsItem[]>([]);
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -2545,7 +2546,7 @@ function HomeNewsEditor() {
 function LifeEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const emptyItems = useMemo((): LifeItem[] => Array.from({ length: 6 }, () => ({ label: "", url: "" })), []);
   const [serverItems, setServerItems] = useState<LifeItem[]>(emptyItems);
   const [items, setItems] = useState<LifeItem[]>(emptyItems);
@@ -2934,7 +2935,7 @@ type GallerySection = {
 function GalleryEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
 
   const [serverSections, setServerSections] = useState<GallerySection[]>([]);
   const [sections, setSections] = useState<GallerySection[]>([]);
@@ -3762,7 +3763,7 @@ type EventsFit = "cover" | "contain";
 function EventsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
 
   const [serverCalendar, setServerCalendar] = useState<EventsCalendarItem[]>([]);
   const [serverMoments, setServerMoments] = useState<EventsMomentItem[]>([]);
@@ -4754,7 +4755,7 @@ type BlogItem = {
 function BlogsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
 
   const [serverFit, setServerFit] = useState<BlogFit>("cover");
   const [fit, setFit] = useState<BlogFit>("cover");
@@ -5457,7 +5458,7 @@ function LeadersDeskEditor() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
   const [desk, setDesk] = useState<DeskValue>(() => defaultValue());
   const [serverDesk, setServerDesk] = useState<DeskValue>(() => defaultValue());
   const [directorFile, setDirectorFile] = useState<File | null>(null);

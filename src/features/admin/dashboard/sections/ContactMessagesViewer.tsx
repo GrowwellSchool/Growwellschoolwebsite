@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { useAutoMessage } from "../hooks/useAutoMessage";
 
 import { CONTACT_MESSAGES_TABLE } from "../constants";
 import { capitalizeFirstLetter } from "../utils";
@@ -24,7 +25,8 @@ type ContactMessageRow = {
 
 export function ContactMessagesViewer({ adminUserId }: { adminUserId?: string }) {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useAutoMessage();
+
   const [items, setItems] = useState<ContactMessageRow[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "replied">("all");
