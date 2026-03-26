@@ -161,7 +161,6 @@ export default function BlogsPage() {
     };
   }, []);
 
-  // Core paginated fetch — receives category as parameter to avoid stale closure
   const fetchBlogs = useCallback(
     async (currentPage: number, isAppending: boolean, catOverride: string) => {
       if (fetchingRef.current) return;
@@ -211,7 +210,6 @@ export default function BlogsPage() {
     pageRef.current = 0;
     setHasMore(true);
     hasMoreRef.current = true;
-    fetchingRef.current = false;
     fetchBlogs(0, false, activeCat);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCat]);
@@ -225,7 +223,6 @@ export default function BlogsPage() {
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
         if (!hasMoreRef.current || fetchingRef.current) return;
-        
         const nextPage = pageRef.current + 1;
         pageRef.current = nextPage;
         setPage(nextPage);

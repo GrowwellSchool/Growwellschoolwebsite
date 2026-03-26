@@ -395,7 +395,9 @@ export default function NewsPage() {
     setItems([]);
     setPage(0);
     pageRef.current = 0;
-    // Only fetch if it's the first run or featuredId has changed (wait for id to avoid double fetch)
+    setHasMore(true);
+    hasMoreRef.current = true;
+    fetchingRef.current = false;
     fetchNews(0, false, featuredId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [featuredId]);
@@ -409,7 +411,6 @@ export default function NewsPage() {
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
         if (!hasMoreRef.current || fetchingRef.current) return;
-        
         const nextPage = pageRef.current + 1;
         pageRef.current = nextPage;
         setPage(nextPage);

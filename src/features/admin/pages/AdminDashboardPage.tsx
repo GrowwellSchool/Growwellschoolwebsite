@@ -2039,7 +2039,7 @@ function HomeNewsEditor() {
       const supabase = getSupabaseBrowserClient();
       const [settingsRes, newsRes] = await Promise.all([
         supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", HOME_NEWS_KEY).maybeSingle(),
-        supabase.from("news").select("*").order("created_at", { ascending: true })
+        supabase.from("news").select("*").order("created_at", { ascending: false })
       ]);
 
       if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
@@ -3070,7 +3070,7 @@ function GalleryEditor() {
       const supabase = getSupabaseBrowserClient();
       const [settingsRes, galleriesRes] = await Promise.all([
         supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", GALLERY_PAGE_KEY).maybeSingle(),
-        supabase.from("galleries").select("*").order("created_at", { ascending: true })
+        supabase.from("galleries").select("*").order("created_at", { ascending: false })
       ]);
 
       if (settingsRes.error) throw new Error(settingsRes.error.message);
@@ -3147,7 +3147,7 @@ function GalleryEditor() {
 
   const addSection = () => {
     const id = makeId();
-    setSections((prev) => [...prev, { id, title: "", subtitle: "", details: "", fit: "cover", images: [] }]);
+    setSections((prev) => [{ id, title: "", subtitle: "", details: "", fit: "cover", images: [] }, ...prev]);
   };
 
   const addImages = (sectionId: string, files: FileList | null) => {
@@ -3875,7 +3875,7 @@ function EventsEditor() {
       const supabase = getSupabaseBrowserClient();
       const [settingsRes, eventsRes] = await Promise.all([
         supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", EVENTS_PAGE_KEY).maybeSingle(),
-        supabase.from("events").select("*").order("created_at", { ascending: true })
+        supabase.from("events").select("*").order("created_at", { ascending: false })
       ]);
 
       if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
@@ -3960,7 +3960,6 @@ function EventsEditor() {
   const addCalendarItem = () => {
     const id = makeId();
     setCalendar((prev) => [
-      ...prev,
       {
         id,
         title: "",
@@ -3975,14 +3974,15 @@ function EventsEditor() {
         desc: "",
         highlight: false,
       },
+      ...prev,
     ]);
   };
 
   const addMomentItem = () => {
     const id = makeId();
     setMoments((prev) => [
-      ...prev,
       { id, img: "", path: `${EVENTS_FOLDER}/moments/${id}`, title: "", year: "", desc: "" },
+      ...prev,
     ]);
   };
 
@@ -4839,7 +4839,7 @@ function BlogsEditor() {
       const supabase = getSupabaseBrowserClient();
       const [settingsRes, blogsRes] = await Promise.all([
         supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
-        supabase.from("blogs").select("*").order("created_at", { ascending: true })
+        supabase.from("blogs").select("*").order("created_at", { ascending: false })
       ]);
 
       if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
@@ -4896,7 +4896,6 @@ function BlogsEditor() {
   const addItem = () => {
     const id = makeId();
     setItems((prev) => [
-      ...prev,
       {
         id,
         title: "",
@@ -4910,6 +4909,7 @@ function BlogsEditor() {
         readTime: "",
         catColor: "bg-school-green",
       },
+      ...prev,
     ]);
   };
 
