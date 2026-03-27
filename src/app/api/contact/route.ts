@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     // Email content
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: "growwelladmin@gmail.com",
+      to: "growwellschool19@gmail.com",
       replyTo: `"${name}" <${email}>`,
       subject: `New Contact Form: ${subjectLabels[subject] || subject} from ${name}`,
       html: `
