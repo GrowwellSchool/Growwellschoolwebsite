@@ -4726,6 +4726,7 @@ type BlogItem = {
   featured: boolean;
   readTime: string;
   catColor: string;
+  fit?: BlogFit;
 };
 
 function BlogsEditor() {
@@ -4776,8 +4777,6 @@ function BlogsEditor() {
   };
 
   const normalize = useCallback((raw: unknown): { fit: BlogFit; items: BlogItem[] } => {
-    const nextFit: BlogFit =
-      typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
     const itemsRaw =
       typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
         ? ((raw as { items: unknown[] }).items as unknown[])
@@ -4797,8 +4796,12 @@ function BlogsEditor() {
       const featured = Boolean(obj?.featured);
       const readTime = typeof obj?.readTime === "string" ? obj.readTime : "";
       const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
-      return { id, title, excerpt, author, date, cat, img, path, featured, readTime, catColor } satisfies BlogItem;
+      const fit = obj?.fit === "contain" ? "contain" : "cover" as BlogFit;
+      return { id, title, excerpt, author, date, cat, img, path, featured, readTime, catColor, fit } satisfies BlogItem;
     });
+
+    // Use the first item's fit as the default, or fallback to "cover"
+    const nextFit = nextItems.length > 0 && nextItems[0].fit ? nextItems[0].fit : "cover";
 
     const hasFeatured = nextItems.some((b) => b.featured);
     const normalizedItems = hasFeatured
@@ -4813,18 +4816,14 @@ function BlogsEditor() {
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const [settingsRes, blogsRes] = await Promise.all([
-        supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
-        supabase.from("blogs").select("*").order("created_at", { ascending: false })
-      ]);
+      const { data: dbBlogs, error: blogsError } = await supabase
+        .from("blogs")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
-      if (blogsRes.error) throw new Error(blogsRes.error.message);
+      if (blogsError) throw new Error(blogsError.message);
 
-      const raw = settingsRes.data?.value as unknown;
-      const dbBlogs = blogsRes.data || [];
-
-      const loadedItems = dbBlogs.map(b => ({
+      const loadedItems = (dbBlogs || []).map(b => ({
           id: b.id,
           title: b.title,
           excerpt: b.excerpt,
@@ -4836,11 +4835,13 @@ function BlogsEditor() {
           featured: b.featured,
           readTime: b.read_time || "",
           catColor: b.cat_color || "bg-school-green",
+          fit: b.fit === "contain" ? "contain" : "cover" as BlogFit,
       }));
 
-      const fit = typeof raw === "object" && raw && (raw as any).fit === "contain" ? "contain" : "cover";
+      // Use the first item's fit as the default, or fallback to "cover"
+      const loadedFit = loadedItems.length > 0 && loadedItems[0].fit ? loadedItems[0].fit : "cover";
       const candidate = {
-        fit,
+        fit: loadedFit,
         items: loadedItems
       };
 
