@@ -88,28 +88,21 @@ export default function GalleryPage() {
       setCatLoading(true);
       try {
         const supabase = getSupabaseBrowserClient();
-        // Fetch all distinct cat values from the galleries table
+        // Fetch cat and cat_label from the galleries table
         const { data, error } = await supabase
           .from("galleries")
-          .select("cat")
+          .select("cat, cat_label")
           .order("cat", { ascending: true });
 
         if (cancelled || error || !data) return;
 
-        // Also pull label mapping from site_settings if available (for pretty names)
-        const { data: settingsData } = await supabase
-          .from("site_settings")
-          .select("value")
-          .eq("key", "gallery.page")
-          .maybeSingle();
-
+        // Build a label map: pick the first non-empty cat_label for each cat
         const labelMap: Record<string, string> = {};
-        if (settingsData?.value) {
-          const sections = (settingsData.value as any).sections;
-          if (Array.isArray(sections)) {
-            sections.forEach((s: any) => {
-              if (s?.id && s?.label) labelMap[s.id] = s.label;
-            });
+        for (const row of data) {
+          const cat = row.cat as string;
+          if (!cat) continue;
+          if (!labelMap[cat] && row.cat_label && (row.cat_label as string).trim()) {
+            labelMap[cat] = (row.cat_label as string).trim();
           }
         }
 
@@ -118,7 +111,7 @@ export default function GalleryPage() {
           { id: "all", label: "All Activities" },
           ...uniqueCats.map((cat) => ({
             id: cat,
-            label: labelMap[cat] || cat,
+            label: labelMap[cat] || cat.charAt(0).toUpperCase() + cat.slice(1).replace(/[-_]/g, " "),
           })),
         ];
 
