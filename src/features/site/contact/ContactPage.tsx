@@ -179,10 +179,10 @@ function ContactSection() {
                 {
                   icon: <Mail size={22} />,
                   label: "Email",
-                  value: "growelladmin@gmail.com",
+                  value: "growwelladmin@gmail.com",
                   sub: "We reply within 24 hours",
                   color: "bg-school-orange",
-                  href: "mailto:growelladmin@gmail.com",
+                  href: "mailto:growwelladmin@gmail.com",
                 },
                 {
                   icon: <Clock size={22} />,
