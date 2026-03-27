@@ -76,4 +76,8 @@ export default {
     },
   },
   plugins: [],
+  corePlugins: {
+    // Ensure line-clamp is enabled (it should be by default in v3.3+)
+    lineClamp: true,
+  },
 }

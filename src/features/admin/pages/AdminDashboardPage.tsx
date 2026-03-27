@@ -1945,6 +1945,7 @@ type NewsItem = {
   href: string;
   image: string;
   path: string;
+  fit?: NewsFit;
 };
 
 type NewsFit = "cover" | "contain";
@@ -2037,18 +2038,14 @@ function HomeNewsEditor() {
     setMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const [settingsRes, newsRes] = await Promise.all([
-        supabase.from(SITE_SETTINGS_TABLE).select("value").eq("key", HOME_NEWS_KEY).maybeSingle(),
-        supabase.from("news").select("*").order("created_at", { ascending: false })
-      ]);
+      const { data: dbNews, error: newsError } = await supabase
+        .from("news")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (settingsRes.error && settingsRes.error.code !== "PGRST116") throw new Error(settingsRes.error.message);
-      if (newsRes.error) throw new Error(newsRes.error.message);
+      if (newsError) throw new Error(newsError.message);
 
-      const raw = settingsRes.data?.value as unknown;
-      const dbNews = newsRes.data || [];
-
-      const loadedItems = dbNews.map(n => ({
+      const loadedItems = (dbNews || []).map(n => ({
         id: n.id,
         tag: n.tag,
         date: n.date,
@@ -2056,12 +2053,13 @@ function HomeNewsEditor() {
         desc: n.excerpt || "",
         href: n.href,
         image: n.image,
-        path: `${NEWS_FOLDER}/${n.id}`
+        path: `${NEWS_FOLDER}/${n.id}`,
+        fit: n.fit === "contain" ? "contain" : "cover" as NewsFit,
       }));
 
       const normalized = normalize(loadedItems);
-      const loadedFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+      // Use the first item's fit as the default, or fallback to "cover"
+      const loadedFit = loadedItems.length > 0 && loadedItems[0].fit ? loadedItems[0].fit : "cover";
       setServerItems(normalized);
       setItems(normalized);
       setFit(loadedFit);
@@ -2231,19 +2229,6 @@ function HomeNewsEditor() {
 
       const cleaned = nextItems.filter((n) => n.title.trim().length > 0 && n.image.trim().length > 0);
 
-      const { error: settingsError } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
-        {
-          key: HOME_NEWS_KEY,
-          value: {
-            fit,
-            version: Date.now(),
-          },
-        },
-        { onConflict: "key" },
-      );
-
-      if (settingsError) throw new Error(settingsError.message);
-
       const upsertRows = cleaned.map((n) => ({
         id: n.id,
         tag: n.tag,
@@ -2252,6 +2237,7 @@ function HomeNewsEditor() {
         excerpt: n.desc,
         href: n.href,
         image: n.image,
+        fit,
       }));
 
       if (upsertRows.length > 0) {
@@ -3338,6 +3324,7 @@ function GalleryEditor() {
           id: img.id,
           src: img.url,
           cat: updatedSection.id,
+          cat_label: updatedSection.title || updatedSection.id,
           title: img.title || "",
           description: img.desc || "",
           fit: updatedSection.fit
@@ -4188,19 +4175,6 @@ function EventsEditor() {
       const cleanedCalendar = nextCalendar.filter((e) => e.title.trim().length > 0);
       const cleanedMoments = nextMoments.filter((m) => m.title.trim().length > 0);
 
-      const { error: settingsError } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
-        {
-          key: EVENTS_PAGE_KEY,
-          value: {
-            fit,
-            version: Date.now(),
-          },
-        },
-        { onConflict: "key" },
-      );
-
-      if (settingsError) throw new Error(settingsError.message);
-
       const upsertRows = [
         ...cleanedCalendar.map(e => ({
             id: e.id,
@@ -4215,7 +4189,8 @@ function EventsEditor() {
             cat_color: e.catColor,
             description: e.desc,
             highlight: e.highlight,
-            year: ""
+            year: "",
+            fit
         })),
         ...cleanedMoments.map(m => ({
             id: m.id,
@@ -4229,7 +4204,8 @@ function EventsEditor() {
             cat_color: "",
             description: m.desc,
             highlight: false,
-            year: m.year
+            year: m.year,
+            fit
         }))
       ];
 
@@ -5060,19 +5036,6 @@ function BlogsEditor() {
 
       const cleaned = fixedFeatured.filter((b) => b.title.trim().length > 0);
 
-      const { error: settingsError } = await supabase.from(SITE_SETTINGS_TABLE).upsert(
-        {
-          key: BLOGS_PAGE_KEY,
-          value: {
-            fit,
-            version: Date.now(),
-          },
-        },
-        { onConflict: "key" },
-      );
-
-      if (settingsError) throw new Error(settingsError.message);
-
       const upsertRows = cleaned.map((b) => ({
         id: b.id,
         title: b.title,
@@ -5084,6 +5047,7 @@ function BlogsEditor() {
         featured: b.featured,
         read_time: b.readTime,
         cat_color: b.catColor,
+        fit,
       }));
 
       if (upsertRows.length > 0) {

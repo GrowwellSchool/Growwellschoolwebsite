@@ -8,7 +8,7 @@ import { motion, useInView } from "framer-motion";
 import { Calendar, MapPin, Clock, ArrowRight } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const EVENTS_PAGE_KEY = "events.page";
+
 const PAGE_SIZE = 6;
 
 type UpcomingEvent = {
@@ -23,6 +23,7 @@ type UpcomingEvent = {
   catColor: string;
   desc: string;
   highlight: boolean;
+  fit: "cover" | "contain";
   updatedAt?: string;
 };
 
@@ -36,10 +37,10 @@ function formatTime12Hour(time24: string): string {
   return `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
 }
 
-type PastHighlight = { id: string; img: string; title: string; year: string; desc: string; updatedAt?: string };
+type PastHighlight = { id: string; img: string; title: string; year: string; desc: string; fit: "cover" | "contain"; updatedAt?: string };
 type EventsFit = "cover" | "contain";
 
-type SiteSettingsValue = { fit?: "cover" | "contain"; version?: string | number };
+
 
 // Helper to add cache-busting version to image URLs
 function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
@@ -76,14 +77,12 @@ function PageHero() {
 function UpcomingSection({
   highlights,
   events,
-  fit,
   hasMore,
   loading,
   loadMoreRef, // Received ref for sentinel
 }: {
   highlights: UpcomingEvent[];
   events: UpcomingEvent[];
-  fit: EventsFit;
   hasMore: boolean;
   loading: boolean;
   loadMoreRef: RefObject<HTMLDivElement | null>;
@@ -110,7 +109,7 @@ function UpcomingSection({
             className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8 grid lg:grid-cols-2"
           >
             <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
-              {fit === "contain" ? (
+              {event.fit === "contain" ? (
                 <>
                   <Image
                     src={event.img}
@@ -135,7 +134,7 @@ function UpcomingSection({
                   alt={event.title}
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-contain"
+                  className="object-cover"
                 />
               )}
             </div>
@@ -193,8 +192,8 @@ function UpcomingSection({
               transition={{ delay: Math.min(i, 5) * 0.1, duration: 0.5 }}
               className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
             >
-              <div className="aspect-[2/3] relative overflow-hidden bg-gray-50">
-                {fit === "contain" ? (
+              <div className="aspect-[4/3] relative bg-school-dark overflow-hidden">
+                {event.fit === "contain" ? (
                   <>
                     <Image
                       src={event.img}
@@ -204,6 +203,7 @@ function UpcomingSection({
                       className="object-cover scale-110 blur-2xl"
                       aria-hidden
                     />
+                    <div className="absolute inset-0 bg-school-dark/40" />
                     <Image
                       src={event.img}
                       alt={event.title}
@@ -211,7 +211,6 @@ function UpcomingSection({
                       sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="object-contain"
                     />
-                    <div className="absolute inset-0 bg-school-dark/10" />
                   </>
                 ) : (
                   <Image
@@ -224,15 +223,20 @@ function UpcomingSection({
                 )}
               </div>
               <div className="p-5">
-                <span
-                  className={`${event.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
-                >
-                  {event.cat}
-                </span>
+                <div className="flex gap-2 mb-2">
+                  <span
+                    className={`${event.catColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded`}
+                  >
+                    {event.cat}
+                  </span>
+                  <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2.5 py-1 rounded">
+                    {event.date}
+                  </span>
+                </div>
                 <h3 className="font-heading font-bold text-gray-800 text-lg mt-3 mb-2">
                   <Link href={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
                 </h3>
-                <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-4">{event.desc}</p>
+                <p className="text-gray-700 text-sm leading-relaxed mb-4 line-clamp-2 font-medium">{event.desc}</p>
                 <Link
                   href={`/events/${encodeURIComponent(event.id)}`}
                   className="inline-flex items-center gap-2 text-school-green font-heading font-bold text-sm"
@@ -240,11 +244,11 @@ function UpcomingSection({
                   View Details <ArrowRight size={16} />
                 </Link>
                 <div className="space-y-1.5 border-t border-gray-100 pt-4">
-                  <div className="flex items-center gap-2 text-gray-500 text-xs">
+                  <div className="flex items-center gap-2 text-gray-700 text-xs">
                     <Calendar size={13} className="text-school-green" /> {event.date}
                   </div>
                   {(event.startTime || event.endTime) && (
-                    <div className="flex items-center gap-2 text-gray-500 text-xs">
+                    <div className="flex items-center gap-2 text-gray-700 text-xs">
                       <Clock size={13} className="text-school-green" /> 
                       {event.startTime && event.endTime 
                         ? `${formatTime12Hour(event.startTime)} – ${formatTime12Hour(event.endTime)}`
@@ -253,7 +257,7 @@ function UpcomingSection({
                           : formatTime12Hour(event.endTime)}
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-gray-500 text-xs">
+                  <div className="flex items-center gap-2 text-gray-700 text-xs">
                     <MapPin size={13} className="text-school-green" /> {event.venue}
                   </div>
                 </div>
@@ -282,13 +286,11 @@ function UpcomingSection({
 
 function PastHighlightsSection({
   pastHighlights,
-  fit,
   hasMore,
   loading,
   loadMoreRef, // Received ref for sentinel
 }: {
   pastHighlights: PastHighlight[];
-  fit: EventsFit;
   hasMore: boolean;
   loading: boolean;
   loadMoreRef: RefObject<HTMLDivElement | null>;
@@ -314,8 +316,8 @@ function PastHighlightsSection({
               transition={{ delay: Math.min(i, 5) * 0.1, duration: 0.4 }}
               className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden card-hover group"
             >
-              <div className="aspect-[2/3] relative overflow-hidden bg-gray-50">
-                {fit === "contain" ? (
+              <div className="aspect-[4/3] relative bg-school-dark overflow-hidden">
+                {item.fit === "contain" ? (
                   <>
                     <Image
                       src={item.img}
@@ -325,6 +327,7 @@ function PastHighlightsSection({
                       className="object-cover scale-110 blur-2xl"
                       aria-hidden
                     />
+                    <div className="absolute inset-0 bg-school-dark/40" />
                     <Image
                       src={item.img}
                       alt={item.title}
@@ -332,7 +335,6 @@ function PastHighlightsSection({
                       sizes="(min-width: 1024px) 25vw, 50vw"
                       className="object-contain"
                     />
-                    <div className="absolute inset-0 bg-school-dark/10" />
                   </>
                 ) : (
                   <Image
@@ -345,11 +347,13 @@ function PastHighlightsSection({
                 )}
               </div>
               <div className="p-4">
-                <div className="text-school-gold text-xs font-bold mb-1">{item.year}</div>
+                <div className="flex gap-2 mb-1">
+                  <div className="text-[10px] font-black tracking-widest uppercase text-school-gold">{item.year}</div>
+                </div>
                 <h3 className="font-heading font-bold text-white text-sm mb-1">
                   <Link href={`/events/${encodeURIComponent(item.id)}`}>{item.title}</Link>
                 </h3>
-                <p className="text-gray-400 text-xs leading-relaxed line-clamp-4">{item.desc}</p>
+                <p className="text-gray-300 text-xs leading-relaxed line-clamp-4 font-medium">{item.desc}</p>
                 <Link
                   href={`/events/${encodeURIComponent(item.id)}`}
                   className="inline-flex items-center gap-2 text-school-gold font-heading font-bold text-xs mt-3"
@@ -383,7 +387,6 @@ export default function EventsPage() {
   const [highlights, setHighlights] = useState<UpcomingEvent[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [pastHighlights, setPastHighlights] = useState<PastHighlight[]>([]);
-  const [fit, setFit] = useState<EventsFit>("cover");
 
   const [upcomingPage, setUpcomingPage] = useState(0);
   const [hasMoreUpcoming, setHasMoreUpcoming] = useState(true);
@@ -417,29 +420,21 @@ export default function EventsPage() {
     const loadMeta = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const [{ data: fitData }, { data: hData }] = await Promise.all([
-          supabase.from("site_settings").select("value").eq("key", EVENTS_PAGE_KEY).maybeSingle(),
-          supabase
+        const { data: hData } = await supabase
             .from("events")
             .select("*")
             .eq("type", "upcoming")
             .eq("highlight", true)
-            .order("created_at", { ascending: false }),
-        ]);
+            .order("created_at", { ascending: false });
 
         if (cancelled) return;
-
-        if (fitData?.value) {
-          const val = fitData.value as SiteSettingsValue;
-          setFit(val.fit === "contain" ? "contain" : "cover");
-        }
 
         if (hData) {
           setHighlights(
             hData.map((d) => ({
               id: d.id, title: d.title, date: d.date, startTime: d.start_time, endTime: d.end_time,
               venue: d.venue, img: withImageVersion(d.img, d.updated_at), cat: d.cat, catColor: d.cat_color,
-              desc: d.description, highlight: d.highlight, updatedAt: d.updated_at,
+              desc: d.description, highlight: d.highlight, fit: d.fit === "cover" ? "cover" : "contain", updatedAt: d.updated_at,
             }))
           );
         }
@@ -473,7 +468,7 @@ export default function EventsPage() {
         const mapped: UpcomingEvent[] = data.map((d) => ({
           id: d.id, title: d.title, date: d.date, startTime: d.start_time, endTime: d.end_time,
           venue: d.venue, img: withImageVersion(d.img, d.updated_at), cat: d.cat, catColor: d.cat_color,
-          desc: d.description, highlight: d.highlight,
+          desc: d.description, highlight: d.highlight, fit: d.fit === "cover" ? "cover" : "contain",
           updatedAt: d.updated_at,
         }));
         if (isAppending) setUpcomingEvents((prev) => [...prev, ...mapped]);
@@ -505,7 +500,7 @@ export default function EventsPage() {
       if (!error && data) {
         const mapped: PastHighlight[] = data.map((d) => ({
           id: d.id, img: withImageVersion(d.img, d.updated_at), title: d.title, year: d.year, desc: d.description,
-          updatedAt: d.updated_at,
+          fit: d.fit === "cover" ? "cover" : "contain", updatedAt: d.updated_at,
         }));
         if (isAppending) setPastHighlights((prev) => [...prev, ...mapped]);
         else setPastHighlights(mapped);
@@ -570,14 +565,12 @@ export default function EventsPage() {
       <UpcomingSection
         highlights={highlights}
         events={upcomingEvents}
-        fit={fit}
         hasMore={hasMoreUpcoming}
         loading={loadingUpcoming}
         loadMoreRef={upcomingSentinelRef}
       />
       <PastHighlightsSection
         pastHighlights={pastHighlights}
-        fit={fit}
         hasMore={hasMorePast}
         loading={loadingPast}
         loadMoreRef={pastSentinelRef}

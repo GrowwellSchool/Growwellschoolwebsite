@@ -6,8 +6,6 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const BLOGS_PAGE_KEY = "blogs.page";
-
 type BlogFit = "cover" | "contain";
 
 type BlogItem = {
@@ -23,6 +21,14 @@ type BlogItem = {
   catColor: string;
 };
 
+function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+  if (!url || !url.trim()) return "";
+  const base = url.trim().split("?")[0];
+  if (!base.startsWith("http")) return base;
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
+
 export default function Page() {
   const params = useParams<{ id: string }>();
   const id = useMemo(() => {
@@ -33,87 +39,45 @@ export default function Page() {
     }
   }, [params.id]);
 
-  const [fit, setFit] = useState<BlogFit>("contain");
+  const [fit] = useState<BlogFit>("contain");
   const [item, setItem] = useState<BlogItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: any, dbItem: any | null, versionFromRow: any) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
+    const load = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data: dbItem } = await supabase.from("blogs").select("*").eq("id", id).maybeSingle();
 
-      const normalizeUrl = (url: string) => {
-        const trimmed = url.trim();
-        if (trimmed.length === 0) return "";
-        const base = trimmed.split("?")[0];
-        if (!base.startsWith("http")) return base;
-        return `${base}?v=${encodeURIComponent(version)}`;
-      };
+        if (cancelled) return;
 
-      const loadedFit: BlogFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "cover" ? "cover" : "contain";
-
-      if (cancelled) return;
-      setFit(loadedFit);
-      
-      if (dbItem) {
-        setItem({
-          id: dbItem.id,
-          title: dbItem.title || "",
-          excerpt: dbItem.excerpt || "",
-          content: dbItem.content || dbItem.body || "",
-          author: dbItem.author || "",
-          date: dbItem.date || "",
-          cat: dbItem.cat || "",
-          img: dbItem.img ? normalizeUrl(dbItem.img) : dbItem.image ? normalizeUrl(dbItem.image) : "",
-          readTime: dbItem.read_time || dbItem.readTime || "",
-          catColor: dbItem.cat_color || dbItem.catColor || "bg-school-green",
-        });
-      } else {
+        if (dbItem) {
+          setItem({
+            id: dbItem.id,
+            title: dbItem.title || "",
+            excerpt: dbItem.excerpt || "",
+            content: dbItem.content || dbItem.body || "",
+            author: dbItem.author || "",
+            date: dbItem.date || "",
+            cat: dbItem.cat || "",
+            img: withImageVersion(dbItem.img || dbItem.image, dbItem.updated_at),
+            readTime: dbItem.read_time || dbItem.readTime || "",
+            catColor: dbItem.cat_color || dbItem.catColor || "bg-school-green",
+          });
+        } else {
+          setItem(null);
+        }
+      } catch {
+        if (cancelled) return;
         setItem(null);
       }
       setLoading(false);
     };
 
-    const load = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const [settingsRes, blogRes] = await Promise.all([
-          supabase.from("site_settings").select("value, updated_at").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
-          supabase.from("blogs").select("*").eq("id", id).maybeSingle()
-        ]);
-
-        if (cancelled) return;
-        
-        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
-        const versionToken = settingsRes.data?.updated_at ?? Date.now();
-        
-        applySetting(settingsValue, blogRes.data || null, versionToken);
-      } catch (err) {
-        if (cancelled) return;
-        setLoading(false);
-        setItem(null);
-      }
-    };
-
     const supabase = getSupabaseBrowserClient();
-    const chSettings = supabase
-      .channel("blogs-detail-settings")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${BLOGS_PAGE_KEY}` },
-        () => { if (!cancelled) load(); }
-      )
-      .subscribe();
-
-    const chBlogs = supabase
+    const channel = supabase
       .channel("blogs-detail-item")
       .on(
         "postgres_changes",
@@ -125,8 +89,7 @@ export default function Page() {
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(chSettings);
-      supabase.removeChannel(chBlogs);
+      supabase.removeChannel(channel);
     };
   }, [id]);
 
@@ -151,7 +114,7 @@ export default function Page() {
             <h1 className="text-2xl sm:text-4xl lg:text-6xl font-heading font-black mb-4 leading-tight break-words max-w-4xl">
               Blogs
             </h1>
-            <p className="text-gray-300 text-base sm:text-lg max-w-xl mx-auto">
+            <p className="text-gray-300 text-base sm:text-lg max-w-xl mx-auto font-medium">
               Education insights, school news, parenting tips and stories from our vibrant community.
             </p>
           </motion.div>
@@ -169,7 +132,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark h-[300px] sm:h-[350px] lg:aspect-auto lg:h-[500px]">
+              <div className="relative bg-school-dark h-[250px] sm:h-[350px] lg:h-[500px] overflow-hidden">
                 <div className="absolute inset-0 pattern-grid opacity-25" aria-hidden />
                 {item.img ? (
                   fit === "contain" ? (
@@ -235,11 +198,11 @@ export default function Page() {
                     </span>
                   ) : null}
                 </div>
-                <h1 className="text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-gray-900 max-w-4xl mb-6">
+                <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-gray-900 max-w-4xl mb-6 break-words">
                   {item.title}
                 </h1>
-                <div className="w-full">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px] md:text-base">
+                <div className="w-full overflow-hidden">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px] md:text-base break-words overflow-hidden">
                     {item.content || item.excerpt}
                   </p>
                 </div>

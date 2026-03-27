@@ -7,7 +7,7 @@ import { motion, useInView } from "framer-motion";
 import { Calendar, User, ArrowRight, BookOpen, Tag } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const BLOGS_PAGE_KEY = "blogs.page";
+
 const PAGE_SIZE = 9;
 
 type BlogFit = "cover" | "contain";
@@ -23,10 +23,11 @@ type BlogRow = {
   featured: boolean;
   read_time: string;
   cat_color: string;
+  fit?: string;
   updated_at?: string;
 };
 
-type SiteSettingsValue = { fit?: "cover" | "contain"; version?: string | number };
+
 
 type BlogItem = {
   id: string;
@@ -39,6 +40,7 @@ type BlogItem = {
   featured: boolean;
   readTime: string;
   catColor: string;
+  fit: "cover" | "contain";
   updatedAt?: string;
 };
 
@@ -65,7 +67,7 @@ function PageHero() {
             School Blog
           </span>
           <h1 className="text-4xl lg:text-6xl font-heading font-black mb-4">Insights &amp; Stories</h1>
-          <p className="text-gray-300 text-lg max-w-xl mx-auto">
+          <p className="text-gray-300 text-lg max-w-xl mx-auto font-medium">
             Education insights, school news, parenting tips and stories from our vibrant community.
           </p>
         </motion.div>
@@ -76,7 +78,6 @@ function PageHero() {
 
 export default function BlogsPage() {
   const [activeCat, setActiveCat] = useState("All");
-  const [fit, setFit] = useState<BlogFit>("contain");
   const [blogs, setBlogs] = useState<BlogItem[]>([]);
   const [featured, setFeatured] = useState<BlogItem | null>(null);
   const [blogCategories, setBlogCategories] = useState<string[]>(["All"]);
@@ -109,8 +110,7 @@ export default function BlogsPage() {
     const loadMeta = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const [{ data: fitData }, { data: fData }, { data: cData }] = await Promise.all([
-          supabase.from("site_settings").select("value").eq("key", BLOGS_PAGE_KEY).maybeSingle(),
+        const [{ data: fData }, { data: cData }] = await Promise.all([
           supabase
             .from("blogs")
             .select("*")
@@ -121,11 +121,6 @@ export default function BlogsPage() {
         ]);
 
         if (cancelled) return;
-
-        if (fitData?.value) {
-          const raw = fitData.value as SiteSettingsValue;
-          setFit(raw.fit === "contain" ? "contain" : "cover");
-        }
 
         if (fData && fData.length > 0) {
           const d = fData[0];
@@ -140,6 +135,7 @@ export default function BlogsPage() {
             featured: d.featured,
             readTime: d.read_time,
             catColor: d.cat_color,
+            fit: d.fit === "cover" ? "cover" : "contain",
             updatedAt: d.updated_at,
           });
         }
@@ -189,7 +185,7 @@ export default function BlogsPage() {
           const mapped: BlogItem[] = data.map((d: BlogRow) => ({
             id: d.id, title: d.title, excerpt: d.excerpt, author: d.author, date: d.date,
             cat: d.cat, img: withImageVersion(d.img, d.updated_at), featured: d.featured, readTime: d.read_time, catColor: d.cat_color,
-            updatedAt: d.updated_at,
+            fit: d.fit === "cover" ? "cover" : "contain", updatedAt: d.updated_at,
           }));
           if (isAppending) setBlogs((prev) => [...prev, ...mapped]);
           else setBlogs(mapped);
@@ -250,7 +246,7 @@ export default function BlogsPage() {
               className="grid lg:grid-cols-2 bg-white rounded-3xl overflow-hidden border border-black/10 shadow-2xl mb-16 group"
             >
               <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
-                {fit === "contain" ? (
+                {featured.fit === "contain" ? (
                   <>
                     <Image
                       src={featured.img}
@@ -275,7 +271,7 @@ export default function BlogsPage() {
                     alt={featured.title}
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-contain"
+                    className="object-cover"
                   />
                 )}
               </div>
@@ -293,7 +289,7 @@ export default function BlogsPage() {
                 <h2 className="text-2xl lg:text-3xl font-heading font-black text-gray-900 mb-4 leading-tight">
                   {featured.title}
                 </h2>
-                <p className="text-gray-600 leading-relaxed mb-6 text-sm line-clamp-6">{featured.excerpt}</p>
+                <p className="text-gray-600 leading-relaxed mb-6 text-[15px] md:text-base line-clamp-3 sm:line-clamp-4 lg:line-clamp-6 break-words overflow-hidden">{featured.excerpt}</p>
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-6">
                   <span className="flex items-center gap-1.5">
                     <User size={13} className="text-school-green" />
@@ -323,8 +319,8 @@ export default function BlogsPage() {
                 onClick={() => setActiveCat(cat)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-heading font-semibold transition-all border
                   ${activeCat === cat
-                    ? "bg-school-green text-white border-school-green"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-school-green hover:text-school-green"
+                    ? "bg-school-green text-white shadow-school-green/25 scale-105"
+                    : "bg-white text-gray-800 border border-black/5 hover:scale-105"
                   }`}
               >
                 <Tag size={12} />
@@ -343,10 +339,10 @@ export default function BlogsPage() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: Math.min(i, 6) * 0.1, duration: 0.5 }}
-                className="bg-white border border-black/10 rounded-2xl overflow-hidden card-hover shadow-md group"
+                className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
               >
-                <div className="aspect-[2/3] relative overflow-hidden bg-gray-50">
-                  {fit === "contain" ? (
+                <div className="aspect-[4/3] relative bg-school-dark overflow-hidden">
+                  {blog.fit === "contain" ? (
                     <>
                       <Image
                         src={blog.img}
@@ -356,6 +352,7 @@ export default function BlogsPage() {
                         className="object-cover scale-110 blur-2xl"
                         aria-hidden
                       />
+                      <div className="absolute inset-0 bg-school-dark/40" />
                       <Image
                         src={blog.img}
                         alt={blog.title}
@@ -363,7 +360,6 @@ export default function BlogsPage() {
                         sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                         className="object-contain"
                       />
-                      <div className="absolute inset-0 bg-school-dark/10" />
                     </>
                   ) : (
                     <Image
@@ -382,18 +378,18 @@ export default function BlogsPage() {
                     >
                       {blog.cat}
                     </span>
-                    <span className="bg-gray-100 text-gray-600 text-[10px] px-2.5 py-1 rounded">
+                    <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2.5 py-1 rounded">
                       {blog.readTime}
                     </span>
                   </div>
-                  <h3 className="font-heading font-bold text-gray-800 text-base leading-tight mb-3 group-hover:text-school-green transition-colors line-clamp-2">
+                  <h3 className="font-heading font-bold text-gray-800 text-lg leading-snug mb-3 group-hover:text-school-green transition-colors line-clamp-2">
                     <Link href={`/blogs/${encodeURIComponent(blog.id)}`}>{blog.title}</Link>
                   </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-3">{blog.excerpt}</p>
+                  <p className="text-gray-700 text-sm leading-relaxed mb-4 line-clamp-2 sm:line-clamp-3 font-medium break-words overflow-hidden">{blog.excerpt}</p>
                   <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-                    <div className="text-xs text-gray-400">
-                      <div className="font-medium text-gray-600">{blog.author}</div>
-                      <div>{blog.date}</div>
+                    <div className="text-xs text-gray-500">
+                      <div className="font-bold text-gray-800">{blog.author}</div>
+                      <div className="font-medium">{blog.date}</div>
                     </div>
                     <Link
                       href={`/blogs/${encodeURIComponent(blog.id)}`}

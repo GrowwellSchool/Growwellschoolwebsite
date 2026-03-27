@@ -7,7 +7,7 @@ import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
-import { useSiteSetting } from "@/lib/supabase/SiteSettingsContext";
+
 
 type NewsItem = {
   id: string;
@@ -17,12 +17,13 @@ type NewsItem = {
   excerpt: string;
   href: string;
   image: string;
+  fit: "cover" | "contain";
   updatedAt?: string;
 };
 
 type NewsFit = "cover" | "contain";
 
-type SiteSettingsValue = { fit?: "cover" | "contain"; version?: string | number };
+
 
 type NewsRow = {
   id: string;
@@ -32,6 +33,7 @@ type NewsRow = {
   excerpt: string;
   href: string;
   image: string;
+  fit?: string;
   updated_at?: string;
 };
 
@@ -68,7 +70,7 @@ function PageHero() {
           <h1 className="text-2xl sm:text-4xl lg:text-6xl font-heading font-black mb-3 leading-tight break-words max-w-4xl">
             News &amp; Announcements
           </h1>
-          <p className="text-gray-300 text-base sm:text-lg max-w-xl mx-auto">
+          <p className="text-gray-300 text-base sm:text-lg max-w-xl mx-auto font-medium">
             Stay updated with school notices, key dates and highlights from Growwell School.
           </p>
         </motion.div>
@@ -77,7 +79,7 @@ function PageHero() {
   );
 }
 
-function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit }) {
+function FeaturedSection({ featured }: { featured?: NewsItem }) {
   if (!featured) return null;
 
   return (
@@ -100,12 +102,12 @@ function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit 
           </Link>
         </motion.div>
 
-        <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-          <div className="grid lg:grid-cols-2">
-            <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
-              {fit === "contain" ? (
+        <div className="grid lg:grid-cols-2 bg-white rounded-3xl overflow-hidden border border-black/10 shadow-2xl mb-16">
+          <div className="aspect-[3/4] lg:aspect-auto lg:h-[550px] relative bg-school-dark overflow-hidden">
+              {featured.fit === "contain" ? (
                 <>
                   <Image
+                    key={`${featured.id}-blur`}
                     src={featured.image}
                     alt=""
                     fill
@@ -116,6 +118,7 @@ function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit 
                   />
                   <div className="absolute inset-0 bg-school-dark/40" />
                   <Image
+                    key={`${featured.id}-main-contain`}
                     src={featured.image}
                     alt={featured.title}
                     fill
@@ -126,11 +129,12 @@ function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit 
                 </>
               ) : (
                 <Image
+                  key={`${featured.id}-main-cover`}
                   src={featured.image}
                   alt={featured.title}
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-contain"
+                  className="object-cover"
                   priority
                 />
               )}
@@ -145,7 +149,7 @@ function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit 
               <h3 className="mt-4 text-2xl lg:text-3xl font-heading font-black text-gray-900 leading-tight">
                 {featured.title}
               </h3>
-              <p className="text-gray-600 mt-3 leading-relaxed line-clamp-6">{featured.excerpt}</p>
+              <p className="text-gray-600 mt-3 leading-relaxed line-clamp-3 sm:line-clamp-4 lg:line-clamp-6 break-words overflow-hidden">{featured.excerpt}</p>
               <div className="mt-7">
                 <Link
                   href={`/news/${encodeURIComponent(featured.id)}`}
@@ -156,7 +160,6 @@ function FeaturedSection({ featured, fit }: { featured?: NewsItem; fit: NewsFit 
               </div>
             </div>
           </div>
-        </div>
       </div>
     </section>
   );
@@ -167,13 +170,11 @@ function NewsListSection({
   hasMore,
   loading,
   loadMoreRef,
-  fit,
 }: {
   items: NewsItem[];
   hasMore: boolean;
   loading: boolean;
   loadMoreRef: RefObject<HTMLDivElement | null>;
-  fit: NewsFit;
 }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, amount: 0.2 });
@@ -205,13 +206,14 @@ function NewsListSection({
                 initial={{ opacity: 0, y: 24 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5, delay: Math.min(i, 6) * 0.1 }}
-                className="bg-white rounded-2xl border border-black/10 shadow-md hover:shadow-xl transition-shadow overflow-hidden"
+                className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
               >
-                <div className="aspect-[2/3] relative bg-school-dark overflow-hidden">
+                <div className="aspect-[4/3] relative bg-school-dark overflow-hidden">
                   {it.image ? (
-                    fit === "contain" ? (
+                    it.fit === "contain" ? (
                       <>
                         <Image
+                          key={`${it.id}-blur`}
                           src={it.image}
                           alt=""
                           fill
@@ -221,6 +223,7 @@ function NewsListSection({
                         />
                         <div className="absolute inset-0 bg-school-dark/40" />
                         <Image
+                          key={`${it.id}-main-contain`}
                           src={it.image}
                           alt={it.title}
                           fill
@@ -230,6 +233,7 @@ function NewsListSection({
                       </>
                     ) : (
                       <Image
+                        key={`${it.id}-main-cover`}
                         src={it.image}
                         alt={it.title}
                         fill
@@ -241,11 +245,13 @@ function NewsListSection({
                 </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between gap-3 mb-4">
-                    <div className="text-xs font-bold tracking-widest uppercase text-gray-500">{it.tag}</div>
-                    <div className="text-xs text-gray-400">{it.date}</div>
+                    <div className="text-xs font-black tracking-widest uppercase text-gray-700">{it.tag}</div>
+                    <div className="text-xs text-gray-500 font-bold">{it.date}</div>
                   </div>
-                  <h3 className="font-heading font-black text-lg text-gray-900 mb-2 leading-snug">{it.title}</h3>
-                  <p className="text-gray-600 mt-2 leading-relaxed line-clamp-3">{it.excerpt}</p>
+                  <h3 className="font-heading font-bold text-lg text-gray-800 mb-2 leading-snug">
+                    {it.title}
+                  </h3>
+                  <p className="text-gray-700 text-sm mt-2 leading-relaxed line-clamp-2 sm:line-clamp-3 font-medium break-words overflow-hidden">{it.excerpt}</p>
                   <div className="mt-5">
                     <Link
                       href={`/news/${encodeURIComponent(it.id)}`}
@@ -278,7 +284,6 @@ export default function NewsPage() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [featured, setFeatured] = useState<NewsItem | null>(null);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
-  const [fit, setFit] = useState<NewsFit>("contain");
 
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -317,7 +322,7 @@ export default function NewsPage() {
           setFeatured({
             id: d.id, tag: d.tag, date: d.date, title: d.title,
             excerpt: d.excerpt, href: d.href || "#", image: withImageVersion(d.image, d.updated_at),
-            updatedAt: d.updated_at,
+            fit: d.fit === "cover" ? "cover" : "contain", updatedAt: d.updated_at,
           });
         }
       } finally {
@@ -325,26 +330,7 @@ export default function NewsPage() {
       }
     };
 
-    // Fetch fit setting
-    const fetchFit = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const { data } = await supabase
-          .from("site_settings")
-          .select("value")
-          .eq("key", "home.news")
-          .maybeSingle();
-        if (data?.value) {
-          const val = data.value as SiteSettingsValue;
-          setFit(val.fit === "contain" ? "contain" : "cover");
-        }
-      } catch {
-        // ignore
-      }
-    };
-
     fetchFeatured();
-    fetchFit();
     return () => { cancelled = true; };
   }, []);
 
@@ -376,7 +362,7 @@ export default function NewsPage() {
           const mapped: NewsItem[] = data.map((d: NewsRow) => ({
             id: d.id, tag: d.tag, date: d.date, title: d.title,
             excerpt: d.excerpt, href: d.href || "#", image: withImageVersion(d.image, d.updated_at),
-            updatedAt: d.updated_at,
+            fit: d.fit === "cover" ? "cover" : "contain", updatedAt: d.updated_at,
           }));
           if (isAppending) setItems((prev) => [...prev, ...mapped]);
           else setItems(mapped);
@@ -427,13 +413,12 @@ export default function NewsPage() {
   return (
     <>
       <PageHero />
-      <FeaturedSection featured={featured || undefined} fit={fit} />
+      <FeaturedSection featured={featured || undefined} />
       <NewsListSection
         items={items}
         hasMore={hasMore}
         loading={loading}
         loadMoreRef={loadMoreRef}
-        fit={fit}
       />
     </>
   );

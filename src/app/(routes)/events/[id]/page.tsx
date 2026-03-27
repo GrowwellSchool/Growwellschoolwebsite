@@ -7,8 +7,6 @@ import { motion } from "framer-motion";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const EVENTS_PAGE_KEY = "events.page";
-
 // Helper function to convert 24-hour time to 12-hour format with AM/PM
 function formatTime12Hour(time24: string): string {
   if (!time24) return "";
@@ -46,6 +44,14 @@ type PastMoment = {
 
 type DetailItem = CalendarEvent | PastMoment;
 
+function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+  if (!url || !url.trim()) return "";
+  const base = url.trim().split("?")[0];
+  if (!base.startsWith("http")) return base;
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
+
 export default function Page() {
   const params = useParams<{ id: string }>();
   const id = useMemo(() => {
@@ -56,104 +62,61 @@ export default function Page() {
     }
   }, [params.id]);
 
-  const [fit, setFit] = useState<EventsFit>("cover");
+  const [fit] = useState<EventsFit>("contain");
   const [item, setItem] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: any, dbItem: any | null, versionFromRow: any) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
+    const load = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data: dbItem } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
 
-      const normalizeUrl = (url: string) => {
-        const trimmed = url.trim();
-        if (trimmed.length === 0) return "";
-        const base = trimmed.split("?")[0];
-        if (!base.startsWith("http")) return base;
-        return `${base}?v=${encodeURIComponent(version)}`;
-      };
+        if (cancelled) return;
 
-      const loadedFit: EventsFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
+        if (dbItem) {
+          const isPast = dbItem.type === "past";
+          const desc = dbItem.description || dbItem.desc || dbItem.details || dbItem.content || "";
+          const image = dbItem.img || dbItem.image || "";
 
-      if (cancelled) return;
-      setFit(loadedFit);
-      
-      if (dbItem) {
-        // Determine if it should be kind "calendar" or "moment"
-        const isPast = dbItem.type === "past";
-        const desc = dbItem.description || dbItem.desc || dbItem.details || dbItem.content || "";
-        const image = dbItem.img || dbItem.image || "";
-
-        if (isPast) {
-          setItem({
-            kind: "moment",
-            id: dbItem.id,
-            title: dbItem.title || "",
-            year: dbItem.year || (dbItem.date ? new Date(dbItem.date).getFullYear().toString() : ""),
-            img: image ? normalizeUrl(image) : "",
-            desc: desc,
-          });
+          if (isPast) {
+            setItem({
+              kind: "moment",
+              id: dbItem.id,
+              title: dbItem.title || "",
+              year: dbItem.year || (dbItem.date ? new Date(dbItem.date).getFullYear().toString() : ""),
+              img: withImageVersion(image, dbItem.updated_at),
+              desc,
+            });
+          } else {
+            setItem({
+              kind: "calendar",
+              id: dbItem.id,
+              title: dbItem.title || "",
+              date: dbItem.date || "",
+              startTime: dbItem.start_time || "",
+              endTime: dbItem.end_time || "",
+              venue: dbItem.venue || "",
+              img: withImageVersion(image, dbItem.updated_at),
+              cat: dbItem.cat || "",
+              catColor: dbItem.cat_color || dbItem.catColor || "bg-school-green",
+              desc,
+            });
+          }
         } else {
-          setItem({
-            kind: "calendar",
-            id: dbItem.id,
-            title: dbItem.title || "",
-            date: dbItem.date || "",
-            startTime: dbItem.start_time || "",
-            endTime: dbItem.end_time || "",
-            venue: dbItem.venue || "",
-            img: image ? normalizeUrl(image) : "",
-            cat: dbItem.cat || "",
-            catColor: dbItem.cat_color || dbItem.catColor || "bg-school-green",
-            desc: desc,
-          });
+          setItem(null);
         }
-      } else {
+      } catch {
+        if (cancelled) return;
         setItem(null);
       }
       setLoading(false);
     };
 
-    const load = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const [settingsRes, eventRes] = await Promise.all([
-          supabase.from("site_settings").select("value, updated_at").eq("key", EVENTS_PAGE_KEY).maybeSingle(),
-          supabase.from("events").select("*").eq("id", id).maybeSingle()
-        ]);
-
-        if (cancelled) return;
-        
-        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
-        const versionToken = settingsRes.data?.updated_at ?? Date.now();
-        
-        applySetting(settingsValue, eventRes.data || null, versionToken);
-      } catch (err) {
-        if (cancelled) return;
-        setLoading(false);
-        setItem(null);
-      }
-    };
-
     const supabase = getSupabaseBrowserClient();
-    const chSettings = supabase
-      .channel("events-detail-settings")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${EVENTS_PAGE_KEY}` },
-        () => { if (!cancelled) load(); }
-      )
-      .subscribe();
-
-    const chEvents = supabase
+    const channel = supabase
       .channel("events-detail-item")
       .on(
         "postgres_changes",
@@ -165,8 +128,7 @@ export default function Page() {
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(chSettings);
-      supabase.removeChannel(chEvents);
+      supabase.removeChannel(channel);
     };
   }, [id]);
 
@@ -211,7 +173,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark h-[300px] sm:h-[350px] lg:aspect-auto lg:h-[500px]">
+              <div className="aspect-[3/4] lg:aspect-auto lg:h-[500px] relative bg-school-dark overflow-hidden">
                 {item.img ? (
                   fit === "contain" ? (
                     <>
@@ -235,17 +197,14 @@ export default function Page() {
                       />
                     </>
                   ) : (
-                    <>
-                      <Image
-                        src={item.img}
-                        alt={item.title}
-                        fill
-                        sizes="100vw"
-                        className="object-contain"
-                        priority
-                      />
-                      <div className="absolute inset-0 bg-school-dark/35" />
-                    </>
+                    <Image
+                      src={item.img}
+                      alt={item.title}
+                      fill
+                      sizes="100vw"
+                      className="object-contain"
+                      priority
+                    />
                   )
                 ) : null}
 

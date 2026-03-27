@@ -14,7 +14,7 @@ const HOME_NOTIFICATIONS_KEY = "home.notifications";
 const HOME_PROGRAMS_KEY = "home.programs";
 const HOME_ABOUT_KEY = "home.about";
 const HOME_LIFE_KEY = "home.life";
-const HOME_NEWS_KEY = "home.news";
+
 const HOME_DESK_KEY = "home.desk";
 
 const heroSlides = [
@@ -962,27 +962,19 @@ function NewsAnnouncementsSlider() {
 
   const [slides, setSlides] = useState<HomeNewsSlide[]>([]);
   const [active, setActive] = useState(0);
-  const [fit, setFit] = useState<HomeNewsFit>("cover");
+  const [fit] = useState<HomeNewsFit>("cover");
 
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: unknown, dbNews: any[], versionFromRow: unknown) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
+    const withVersion = (url: string, version?: string | number | null) => {
+      if (!url.trim()) return "";
+      const base = url.trim().split("?")[0];
+      const v = version ?? Date.now();
+      return `${base}?v=${encodeURIComponent(String(v))}`;
+    };
 
-      const normalizeUrl = (url: string) => {
-        const trimmed = url.trim();
-        if (trimmed.length === 0) return "";
-        const base = trimmed.split("?")[0];
-        return `${base}?v=${encodeURIComponent(version)}`;
-      };
-
+    const applyNews = (dbNews: any[]) => {
       const mapped: HomeNewsSlide[] = dbNews.map((n) => ({
         id: n.id,
         tag: n.tag || "Update",
@@ -990,35 +982,28 @@ function NewsAnnouncementsSlider() {
         title: n.title || "",
         desc: n.excerpt || "",
         href: `/news/${encodeURIComponent(n.id)}`,
-        image: n.image ? normalizeUrl(n.image) : "",
+        image: n.image ? withVersion(n.image, n.updated_at) : "",
       })).filter(it => it.title.length > 0 && it.image.length > 0)
          .slice(0, 4);
 
       if (cancelled) return;
-      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
-      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
-      const loadedFit = normalizedFit === "contain" ? "contain" : "cover";
       setSlides(mapped);
       setActive((prev) => (mapped.length === 0 ? 0 : Math.min(prev, mapped.length - 1)));
-      setFit(loadedFit);
     };
 
     const load = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
-        const [settingsRes, newsRes] = await Promise.all([
-          supabase.from("site_settings").select("value, updated_at").eq("key", HOME_NEWS_KEY).maybeSingle(),
-          // OPTIMIZED: Only fetch 4 items instead of all
-          supabase.from("news").select("*").order("created_at", { ascending: false }).limit(4)
-        ]);
+        const { data, error } = await supabase
+          .from("news")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(4);
 
         if (cancelled) return;
-        if (newsRes.error) throw new Error(newsRes.error.message);
+        if (error) throw new Error(error.message);
 
-        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
-        const versionToken = settingsRes.data?.updated_at ?? Date.now();
-        
-        applySetting(settingsValue, newsRes.data || [], versionToken);
+        applyNews(data || []);
       } catch (err) {
         if (cancelled) return;
         console.error("Home news load error:", err);
@@ -1026,16 +1011,7 @@ function NewsAnnouncementsSlider() {
     };
 
     const supabase = getSupabaseBrowserClient();
-    const chSettings = supabase
-      .channel("home-news-settings")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${HOME_NEWS_KEY}` },
-        () => { if (!cancelled) load(); }
-      )
-      .subscribe();
-
-    const chNews = supabase
+    const channel = supabase
       .channel("home-news-items")
       .on(
         "postgres_changes",
@@ -1047,8 +1023,7 @@ function NewsAnnouncementsSlider() {
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(chSettings);
-      supabase.removeChannel(chNews);
+      supabase.removeChannel(channel);
     };
   }, []);
 

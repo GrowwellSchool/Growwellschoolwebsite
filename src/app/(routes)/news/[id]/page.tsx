@@ -6,8 +6,6 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
-const HOME_NEWS_KEY = "home.news";
-
 type NewsFit = "cover" | "contain";
 
 type NewsItem = {
@@ -19,6 +17,13 @@ type NewsItem = {
   image: string;
 };
 
+function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+  if (!url || !url.trim()) return "";
+  const base = url.trim().split("?")[0];
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
+
 export default function Page() {
   const params = useParams<{ id: string }>();
   const id = useMemo(() => {
@@ -29,82 +34,41 @@ export default function Page() {
     }
   }, [params.id]);
 
-  const [fit, setFit] = useState<NewsFit>("cover");
+  const [fit] = useState<NewsFit>("contain");
   const [item, setItem] = useState<NewsItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: any, dbItem: any | null, versionFromRow: any) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
+    const load = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data: dbItem } = await supabase.from("news").select("*").eq("id", id).maybeSingle();
 
-      const normalizeUrl = (url: string) => {
-        const trimmed = url.trim();
-        if (trimmed.length === 0) return "";
-        const base = trimmed.split("?")[0];
-        return `${base}?v=${encodeURIComponent(version)}`;
-      };
+        if (cancelled) return;
 
-      const loadedFit =
-        typeof raw === "object" && raw && (raw as { fit?: unknown }).fit === "contain" ? "contain" : "cover";
-
-      if (cancelled) return;
-      setFit(loadedFit);
-      
-      if (dbItem) {
-        setItem({
-          id: dbItem.id,
-          tag: dbItem.tag || "Update",
-          date: dbItem.date || "—",
-          title: dbItem.title || "",
-          desc: dbItem.excerpt || "",
-          image: dbItem.image ? normalizeUrl(dbItem.image) : "",
-        });
-      } else {
+        if (dbItem) {
+          setItem({
+            id: dbItem.id,
+            tag: dbItem.tag || "Update",
+            date: dbItem.date || "—",
+            title: dbItem.title || "",
+            desc: dbItem.excerpt || "",
+            image: withImageVersion(dbItem.image, dbItem.updated_at),
+          });
+        } else {
+          setItem(null);
+        }
+      } catch {
+        if (cancelled) return;
         setItem(null);
       }
       setLoading(false);
     };
 
-    const load = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const [settingsRes, newsRes] = await Promise.all([
-          supabase.from("site_settings").select("value, updated_at").eq("key", HOME_NEWS_KEY).maybeSingle(),
-          supabase.from("news").select("*").eq("id", id).maybeSingle()
-        ]);
-
-        if (cancelled) return;
-        
-        const settingsValue = (settingsRes.data?.value ?? null) as unknown;
-        const versionToken = settingsRes.data?.updated_at ?? Date.now();
-        
-        applySetting(settingsValue, newsRes.data || null, versionToken);
-      } catch (err) {
-        if (cancelled) return;
-        setLoading(false);
-        setItem(null);
-      }
-    };
-
     const supabase = getSupabaseBrowserClient();
-    const chSettings = supabase
-      .channel("news-detail-settings")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${HOME_NEWS_KEY}` },
-        () => { if (!cancelled) load(); }
-      )
-      .subscribe();
-
-    const chNews = supabase
+    const channel = supabase
       .channel("news-detail-item")
       .on(
         "postgres_changes",
@@ -116,8 +80,7 @@ export default function Page() {
     load();
     return () => {
       cancelled = true;
-      supabase.removeChannel(chSettings);
-      supabase.removeChannel(chNews);
+      supabase.removeChannel(channel);
     };
   }, [id]);
 
@@ -142,7 +105,7 @@ export default function Page() {
             <h1 className="text-2xl sm:text-4xl lg:text-6xl font-heading font-black mb-4 leading-tight break-words max-w-4xl">
               News & Announcements
             </h1>
-            <p className="text-gray-300 text-base sm:text-lg max-w-xl mx-auto">
+            <p className="text-gray-300 text-base sm:text-lg max-w-xl mx-auto font-medium">
               Stay updated with school notices, key dates and highlights from Growwell School.
             </p>
           </motion.div>
@@ -160,7 +123,7 @@ export default function Page() {
 
           {item ? (
             <div className="rounded-3xl border border-black/10 bg-white shadow-xl overflow-hidden">
-              <div className="relative bg-school-dark h-[300px] sm:h-[350px] lg:aspect-auto lg:h-[500px]">
+              <div className="relative bg-school-dark h-[250px] sm:h-[350px] lg:h-[500px] overflow-hidden">
                 {item.image ? (
                   fit === "contain" ? (
                     <>
@@ -209,11 +172,11 @@ export default function Page() {
                     {item.date}
                   </span>
                 </div>
-                <h1 className="text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-gray-900 max-w-4xl mb-6">
+                <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-heading font-black leading-tight text-gray-900 max-w-4xl mb-6 break-words">
                   {item.title}
                 </h1>
-                <div className="w-full">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px] md:text-base">
+                <div className="w-full overflow-hidden">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px] md:text-base break-words overflow-hidden">
                     {item.desc}
                   </p>
                 </div>
