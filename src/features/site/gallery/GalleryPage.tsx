@@ -12,9 +12,10 @@ type GalleryItem = {
   src: string;
   cat: string;
   title: string;
-  desc: string;
-  fit: GalleryFit;
-};
+   desc: string;
+   fit: GalleryFit;
+   updatedAt?: string;
+ };
 type GalleryCategory = { id: string; label: string };
 
 const BADGE_COLORS: { bg: string; text: string }[] = [
@@ -26,6 +27,15 @@ const BADGE_COLORS: { bg: string; text: string }[] = [
   { bg: "bg-school-teal", text: "text-white" },
   { bg: "bg-school-red", text: "text-white" },
 ];
+ 
+ // Helper to add cache-busting version to image URLs
+ function withImageVersion(url: string | undefined | null, version?: string | number | null): string {
+   if (!url || !url.trim()) return "";
+   const trimmed = url.trim();
+   const base = trimmed.split("?")[0];
+   const v = version ?? "1";
+   return `${base}?v=${encodeURIComponent(String(v))}`;
+ }
 
 function PageHero() {
   return (
@@ -150,14 +160,15 @@ export default function GalleryPage() {
         const { data, count, error } = await query;
 
         if (!error && data) {
-          const mapped: GalleryItem[] = data.map((d: any) => ({
-            id: d.id,
-            src: d.src,
-            cat: d.cat,
-            title: d.title || "",
-            desc: d.description || "",
-            fit: (d.fit as GalleryFit) || "cover",
-          }));
+            const mapped: GalleryItem[] = data.map((d: any) => ({
+             id: d.id,
+             src: d.src,
+             cat: d.cat,
+             title: d.title || "",
+             desc: d.description || "",
+             fit: (d.fit as GalleryFit) || "cover",
+             updatedAt: d.updated_at,
+           }));
           if (isAppending) {
             setGalleryItems((prev) => [...prev, ...mapped]);
           } else {
@@ -270,28 +281,30 @@ export default function GalleryPage() {
                           className="absolute inset-0 scale-110 blur-2xl"
                           aria-hidden
                           style={{
-                            backgroundImage: `url(${item.src})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
+                             backgroundImage: `url(${withImageVersion(item.src, item.updatedAt)})`,
+                             backgroundSize: "cover",
+                             backgroundPosition: "center",
+                           }}
                         />
                         <Image
-                          src={item.src}
+                          src={withImageVersion(item.src, item.updatedAt)}
                           alt={item.title}
                           width={1200}
                           height={800}
                           sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                           className="relative w-full h-auto object-contain"
+                          priority={i < 6}
                         />
                       </>
                     ) : (
                       <Image
-                        src={item.src}
+                        src={withImageVersion(item.src, item.updatedAt)}
                         alt={item.title}
                         width={1200}
                         height={800}
                         sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                         className="w-full h-auto object-cover"
+                        priority={i < 6}
                       />
                     )}
                     <div className="absolute inset-0 bg-school-dark/0 group-hover:bg-school-dark/40 transition-all duration-300 flex items-center justify-center">

@@ -129,7 +129,7 @@ function HeroCarousel() {
         if (cancelled || error || !data?.value) return;
 
         const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
+        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? "1";
         applySetting(value, version);
       } catch {
         return;
@@ -147,7 +147,7 @@ function HeroCarousel() {
           const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
           const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
           const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? "1";
           applySetting(row?.value, version);
         },
       )
@@ -543,7 +543,7 @@ function ProgramsSection() {
         }
 
         const value = (data?.value ?? null) as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data?.updated_at ?? Date.now();
+        const version = (value as { version?: unknown } | null)?.version ?? data?.updated_at ?? "1";
         applySetting(value, version);
       } catch (err) {
         if (cancelled) return;
@@ -563,7 +563,7 @@ function ProgramsSection() {
           const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
           const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
           const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? "1";
           applySetting(row?.value ?? null, version);
         },
       )
@@ -970,7 +970,7 @@ function NewsAnnouncementsSlider() {
     const withVersion = (url: string, version?: string | number | null) => {
       if (!url.trim()) return "";
       const base = url.trim().split("?")[0];
-      const v = version ?? Date.now();
+      const v = version ?? "1";
       return `${base}?v=${encodeURIComponent(String(v))}`;
     };
 
@@ -1222,7 +1222,7 @@ function GalleryPreview() {
         if (cancelled || error || !data?.value) return;
 
         const value = data.value as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
+        const version = (value as { version?: unknown } | null)?.version ?? data.updated_at ?? "1";
         applySetting(value, version);
       } catch (err) {
         if (cancelled) return;
@@ -1241,7 +1241,7 @@ function GalleryPreview() {
           const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
           const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
           const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? "1";
           applySetting(row?.value, version);
         },
       )
@@ -1409,7 +1409,7 @@ function AboutSection() {
           setLoadState("ready");
           return;
         }
-        applySetting(data.value as unknown, String(data.updated_at ?? Date.now()));
+        applySetting(data.value as unknown, String(data.updated_at ?? "1"));
       } catch {
         if (cancelled) return;
         setLoadState("error");
@@ -1428,7 +1428,7 @@ function AboutSection() {
           const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
           applySetting(
             row?.value,
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now(),
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? "1",
           );
         },
       )

@@ -47,7 +47,7 @@ function withImageVersion(url: string | undefined | null, version?: string | num
   if (!url || !url.trim()) return "";
   const trimmed = url.trim();
   const base = trimmed.split("?")[0];
-  const v = version ?? Date.now();
+  const v = version ?? "1";
   return `${base}?v=${encodeURIComponent(String(v))}`;
 }
 
@@ -112,29 +112,32 @@ function UpcomingSection({
               {event.fit === "contain" ? (
                 <>
                   <Image
-                    src={event.img}
+                    src={withImageVersion(event.img, event.updatedAt)}
                     alt=""
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"
                     className="object-cover scale-110 blur-2xl"
                     aria-hidden
+                    priority={true}
                   />
                   <div className="absolute inset-0 bg-school-dark/40" />
                   <Image
-                    src={event.img}
+                    src={withImageVersion(event.img, event.updatedAt)}
                     alt={event.title}
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"
                     className="object-contain"
+                    priority={true}
                   />
                 </>
               ) : (
                 <Image
-                  src={event.img}
+                  src={withImageVersion(event.img, event.updatedAt)}
                   alt={event.title}
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"
                   className="object-cover"
+                  priority={true}
                 />
               )}
             </div>
@@ -196,29 +199,32 @@ function UpcomingSection({
                 {event.fit === "contain" ? (
                   <>
                     <Image
-                      src={event.img}
+                      src={withImageVersion(event.img, event.updatedAt)}
                       alt=""
                       fill
                       sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="object-cover scale-110 blur-2xl"
                       aria-hidden
+                      priority={i < 2}
                     />
                     <div className="absolute inset-0 bg-school-dark/40" />
                     <Image
-                      src={event.img}
+                      src={withImageVersion(event.img, event.updatedAt)}
                       alt={event.title}
                       fill
                       sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="object-contain"
+                      priority={i < 2}
                     />
                   </>
                 ) : (
                   <Image
-                    src={event.img}
+                    src={withImageVersion(event.img, event.updatedAt)}
                     alt={event.title}
                     fill
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="object-cover"
+                    priority={i < 2}
                   />
                 )}
               </div>

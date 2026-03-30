@@ -206,19 +206,38 @@ function HeroImagesEditor() {
 
   const dirty = files.some(Boolean) || fit !== serverFit || images.join("|") !== serverImages.join("|");
 
-  const onPickFile = (index: number, file: File | null) => {
+  const onPickFile = async (index: number, file: File | null) => {
     setMessage(null);
+
+    if (!file) {
+      setFiles((prev) => {
+        const next = [...prev];
+        next[index] = null;
+        return next;
+      });
+      setPreviews((prev) => {
+        const next = [...prev];
+        if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
+        next[index] = null;
+        return next;
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) return;
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
 
     setFiles((prev) => {
       const next = [...prev];
-      next[index] = file;
+      next[index] = compressed;
       return next;
     });
 
     setPreviews((prev) => {
       const next = [...prev];
       if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
-      next[index] = file ? URL.createObjectURL(file) : null;
+      next[index] = preview;
       return next;
     });
   };
@@ -246,10 +265,10 @@ function HeroImagesEditor() {
     });
   };
 
-  const onDropFile = (index: number, file: File | null) => {
+  const onDropFile = async (index: number, file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
-    onPickFile(index, file);
+    await onPickFile(index, file);
   };
 
   const save = async () => {
@@ -712,21 +731,24 @@ function AboutEditor() {
     mission.trim() !== serverMission.trim() ||
     vision.trim() !== serverVision.trim();
 
-  const onPickFile = (index: number, file: File | null) => {
+  const onPickFile = async (index: number, file: File | null) => {
     setMessage(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
 
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+
     setFiles((prev) => {
       const next = [...prev];
-      next[index] = file;
+      next[index] = compressed;
       return next;
     });
 
     setPreviews((prev) => {
       const next = [...prev];
       if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
-      next[index] = URL.createObjectURL(file);
+      next[index] = preview;
       return next;
     });
   };
@@ -1125,21 +1147,24 @@ function ProgramsActivitiesEditor() {
         it.image !== serverItems[i]?.image,
     );
 
-  const onPickFile = (index: number, file: File | null) => {
+  const onPickFile = async (index: number, file: File | null) => {
     setMessage(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
 
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+
     setFiles((prev) => {
       const next = [...prev];
-      next[index] = file;
+      next[index] = compressed;
       return next;
     });
 
     setPreviews((prev) => {
       const next = [...prev];
       if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
-      next[index] = URL.createObjectURL(file);
+      next[index] = preview;
       return next;
     });
   };
@@ -1587,21 +1612,24 @@ function MemoriesEditor() {
     });
   };
 
-  const onPickFile = (index: number, file: File | null) => {
+  const onPickFile = async (index: number, file: File | null) => {
     setMessage(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
 
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+
     setFiles((prev) => {
       const next = [...prev];
-      next[index] = file;
+      next[index] = compressed;
       return next;
     });
 
     setPreviews((prev) => {
       const next = [...prev];
       if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
-      next[index] = URL.createObjectURL(file);
+      next[index] = preview;
       return next;
     });
   };
@@ -2142,7 +2170,7 @@ function HomeNewsEditor() {
     setItems((prev) => prev.map((x) => (x.id === id ? { ...x, ...nextPatch } : x)));
   };
 
-  const pickImage = (id: string, file: File | null) => {
+  const pickImage = async (id: string, file: File | null) => {
     setMessage(null);
     if (!file) {
       setNewFiles((prev) => {
@@ -2163,8 +2191,9 @@ function HomeNewsEditor() {
     }
 
     if (!file.type.startsWith("image/")) return;
-    const preview = URL.createObjectURL(file);
-    setNewFiles((prev) => ({ ...prev, [id]: file }));
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+    setNewFiles((prev) => ({ ...prev, [id]: compressed }));
     setPreviews((prev) => {
       const existing = prev[id];
       if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
@@ -2638,21 +2667,24 @@ function LifeEditor() {
     });
   };
 
-  const onPickFile = (index: number, file: File | null) => {
+  const onPickFile = async (index: number, file: File | null) => {
     setMessage(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
 
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+
     setFiles((prev) => {
       const next = [...prev];
-      next[index] = file;
+      next[index] = compressed;
       return next;
     });
 
     setPreviews((prev) => {
       const next = [...prev];
       if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index] ?? "");
-      next[index] = URL.createObjectURL(file);
+      next[index] = preview;
       return next;
     });
   };
@@ -3136,7 +3168,7 @@ function GalleryEditor() {
     setSections((prev) => [{ id, title: "", subtitle: "", details: "", fit: "cover", images: [] }, ...prev]);
   };
 
-  const addImages = (sectionId: string, files: FileList | null) => {
+  const addImages = async (sectionId: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const entries: { img: GalleryImage; file: File; preview: string; size: { w: number; h: number } | null }[] = [];
@@ -3144,10 +3176,12 @@ function GalleryEditor() {
       const file = files.item(i);
       if (!file) continue;
       if (!file.type.startsWith("image/")) continue;
+      
+      const compressed = await compressImage(file);
       const imageId = makeId();
       const path = `${GALLERY_FOLDER}/${sectionId}/${imageId}`;
-      const preview = URL.createObjectURL(file);
-      entries.push({ img: { id: imageId, url: "", path, title: "", desc: "" }, file, preview, size: null });
+      const preview = URL.createObjectURL(compressed);
+      entries.push({ img: { id: imageId, url: "", path, title: "", desc: "" }, file: compressed, preview, size: null });
     }
 
     if (entries.length === 0) return;
@@ -3747,6 +3781,64 @@ type EventsCalendarItem = {
 type EventsMomentItem = { id: string; img: string; path: string; title: string; year: string; desc: string };
 type EventsFit = "cover" | "contain";
 
+function baseUrl(val: string) {
+  if (!val) return "";
+  return val.split("?")[0];
+}
+
+async function compressImage(file: File, maxDim = 1920, quality = 0.8): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = document.createElement("img");
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const name = file.name.substring(0, file.name.lastIndexOf(".")) + ".jpg";
+            const compressedFile = new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
+            resolve(compressedFile);
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+}
+
+function parseTime(full: string) {
+  if (!full) return { time: "", period: "AM" };
+  const parts = full.trim().split(/\s+/);
+  const time = parts[0] || "";
+  const p = (parts[1] || "").toUpperCase();
+  return { time, period: p === "PM" ? "PM" : "AM" };
+}
+
 function EventsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -3819,12 +3911,12 @@ function EventsEditor() {
         : [];
 
     const nextCalendar = calendarRaw.map((row) => {
-      const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
+      const obj = typeof row === "object" && row ? (row as Record<string, any>) : null;
       const id = typeof obj?.id === "string" && obj.id.trim().length > 0 ? obj.id.trim() : makeId();
       const title = typeof obj?.title === "string" ? obj.title : "";
       const date = typeof obj?.date === "string" ? obj.date : "";
-      const startTime = typeof obj?.start_time === "string" ? obj.start_time : "";
-      const endTime = typeof obj?.end_time === "string" ? obj.end_time : "";
+      const startTime = typeof (obj?.start_time ?? obj?.startTime) === "string" ? (obj?.start_time ?? obj?.startTime) : "";
+      const endTime = typeof (obj?.end_time ?? obj?.endTime) === "string" ? (obj?.end_time ?? obj?.endTime) : "";
       const venue = typeof obj?.venue === "string" ? obj.venue : "";
       const img = baseUrl(obj?.img);
       const path =
@@ -3832,8 +3924,8 @@ function EventsEditor() {
           ? obj.path.trim()
           : `${EVENTS_FOLDER}/calendar/${id}`;
       const cat = typeof obj?.cat === "string" ? obj.cat : "";
-      const catColor = typeof obj?.catColor === "string" ? obj.catColor : "bg-school-green";
-      const desc = typeof obj?.desc === "string" ? obj.desc : "";
+      const catColor = typeof (obj?.cat_color ?? obj?.catColor) === "string" ? (obj?.cat_color ?? obj?.catColor) : "bg-school-green";
+      const desc = typeof (obj?.desc ?? obj?.description) === "string" ? (obj?.desc ?? obj?.description) : "";
       const highlight = Boolean(obj?.highlight);
       return { id, title, date, startTime, endTime, venue, img, path, cat, catColor, desc, highlight } satisfies EventsCalendarItem;
     });
@@ -3878,7 +3970,8 @@ function EventsEditor() {
           id: e.id,
           title: e.title,
           date: e.date,
-          time: e.time,
+          start_time: e.start_time,
+          end_time: e.end_time,
           venue: e.venue,
           img: e.img,
           path: `${EVENTS_FOLDER}/calendar/${e.id}`,
@@ -4013,7 +4106,7 @@ function EventsEditor() {
     });
   };
 
-  const pickCalendarImage = (id: string, file: File | null) => {
+  const pickCalendarImage = async (id: string, file: File | null) => {
     setMessage(null);
     const k = keyFor("calendar", id);
     if (!file) {
@@ -4035,8 +4128,9 @@ function EventsEditor() {
     }
 
     if (!file.type.startsWith("image/")) return;
-    const preview = URL.createObjectURL(file);
-    setNewFiles((prev) => ({ ...prev, [k]: file }));
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+    setNewFiles((prev) => ({ ...prev, [k]: compressed }));
     setPreviews((prev) => {
       const existing = prev[k];
       if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
@@ -4044,7 +4138,7 @@ function EventsEditor() {
     });
   };
 
-  const pickMomentImage = (id: string, file: File | null) => {
+  const pickMomentImage = async (id: string, file: File | null) => {
     setMessage(null);
     const k = keyFor("moments", id);
     if (!file) {
@@ -4066,8 +4160,9 @@ function EventsEditor() {
     }
 
     if (!file.type.startsWith("image/")) return;
-    const preview = URL.createObjectURL(file);
-    setNewFiles((prev) => ({ ...prev, [k]: file }));
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+    setNewFiles((prev) => ({ ...prev, [k]: compressed }));
     setPreviews((prev) => {
       const existing = prev[k];
       if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
@@ -4425,9 +4520,10 @@ function EventsEditor() {
                         </label>
                         <input
                           id={`admin-event-${event.id}-date`}
-                          type="date"
+                          type="text"
                           value={event.date}
                           onChange={(e) => updateCalendar(event.id, { date: e.target.value })}
+                          placeholder="Date (e.g., March 24, 2026)"
                           className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
                           disabled={saving || loading}
                         />
@@ -4439,14 +4535,32 @@ function EventsEditor() {
                         >
                           Start Time
                         </label>
-                        <input
-                          id={`admin-event-${event.id}-startTime`}
-                          type="time"
-                          value={event.startTime}
-                          onChange={(e) => updateCalendar(event.id, { startTime: e.target.value })}
-                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                          disabled={saving || loading}
-                        />
+                        <div className="flex gap-1.5">
+                          <input
+                            id={`admin-event-${event.id}-startTime`}
+                            type="text"
+                            value={parseTime(event.startTime).time}
+                            onChange={(e) => {
+                              const { period } = parseTime(event.startTime);
+                              updateCalendar(event.id, { startTime: `${e.target.value.trim()} ${period}` });
+                            }}
+                            placeholder="10:00"
+                            className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                            disabled={saving || loading}
+                          />
+                          <select
+                            value={parseTime(event.startTime).period}
+                            onChange={(e) => {
+                              const { time } = parseTime(event.startTime);
+                              updateCalendar(event.id, { startTime: `${time} ${e.target.value}` });
+                            }}
+                            className="border rounded-xl px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 bg-gray-50"
+                            disabled={saving || loading}
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <label
@@ -4455,14 +4569,32 @@ function EventsEditor() {
                         >
                           End Time
                         </label>
-                        <input
-                          id={`admin-event-${event.id}-endTime`}
-                          type="time"
-                          value={event.endTime}
-                          onChange={(e) => updateCalendar(event.id, { endTime: e.target.value })}
-                          className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
-                          disabled={saving || loading}
-                        />
+                        <div className="flex gap-1.5">
+                          <input
+                            id={`admin-event-${event.id}-endTime`}
+                            type="text"
+                            value={parseTime(event.endTime).time}
+                            onChange={(e) => {
+                              const { period } = parseTime(event.endTime);
+                              updateCalendar(event.id, { endTime: `${e.target.value.trim()} ${period}` });
+                            }}
+                            placeholder="12:00"
+                            className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                            disabled={saving || loading}
+                          />
+                          <select
+                            value={parseTime(event.endTime).period}
+                            onChange={(e) => {
+                              const { time } = parseTime(event.endTime);
+                              updateCalendar(event.id, { endTime: `${time} ${e.target.value}` });
+                            }}
+                            className="border rounded-xl px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40 bg-gray-50"
+                            disabled={saving || loading}
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                        </div>
                       </div>
                       <div className="space-y-1 lg:col-span-3">
                         <label
@@ -4944,7 +5076,7 @@ function BlogsEditor() {
     if (patch.featured) setFeatured(id);
   };
 
-  const pickImage = (id: string, file: File | null) => {
+  const pickImage = async (id: string, file: File | null) => {
     setMessage(null);
     if (!file) {
       setNewFiles((prev) => {
@@ -4965,8 +5097,9 @@ function BlogsEditor() {
     }
 
     if (!file.type.startsWith("image/")) return;
-    const preview = URL.createObjectURL(file);
-    setNewFiles((prev) => ({ ...prev, [id]: file }));
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+    setNewFiles((prev) => ({ ...prev, [id]: compressed }));
     setPreviews((prev) => {
       const existing = prev[id];
       if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
@@ -5538,23 +5671,25 @@ function LeadersDeskEditor() {
     load();
   }, [load]);
 
-  const pickDirector = (file: File | null) => {
+  const pickDirector = async (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
-    setDirectorFile(file);
+    const compressed = await compressImage(file);
+    setDirectorFile(compressed);
     setDirectorPreview((prev) => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
+      return URL.createObjectURL(compressed);
     });
   };
 
-  const pickPrincipal = (file: File | null) => {
+  const pickPrincipal = async (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
-    setPrincipalFile(file);
+    const compressed = await compressImage(file);
+    setPrincipalFile(compressed);
     setPrincipalPreview((prev) => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
+      return URL.createObjectURL(compressed);
     });
   };
 

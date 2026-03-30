@@ -42,7 +42,7 @@ function withImageVersion(url: string | undefined | null, version?: string | num
   if (!url || !url.trim()) return "";
   const trimmed = url.trim();
   const base = trimmed.split("?")[0];
-  const v = version ?? Date.now();
+  const v = version ?? "1";
   return `${base}?v=${encodeURIComponent(String(v))}`;
 }
 
@@ -209,39 +209,42 @@ function NewsListSection({
                 className="bg-white rounded-2xl overflow-hidden shadow-md card-hover"
               >
                 <div className="aspect-[4/3] relative bg-school-dark overflow-hidden">
-                  {it.image ? (
-                    it.fit === "contain" ? (
-                      <>
-                        <Image
-                          key={`${it.id}-blur`}
-                          src={it.image}
-                          alt=""
-                          fill
-                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                          className="object-cover scale-110 blur-2xl"
-                          aria-hidden
-                        />
-                        <div className="absolute inset-0 bg-school-dark/40" />
-                        <Image
-                          key={`${it.id}-main-contain`}
-                          src={it.image}
-                          alt={it.title}
-                          fill
-                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                          className="object-contain"
-                        />
-                      </>
-                    ) : (
-                      <Image
-                        key={`${it.id}-main-cover`}
-                        src={it.image}
-                        alt={it.title}
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover"
-                      />
-                    )
-                  ) : null}
+                    {it.image ? (
+                     it.fit === "contain" ? (
+                       <>
+                         <Image
+                           key={`${it.id}-blur`}
+                           src={withImageVersion(it.image, it.updatedAt)}
+                           alt=""
+                           fill
+                           sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                           className="object-cover scale-110 blur-2xl"
+                           aria-hidden
+                           priority={i < 3}
+                         />
+                         <div className="absolute inset-0 bg-school-dark/40" />
+                         <Image
+                           key={`${it.id}-main-contain`}
+                           src={withImageVersion(it.image, it.updatedAt)}
+                           alt={it.title}
+                           fill
+                           sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                           className="object-contain"
+                           priority={i < 3}
+                         />
+                       </>
+                     ) : (
+                       <Image
+                         key={`${it.id}-main-cover`}
+                         src={withImageVersion(it.image, it.updatedAt)}
+                         alt={it.title}
+                         fill
+                         sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                         className="object-cover"
+                         priority={i < 3}
+                       />
+                     )
+                   ) : null}
                 </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between gap-3 mb-4">
