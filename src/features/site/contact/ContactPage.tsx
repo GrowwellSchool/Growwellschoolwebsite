@@ -165,7 +165,7 @@ function ContactSection() {
                   icon: <MapPin size={22} />,
                   label: "Address",
                   value: "Growwell School, Kharar, Punjab, India",
-                  sub: "Gromwell Education and Sports Welfare Society",
+                  sub: "Growwell Education and Sports Welfare Society",
                   color: "bg-school-green",
                 },
                 {

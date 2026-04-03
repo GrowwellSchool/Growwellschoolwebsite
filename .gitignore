@@ -25,3 +25,5 @@ out
 *.sw?
 *.env
 *.agent
+*.md
+*.agents

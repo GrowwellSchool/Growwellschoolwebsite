@@ -11,7 +11,6 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 const HOME_HERO_IMAGES_KEY = "home.heroImages";
 const HOME_NOTIFICATIONS_KEY = "home.notifications";
-const HOME_PROGRAMS_KEY = "home.programs";
 const HOME_ABOUT_KEY = "home.about";
 const HOME_LIFE_KEY = "home.life";
 
@@ -400,11 +399,11 @@ function OurJourneySection() {
   const inView = useInView(ref, { once: true, amount: 0.2 });
 
   const milestones = [
-    { year: "2011", text: "Growwell School established on April 2 by S. Satinder Pal Singh Sohi and Amrit kaur Sohi" },
-    { year: "2015", text: "Recognition as co-educational middle school" },
-    { year: "2020", text: "Adopted NEP 2020 guidelines, expanding holistic development programs" },
-    { year: "2024", text: "Progressive addition of classes, now serving Play Class through Grade 9" },
-    { year: "2026", text: "Continuing to grow — admissions open for Session 2026-27" },
+    { text: "Growwell School established on April 2 by S. Satinder Pal Singh Sohi and Amrit kaur Sohi" },
+    {  text: "Recognition as co-educational middle school" },
+    {  text: "Adopted NEP 2020 guidelines, expanding holistic development programs" },
+    {  text: "Progressive addition of classes, now serving Play Class through Grade 8" },
+    {  text: "Continuing to grow — admissions open for Session 2026-27" },
   ];
 
   return (
@@ -421,7 +420,7 @@ function OurJourneySection() {
             const isLeft = i % 2 === 0;
             return (
               <motion.div
-                key={m.year}
+                key={i}
                 initial={{ opacity: 0, y: 30, x: isLeft ? -20 : 20 }}
                 animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
                 transition={{ duration: 0.5, delay: i * 0.15 }}
@@ -429,7 +428,7 @@ function OurJourneySection() {
               >
                 <div className={`w-full md:w-[45%] flex ${isLeft ? "justify-end" : "justify-start"}`}>
                   <div className="bg-[#1b5e43] text-white p-6 md:p-8 rounded-sm shadow-xl w-full max-w-sm">
-                    <div className="text-school-gold font-heading font-bold text-2xl md:text-3xl mb-3">{m.year}</div>
+                    <div className="text-school-gold font-heading font-bold text-2xl md:text-3xl mb-3"></div>
                     <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">{m.text}</p>
                   </div>
                 </div>
@@ -445,231 +444,7 @@ function OurJourneySection() {
   );
 }
 
-const PROGRAM_COLORS = [
-  "bg-school-green",
-  "bg-school-blue",
-  "bg-school-purple",
-  "bg-school-teal",
-  "bg-school-orange",
-  "bg-school-red",
-];
 
-function ProgramsSection() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
-  const [programs, setPrograms] = useState(() =>
-    Array.from({ length: 6 }, (_, i) => ({
-      title: "",
-      img: "",
-      color: PROGRAM_COLORS[i] ?? "bg-school-green",
-      desc: "",
-    })),
-  );
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [fit, setFit] = useState<"cover" | "contain">("cover");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const applySetting = (raw: unknown, versionFromRow: unknown) => {
-      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
-
-      const version =
-        typeof versionFromValue === "string" || typeof versionFromValue === "number"
-          ? String(versionFromValue)
-          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
-            ? String(versionFromRow)
-            : String(Date.now());
-
-      const addVersion = (url: string) => {
-        const trimmed = url.trim();
-        if (trimmed.length === 0) return "";
-        const base = trimmed.split("?")[0];
-        if (!base.startsWith("http")) return base;
-        return `${base}?v=${encodeURIComponent(version)}`;
-      };
-
-      const candidate = Array.isArray(raw)
-        ? raw
-        : typeof raw === "object" && raw && Array.isArray((raw as { items?: unknown }).items)
-          ? ((raw as { items: unknown[] }).items as unknown[])
-          : [];
-
-      const normalized = candidate.slice(0, 6).map((row) => {
-        const obj = typeof row === "object" && row ? (row as Record<string, unknown>) : null;
-        const title = typeof obj?.title === "string" ? obj.title.trim() : "";
-        const desc =
-          typeof obj?.details === "string" ? obj.details.trim() : typeof obj?.desc === "string" ? obj.desc.trim() : "";
-        const img =
-          typeof obj?.image === "string" ? obj.image.trim() : typeof obj?.img === "string" ? obj.img.trim() : "";
-        return { title, desc, img };
-      });
-
-      const next = Array.from({ length: 6 }, (_, i) => {
-        const row = normalized[i] ?? null;
-        return {
-          title: row?.title ?? "",
-          desc: row?.desc ?? "",
-          img: row?.img ? addVersion(row.img) : "",
-          color: PROGRAM_COLORS[i] ?? "bg-school-green",
-        };
-      });
-
-      setPrograms(next);
-      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
-      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
-      setFit(normalizedFit === "contain" ? "contain" : "cover");
-      setLoadState("ready");
-      setLoadError(null);
-    };
-
-    const load = async () => {
-      setLoadState("loading");
-      setLoadError(null);
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("site_settings")
-          .select("value, updated_at")
-          .eq("key", HOME_PROGRAMS_KEY)
-          .maybeSingle();
-
-        if (cancelled) return;
-        if (error) {
-          setLoadState("error");
-          setLoadError(error.message);
-          return;
-        }
-
-        const value = (data?.value ?? null) as unknown;
-        const version = (value as { version?: unknown } | null)?.version ?? data?.updated_at ?? "1";
-        applySetting(value, version);
-      } catch (err) {
-        if (cancelled) return;
-        setLoadState("error");
-        setLoadError(err instanceof Error ? err.message : "Failed to load programs");
-      }
-    };
-
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel("home-programs")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings", filter: `key=eq.${HOME_PROGRAMS_KEY}` },
-        (payload) => {
-          if (cancelled) return;
-          const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
-          const version =
-            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? "1";
-          applySetting(row?.value ?? null, version);
-        },
-      )
-      .subscribe();
-
-    load();
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const visiblePrograms = programs.filter(
-    (p) => p.title.trim().length > 0 || p.desc.trim().length > 0 || p.img.trim().length > 0,
-  );
-  const showEmptyState = loadState === "ready" && visiblePrograms.length === 0;
-
-  return (
-    <section className="py-20 pattern-diagonal bg-gray-50" ref={ref}>
-      <div className="max-w-7xl mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <span className="inline-block bg-orange-100 text-school-orange text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
-            Beyond the Classroom
-          </span>
-          <h2 className="text-3xl lg:text-4xl font-heading font-black text-gray-900">Programs & Activities</h2>
-          <p className="text-gray-500 mt-3 max-w-xl mx-auto">
-            We believe learning happens everywhere. Our co-curricular programs build confidence, creativity and
-            character.
-          </p>
-        </motion.div>
-
-        {loadState === "error" ? (
-          <div className="mb-8 rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">
-            {loadError ?? "Failed to load Programs & Activities"}
-          </div>
-        ) : null}
-
-        {loadState === "loading" && visiblePrograms.length === 0 ? (
-          <div className="text-center text-sm text-gray-500 mb-8">Loading…</div>
-        ) : null}
-
-        {showEmptyState ? <div className="text-center text-sm text-gray-500 mb-8">No programs added yet.</div> : null}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visiblePrograms.map((p, i) => (
-            <motion.div
-              key={`${i}-${p.title}`}
-              initial={{ opacity: 0, y: 40 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: i * 0.1, duration: 0.5 }}
-              className="bg-white rounded-2xl overflow-hidden card-hover shadow-sm group"
-            >
-              <div className="img-zoom h-52 relative">
-                {p.img ? (
-                  fit === "contain" ? (
-                    <>
-                      <Image
-                        src={p.img}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover scale-110 blur-2xl"
-                        aria-hidden
-                      />
-                      <Image
-                        src={p.img}
-                        alt={p.title || `Program ${i + 1}`}
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-contain"
-                      />
-                    </>
-                  ) : (
-                    <Image
-                      src={p.img}
-                      alt={p.title || `Program ${i + 1}`}
-                      fill
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                      className="object-cover"
-                    />
-                  )
-                ) : null}
-                {p.title ? (
-                  <div
-                    className={`absolute top-4 left-4 ${p.color} text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5 rounded`}
-                  >
-                    {p.title}
-                  </div>
-                ) : null}
-              </div>
-              <div className="p-5">
-                {p.title ? <h3 className="font-heading font-bold text-gray-900 text-lg mb-2">{p.title}</h3> : null}
-                {p.desc ? <p className="text-gray-500 text-sm leading-relaxed">{p.desc}</p> : null}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function DeskSection() {
   const ref = useRef(null);
@@ -849,7 +624,7 @@ function AcademicSection() {
             </h2>
             <p className="text-gray-600 mb-6 leading-relaxed">
               Growwell School Kharar offers admission from <strong>Play Class to Class II</strong> in the academic
-              session, adding a class each year progressively until Grade 9. We follow the norms of the{" "}
+              session, adding a class each year progressively until Grade 8. We follow the norms of the{" "}
               <strong>New Education Policy 2020</strong>.
             </p>
 
@@ -1461,125 +1236,7 @@ function AboutSection() {
             initial={{ opacity: 0, x: -40 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6 }}
-            className="relative"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="col-span-1 row-span-2">
-                <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-lg relative">
-                  {images[0] ? (
-                    fit === "contain" ? (
-                      <>
-                        <Image
-                          src={images[0]}
-                          alt=""
-                          fill
-                          sizes="(min-width: 1024px) 25vw, 45vw"
-                          className="object-cover scale-110 blur-2xl"
-                          aria-hidden
-                        />
-                        <Image
-                          src={images[0]}
-                          alt="Students learning on campus"
-                          fill
-                          sizes="(min-width: 1024px) 25vw, 45vw"
-                          className="object-contain"
-                        />
-                      </>
-                    ) : (
-                      <Image
-                        src={images[0]}
-                        alt="Students learning on campus"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, 45vw"
-                        className="object-cover hover:scale-105 transition-transform duration-500"
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              <div className="col-span-1">
-                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg relative">
-                  {images[1] ? (
-                    fit === "contain" ? (
-                      <>
-                        <Image
-                          src={images[1]}
-                          alt=""
-                          fill
-                          sizes="(min-width: 1024px) 25vw, 45vw"
-                          className="object-cover scale-110 blur-2xl"
-                          aria-hidden
-                        />
-                        <Image
-                          src={images[1]}
-                          alt="Students participating in activities"
-                          fill
-                          sizes="(min-width: 1024px) 25vw, 45vw"
-                          className="object-contain"
-                        />
-                      </>
-                    ) : (
-                      <Image
-                        src={images[1]}
-                        alt="Students participating in activities"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, 45vw"
-                        className="object-cover hover:scale-105 transition-transform duration-500"
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              <div className="col-span-1">
-                <div className="aspect-video rounded-2xl overflow-hidden shadow-lg relative">
-                  {images[2] ? (
-                    fit === "contain" ? (
-                      <>
-                        <Image
-                          src={images[2]}
-                          alt=""
-                          fill
-                          sizes="(min-width: 1024px) 25vw, 45vw"
-                          className="object-cover scale-110 blur-2xl"
-                          aria-hidden
-                        />
-                        <Image
-                          src={images[2]}
-                          alt="Students playing on the school grounds"
-                          fill
-                          sizes="(min-width: 1024px) 25vw, 45vw"
-                          className="object-contain"
-                        />
-                      </>
-                    ) : (
-                      <Image
-                        src={images[2]}
-                        alt="Students playing on the school grounds"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, 45vw"
-                        className="object-cover hover:scale-105 transition-transform duration-500"
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="absolute -bottom-6 -right-6 lg:-bottom-8 lg:right-0 bg-school-orange text-white p-6 rounded-xl shadow-xl z-10 w-40 h-40 flex flex-col items-center justify-center transform rotate-3 hover:rotate-0 transition-transform">
-              <div className="text-4xl font-black font-heading tracking-tighter mb-1">15+</div>
-              <div className="text-xs font-bold uppercase tracking-wider text-center leading-tight">
-                Years of
-                <br />
-                Excellence
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="lg:pl-8"
+            className="lg:pr-8"
           >
             <span className="inline-block bg-green-100 text-school-green text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded mb-4">
               About Growwell
@@ -1599,13 +1256,17 @@ function AboutSection() {
               </p>
             ))}
 
-            <div className="grid sm:grid-cols-2 gap-4 mb-8">
-              <div className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-5">
-                <div className="font-heading font-bold text-school-green mb-2">Mission</div>
+            <div className="grid grid-cols-1 gap-6 mb-8">
+              <div className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-6 shadow-sm">
+                <div className="font-heading font-black text-school-green text-lg mb-3 flex items-center gap-2">
+                  <Star size={20} /> Mission
+                </div>
                 <div className="text-gray-600 text-sm leading-relaxed">{mission}</div>
               </div>
-              <div className="bg-green-50 border-l-4 border-school-green rounded-r-xl p-5">
-                <div className="font-heading font-bold text-school-green mb-2">Vision</div>
+              <div className="bg-blue-50 border-l-4 border-school-blue rounded-r-xl p-6 shadow-sm">
+                <div className="font-heading font-black text-school-blue text-lg mb-3 flex items-center gap-2">
+                  <BookOpen size={20} /> Vision
+                </div>
                 <div className="text-gray-600 text-sm leading-relaxed">{vision}</div>
               </div>
             </div>
@@ -1613,6 +1274,62 @@ function AboutSection() {
             <Link href="/admission" className="btn-primary inline-flex items-center">
               Explore Admission <ArrowRight size={18} className="ml-2" />
             </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative"
+          >
+            <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl relative border-8 border-white">
+              {images[0] ? (
+                fit === "contain" ? (
+                  <>
+                    <Image
+                      src={images[0]}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 40vw, 90vw"
+                      className="object-cover scale-110 blur-2xl"
+                      aria-hidden
+                    />
+                    <Image
+                      src={images[0]}
+                      alt="Growwell School Excellence"
+                      fill
+                      sizes="(min-width: 1024px) 40vw, 90vw"
+                      className="object-contain"
+                    />
+                  </>
+                ) : (
+                  <Image
+                    src={images[0]}
+                    alt="Growwell School Excellence"
+                    fill
+                    sizes="(min-width: 1024px) 40vw, 90vw"
+                    className="object-cover hover:scale-105 transition-transform duration-500"
+                  />
+                )
+              ) : (
+                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-gray-400">Loading image...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="absolute -bottom-6 -right-6 lg:-bottom-10 lg:-right-10 bg-school-orange text-white p-8 rounded-2xl shadow-2xl z-10 w-44 h-44 flex flex-col items-center justify-center transform rotate-6 hover:rotate-0 transition-transform duration-300">
+              <div className="text-5xl font-black font-heading tracking-tighter mb-1">15+</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-center leading-tight opacity-90">
+                Years of
+                <br />
+                Excellence
+              </div>
+            </div>
+            
+            {/* Added a subtle decorative element */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-school-green/10 rounded-full blur-3xl -z-10" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-school-gold/10 rounded-full blur-3xl -z-10" />
           </motion.div>
         </div>
       </div>
@@ -1625,15 +1342,13 @@ export default function HomePage() {
     <>
       <HeroCarousel />
       <NewsTicker />
+      <CircularGalleryDemo />
       <AboutSection />
       <StatsSection />
       <OurJourneySection />
-      <ProgramsSection />
-      <CircularGalleryDemo />
       <DeskSection />
       <AcademicSection />
       <NewsAnnouncementsSlider />
-      <GalleryPreview />
       <CTABanner />
     </>
   );

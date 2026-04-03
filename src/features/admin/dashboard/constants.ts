@@ -5,11 +5,9 @@ export const ADMIN_ACTIVE_SECTION_KEY = "admin.activeSection";
 export const ADMIN_SECTIONS: AdminSectionKey[] = [
   "hero",
   "about",
-  "programs",
   "memories",
   "desk",
   "news",
-  "life",
   "gallery",
   "events",
   "blogs",

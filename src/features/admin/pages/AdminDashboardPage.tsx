@@ -41,6 +41,7 @@ import { ContactMessagesViewer } from "@/features/admin/dashboard/sections/Conta
 
 import type { AdminNavItem, AdminSectionKey } from "@/features/admin/dashboard/types";
 import { capitalizeFirstLetter } from "@/features/admin/dashboard/utils";
+import { validateFields, validateArrayFields } from "@/utils/validation";
 
 // Reusable Pagination Component
 function Pagination({
@@ -131,6 +132,7 @@ function HeroImagesEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const [serverImages, setServerImages] = useState<string[]>(["", "", ""]);
   const [images, setImages] = useState<string[]>(["", "", ""]);
   const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
@@ -273,6 +275,22 @@ function HeroImagesEditor() {
 
   const save = async () => {
     if (!dirty) return;
+
+    const validation = validateFields(
+      {
+        image1: files[0] || images[0],
+        image2: files[1] || images[1],
+        image3: files[2] || images[2],
+      },
+      { requiredImages: ["image1", "image2", "image3"] },
+      "Hero Images"
+    );
+    if (!validation.isValid) {
+      setMessage({ type: "error", text: validation.error });
+      setInvalidFields(validation.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
 
     setSaving(true);
     setMessage(null);
@@ -432,10 +450,12 @@ function HeroImagesEditor() {
                 <div className="font-semibold mb-2">Image {i + 1}</div>
 
                 <label
-                  className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none ${
-                    dragOverIndex === i
-                      ? "border-school-green bg-school-green/5"
-                      : "border-gray-200 hover:border-school-green/60"
+                  className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none transition-all ${
+                    invalidFields.includes(`image${i + 1}`)
+                      ? "border-red-500 bg-red-50"
+                      : dragOverIndex === i
+                        ? "border-school-green bg-school-green/5"
+                        : "border-gray-200 hover:border-school-green/60"
                   }`}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -484,6 +504,7 @@ function HomeNotificationsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const [serverText, setServerText] = useState("");
   const [text, setText] = useState("");
 
@@ -529,6 +550,14 @@ function HomeNotificationsEditor() {
   const dirty = text.trim() !== serverText.trim();
 
   const save = async () => {
+    const validation = validateFields({ text }, { requiredFields: ["text"] }, "Notifications");
+    if (!validation.isValid) {
+      setMessage({ type: "error", text: validation.error });
+      setInvalidFields(validation.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
 
     setSaving(true);
@@ -605,10 +634,17 @@ function HomeNotificationsEditor() {
         <textarea
           id="admin-notifications"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (invalidFields.includes("text")) {
+              setInvalidFields((prev) => prev.filter((f) => f !== "text"));
+            }
+          }}
           rows={8}
           placeholder="Type notifications here..."
-          className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+          className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${
+            invalidFields.includes("text") ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+          }`}
           disabled={loading || saving}
         />
       </div>
@@ -625,10 +661,11 @@ function AboutEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
-  const [serverImages, setServerImages] = useState<string[]>(["", "", ""]);
-  const [images, setImages] = useState<string[]>(["", "", ""]);
-  const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
-  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null]);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+  const [serverImages, setServerImages] = useState<string[]>([""]);
+  const [images, setImages] = useState<string[]>([""]);
+  const [files, setFiles] = useState<(File | null)[]>([null]);
+  const [previews, setPreviews] = useState<(string | null)[]>([null]);
   const [fit, setFit] = useState<AboutFit>("cover");
   const [serverFit, setServerFit] = useState<AboutFit>("cover");
   const [details, setDetails] = useState("");
@@ -692,8 +729,8 @@ function AboutEditor() {
           ? String((raw as { vision: string }).vision)
           : "";
 
-      setServerImages([urls[0] ?? "", urls[1] ?? "", urls[2] ?? ""]);
-      setImages([urls[0] ?? "", urls[1] ?? "", urls[2] ?? ""]);
+      setServerImages([urls[0] ?? ""]);
+      setImages([urls[0] ?? ""]);
       setFit(loadedFit);
       setServerFit(loadedFit);
 
@@ -705,12 +742,12 @@ function AboutEditor() {
       setServerVision(loadedVision);
 
       setDisplayVersion(Date.now());
-      setFiles([null, null, null]);
+      setFiles([null]);
       setPreviews((prev) => {
         prev.forEach((p) => {
           if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
         });
-        return [null, null, null];
+        return [null];
       });
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load about content" });
@@ -777,6 +814,29 @@ function AboutEditor() {
   };
 
   const save = async () => {
+    const dataToValidate = {
+      details,
+      mission,
+      vision,
+      image1: files[0] || images[0],
+    };
+
+    const v = validateFields(
+      dataToValidate,
+      {
+        requiredFields: ["details", "mission", "vision"],
+        requiredImages: ["image1"],
+      },
+      "About Us"
+    );
+
+    if (!v.isValid) {
+      setMessage({ type: "error", text: v.error });
+      setInvalidFields(v.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
 
     setSaving(true);
@@ -786,7 +846,7 @@ function AboutEditor() {
       const nextUrls = [...images];
       const { data: folderItems } = await supabase.storage.from(STORAGE_BUCKET).list(ABOUT_FOLDER, { limit: 100 });
 
-      for (let i = 0; i < 3; i += 1) {
+      for (let i = 0; i < 1; i += 1) {
         const file = files[i];
         const isRemoving = images[i].trim().length === 0 && serverImages[i].trim().length > 0;
         const shouldTouchStorage = Boolean(file) || isRemoving;
@@ -802,7 +862,7 @@ function AboutEditor() {
         }
       }
 
-      for (let i = 0; i < 3; i += 1) {
+      for (let i = 0; i < 1; i += 1) {
         const file = files[i];
         if (!file) continue;
 
@@ -847,12 +907,12 @@ function AboutEditor() {
       setServerMission(mission);
       setServerVision(vision);
       setDisplayVersion(Date.now());
-      setFiles([null, null, null]);
+      setFiles([null]);
       setPreviews((prev) => {
         prev.forEach((p) => {
           if (p?.startsWith("blob:")) URL.revokeObjectURL(p);
         });
-        return [null, null, null];
+        return [null];
       });
       setMessage({ type: "success", text: "About section updated" });
     } catch (err) {
@@ -867,7 +927,7 @@ function AboutEditor() {
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <div className="font-bold text-lg">About Section</div>
-          <div className="text-sm text-gray-500">Upload 3 images and edit details, mission and vision.</div>
+          <div className="text-sm text-gray-500">Upload 1 image and edit details, mission and vision.</div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -922,14 +982,14 @@ function AboutEditor() {
         </div>
       ) : null}
 
-      <div className="grid md:grid-cols-3 gap-4 mb-8">
-        {[0, 1, 2].map((i) => {
+      <div className="grid md:grid-cols-1 max-w-md gap-4 mb-8">
+        {[0].map((i) => {
           const base = previews[i] || images[i];
           const src = base ? (base.startsWith("blob:") ? base : `${base.split("?")[0]}?v=${displayVersion}`) : "";
           const hasAny = Boolean(files[i] || previews[i] || images[i]);
           return (
             <div key={i} className="border rounded-2xl overflow-hidden">
-              <div className="relative aspect-[16/10] bg-gray-100">
+              <div className="relative aspect-video bg-gray-100">
                 {src ? (
                   fit === "contain" ? (
                     <>
@@ -937,7 +997,7 @@ function AboutEditor() {
                         src={src}
                         alt=""
                         fill
-                        sizes="(min-width: 768px) 33vw, 100vw"
+                        sizes="(min-width: 768px) 50vw, 100vw"
                         className="object-cover scale-110 blur-2xl"
                         aria-hidden
                         unoptimized={src.startsWith("blob:")}
@@ -946,7 +1006,7 @@ function AboutEditor() {
                         src={src}
                         alt={`About image ${i + 1}`}
                         fill
-                        sizes="(min-width: 768px) 33vw, 100vw"
+                        sizes="(min-width: 768px) 50vw, 100vw"
                         className="object-contain"
                         unoptimized={src.startsWith("blob:")}
                       />
@@ -956,7 +1016,7 @@ function AboutEditor() {
                       src={src}
                       alt={`About image ${i + 1}`}
                       fill
-                      sizes="(min-width: 768px) 33vw, 100vw"
+                      sizes="(min-width: 768px) 50vw, 100vw"
                       className="object-cover"
                       unoptimized={src.startsWith("blob:")}
                     />
@@ -965,9 +1025,11 @@ function AboutEditor() {
               </div>
 
               <div className="p-4">
-                <div className="font-semibold mb-2">Image {i + 1}</div>
+                <div className="font-semibold mb-2">Primary Image</div>
 
-                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                <label className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none transition-all ${
+                  invalidFields.includes(`image${i + 1}`) ? "border-red-500 bg-red-50" : "border-gray-200 hover:border-school-green/60"
+                }`}>
                   <div className="font-semibold text-gray-800">Click to upload</div>
                   <div className="text-xs text-gray-500 mt-1">or drag & drop</div>
                   <input
@@ -1005,9 +1067,16 @@ function AboutEditor() {
           <textarea
             id="about-details"
             value={details}
-            onChange={(e) => setDetails(capitalizeFirstLetter(e.target.value))}
+            onChange={(e) => {
+              setDetails(capitalizeFirstLetter(e.target.value));
+              if (invalidFields.includes("details")) {
+                setInvalidFields(prev => prev.filter(f => f !== "details"));
+              }
+            }}
             rows={8}
-            className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+            className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${
+              invalidFields.includes("details") ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+            }`}
             disabled={saving || loading}
           />
         </div>
@@ -1020,9 +1089,16 @@ function AboutEditor() {
             <textarea
               id="about-mission"
               value={mission}
-              onChange={(e) => setMission(capitalizeFirstLetter(e.target.value))}
+              onChange={(e) => {
+                setMission(capitalizeFirstLetter(e.target.value));
+                if (invalidFields.includes("mission")) {
+                  setInvalidFields(prev => prev.filter(f => f !== "mission"));
+                }
+              }}
               rows={4}
-              className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+              className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${
+                invalidFields.includes("mission") ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+              }`}
               disabled={saving || loading}
             />
           </div>
@@ -1033,9 +1109,16 @@ function AboutEditor() {
             <textarea
               id="about-vision"
               value={vision}
-              onChange={(e) => setVision(capitalizeFirstLetter(e.target.value))}
+              onChange={(e) => {
+                setVision(capitalizeFirstLetter(e.target.value));
+                if (invalidFields.includes("vision")) {
+                  setInvalidFields(prev => prev.filter(f => f !== "vision"));
+                }
+              }}
               rows={4}
-              className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+              className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${
+                invalidFields.includes("vision") ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+              }`}
               disabled={saving || loading}
             />
           </div>
@@ -1049,6 +1132,7 @@ function ProgramsActivitiesEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const [serverItems, setServerItems] = useState<ProgramItem[]>(
     Array.from({ length: 6 }, () => ({ title: "", details: "", image: "" })),
   );
@@ -1201,9 +1285,35 @@ function ProgramsActivitiesEditor() {
       next[index] = { ...next[index], ...nextPatch };
       return next;
     });
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev) => prev.filter((f) => !fieldsToClear.some((field) => f === `${index}-${field}`)));
+    }
   };
 
   const save = async () => {
+    const itemsToValidate = items.map((it, i) => ({
+      ...it,
+      image: files[i] || it.image,
+    }));
+
+    const v = validateArrayFields(
+      itemsToValidate,
+      {
+        requiredFields: ["title", "details"],
+        requiredImages: ["image"],
+      },
+      "Programs & Activities"
+    );
+
+    if (!v.isValid) {
+      setMessage({ type: "error", text: v.error });
+      setInvalidFields(v.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
 
     setSaving(true);
@@ -1220,7 +1330,7 @@ function ProgramsActivitiesEditor() {
 
       for (let i = 0; i < 6; i += 1) {
         const file = files[i];
-        const isRemoving = nextItems[i].image.length === 0 && serverItems[i]?.image?.trim().length > 0;
+        const isRemoving = (items[i].image || "").trim().length === 0 && (serverItems[i]?.image || "").trim().length > 0;
         const shouldTouchStorage = Boolean(file) || isRemoving;
         if (!shouldTouchStorage) continue;
 
@@ -1389,13 +1499,22 @@ function ProgramsActivitiesEditor() {
               <div className="p-4 space-y-3">
                 <div className="font-semibold">Item {i + 1}</div>
 
-                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                <label
+                  className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none transition-all ${
+                    invalidFields.includes(`${i}-image`) ? "border-red-500 bg-red-50" : "border-gray-200 hover:border-school-green/60"
+                  }`}
+                >
                   <div className="font-semibold text-gray-800">Click to upload image</div>
                   <div className="text-xs text-gray-500 mt-1">Recommended: wide image</div>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      onPickFile(i, e.target.files?.[0] ?? null);
+                      if (invalidFields.includes(`${i}-image`)) {
+                        setInvalidFields(prev => prev.filter(f => f !== `${i}-image`));
+                      }
+                    }}
                     className="hidden"
                   />
                 </label>
@@ -1423,7 +1542,9 @@ function ProgramsActivitiesEditor() {
                     value={it.title}
                     onChange={(e) => updateItem(i, { title: e.target.value })}
                     placeholder="Title"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-title`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -1438,7 +1559,9 @@ function ProgramsActivitiesEditor() {
                     onChange={(e) => updateItem(i, { details: e.target.value })}
                     placeholder="Details"
                     rows={3}
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-details`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -1465,6 +1588,7 @@ function MemoriesEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const emptyItems = useMemo(
     (): MemoriesItem[] =>
       Array.from({ length: 10 }, () => ({
@@ -1610,6 +1734,11 @@ function MemoriesEditor() {
       next[index] = { ...next[index], ...nextPatch };
       return next;
     });
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev) => prev.filter((f) => !fieldsToClear.some((field) => f === `${index}-${field}`)));
+    }
   };
 
   const onPickFile = async (index: number, file: File | null) => {
@@ -1654,6 +1783,27 @@ function MemoriesEditor() {
   };
 
   const save = async () => {
+    const itemsToValidate = items.map((it, i) => ({
+      ...it,
+      url: files[i] || it.url,
+    }));
+
+    const v = validateArrayFields(
+      itemsToValidate,
+      {
+        requiredFields: ["common", "binomial", "text", "by"],
+        requiredImages: ["url"],
+      },
+      "Memories at Growwell"
+    );
+
+    if (!v.isValid) {
+      setMessage({ type: "error", text: v.error });
+      setInvalidFields(v.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
 
     setSaving(true);
@@ -1861,13 +2011,22 @@ function MemoriesEditor() {
               <div className="p-4 space-y-3">
                 <div className="font-semibold">Item {i + 1}</div>
 
-                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                <label
+                  className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none transition-all ${
+                    invalidFields.includes(`${i}-url`) ? "border-red-500 bg-red-50" : "border-gray-200 hover:border-school-green/60"
+                  }`}
+                >
                   <div className="font-semibold text-gray-800">Click to upload image</div>
                   <div className="text-xs text-gray-500 mt-1">Required to show this item</div>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      onPickFile(i, e.target.files?.[0] ?? null);
+                      if (invalidFields.includes(`${i}-url`)) {
+                        setInvalidFields(prev => prev.filter(f => f !== `${i}-url`));
+                      }
+                    }}
                     className="hidden"
                   />
                 </label>
@@ -1895,7 +2054,9 @@ function MemoriesEditor() {
                     value={it.common}
                     onChange={(e) => updateItem(i, { common: e.target.value })}
                     placeholder="Title"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-common`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -1908,7 +2069,9 @@ function MemoriesEditor() {
                     value={it.binomial}
                     onChange={(e) => updateItem(i, { binomial: e.target.value })}
                     placeholder="Subtitle"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-binomial`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -1922,7 +2085,9 @@ function MemoriesEditor() {
                     onChange={(e) => updateItem(i, { text: e.target.value })}
                     placeholder="Text"
                     rows={2}
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-text`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -1935,7 +2100,9 @@ function MemoriesEditor() {
                     value={it.by}
                     onChange={(e) => updateItem(i, { by: e.target.value })}
                     placeholder="Photo by"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-by`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -1982,6 +2149,7 @@ function HomeNewsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [serverItems, setServerItems] = useState<NewsItem[]>([]);
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -2168,6 +2336,11 @@ function HomeNewsEditor() {
     if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
     if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
     setItems((prev) => prev.map((x) => (x.id === id ? { ...x, ...nextPatch } : x)));
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev: string[]) => prev.filter((f) => !fieldsToClear.some((field) => f === `${id}-${field}`)));
+    }
   };
 
   const pickImage = async (id: string, file: File | null) => {
@@ -2194,11 +2367,11 @@ function HomeNewsEditor() {
     const compressed = await compressImage(file);
     const preview = URL.createObjectURL(compressed);
     setNewFiles((prev) => ({ ...prev, [id]: compressed }));
-    setPreviews((prev) => {
-      const existing = prev[id];
-      if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
-      return { ...prev, [id]: preview };
-    });
+    setPreviews((prev) => ({ ...prev, [id]: preview }));
+
+    if (invalidFields.includes(`${id}-img`)) {
+      setInvalidFields((prev) => prev.filter((f) => f !== `${id}-img`));
+    }
   };
 
   const dirty = useMemo(() => {
@@ -2210,6 +2383,27 @@ function HomeNewsEditor() {
   }, [fit, items, newFiles, serverFit, serverItems]);
 
   const save = async () => {
+    const v = validateArrayFields(
+      items.map((it) => ({
+        ...it,
+        newFile: newFiles[it.id],
+      })),
+      {
+        requiredFields: ["title", "desc", "tag", "date"],
+        requiredImages: ["image"],
+        imageKey: "image",
+        newImageKey: "newFile",
+        idKey: "id",
+      },
+      "News"
+    );
+    if (!v.isValid) {
+      setMessage({ type: "error", text: v.error });
+      setInvalidFields(v.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
     setSaving(true);
     setMessage(null);
@@ -2451,7 +2645,21 @@ function HomeNewsEditor() {
                     )}
                   </div>
                   <div className="p-3 space-y-3 bg-white border-t">
-                    <SingleImageDropzone disabled={saving || loading} onPick={(file) => pickImage(it.id, file)} />
+                    <div
+                      className={`p-1 rounded-xl transition-all ${
+                        invalidFields.includes(`${it.id}-image`) ? "bg-red-50 ring-2 ring-red-500" : ""
+                      }`}
+                    >
+                      <SingleImageDropzone
+                        disabled={saving || loading}
+                        onPick={(file) => {
+                          pickImage(it.id, file);
+                          if (invalidFields.includes(`${it.id}-image`)) {
+                            setInvalidFields((prev: string[]) => prev.filter((f) => f !== `${it.id}-image`));
+                          }
+                        }}
+                      />
+                    </div>
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-xs text-gray-500 truncate">
                         {preview ? "Preview (not saved)" : it.image ? "Saved" : "Empty"}
@@ -2481,7 +2689,9 @@ function HomeNewsEditor() {
                       value={it.title}
                       onChange={(e) => updateItem(it.id, { title: e.target.value })}
                       placeholder="Title"
-                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                        invalidFields.includes(`${it.id}-title`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                      }`}
                       disabled={saving || loading}
                     />
                   </div>
@@ -2495,7 +2705,9 @@ function HomeNewsEditor() {
                       onChange={(e) => updateItem(it.id, { desc: e.target.value })}
                       placeholder="Description"
                       rows={4}
-                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                        invalidFields.includes(`${it.id}-desc`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                      }`}
                       disabled={saving || loading}
                     />
                   </div>
@@ -2508,7 +2720,9 @@ function HomeNewsEditor() {
                       value={it.tag}
                       onChange={(e) => updateItem(it.id, { tag: e.target.value })}
                       placeholder="Tag (e.g., Announcement)"
-                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                        invalidFields.includes(`${it.id}-tag`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                      }`}
                       disabled={saving || loading}
                     />
                   </div>
@@ -2521,7 +2735,9 @@ function HomeNewsEditor() {
                       type="date"
                       value={it.date}
                       onChange={(e) => updateItem(it.id, { date: e.target.value })}
-                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                        invalidFields.includes(`${it.id}-date`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                      }`}
                       disabled={saving || loading}
                     />
                   </div>
@@ -2562,6 +2778,7 @@ function LifeEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const emptyItems = useMemo((): LifeItem[] => Array.from({ length: 6 }, () => ({ label: "", url: "" })), []);
   const [serverItems, setServerItems] = useState<LifeItem[]>(emptyItems);
   const [items, setItems] = useState<LifeItem[]>(emptyItems);
@@ -2665,6 +2882,11 @@ function LifeEditor() {
       next[index] = { ...next[index], ...nextPatch };
       return next;
     });
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev) => prev.filter((f) => !fieldsToClear.some((field) => f === `${index}-${field}`)));
+    }
   };
 
   const onPickFile = async (index: number, file: File | null) => {
@@ -2709,6 +2931,18 @@ function LifeEditor() {
   };
 
   const save = async () => {
+    const v = validateArrayFields(
+      items.map((it, i) => ({ ...it, newFile: files[i] })),
+      { requiredFields: ["label"], requiredImages: ["url"], imageKey: "url", newImageKey: "newFile" },
+      "Life"
+    );
+    if (!v.isValid) {
+      setMessage({ type: "error", text: v.error });
+      setInvalidFields(v.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
 
     setSaving(true);
@@ -2892,13 +3126,22 @@ function LifeEditor() {
               <div className="p-4 space-y-3">
                 <div className="font-semibold">Item {i + 1}</div>
 
-                <label className="block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none border-gray-200 hover:border-school-green/60">
+                <label
+                  className={`block border-2 border-dashed rounded-xl px-4 py-4 text-sm cursor-pointer select-none transition-all ${
+                    invalidFields.includes(`${i}-url`) ? "border-red-500 bg-red-50" : "border-gray-200 hover:border-school-green/60"
+                  }`}
+                >
                   <div className="font-semibold text-gray-800">Click to upload image</div>
                   <div className="text-xs text-gray-500 mt-1">Required to show this item</div>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => onPickFile(i, e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      onPickFile(i, e.target.files?.[0] ?? null);
+                      if (invalidFields.includes(`${i}-url`)) {
+                        setInvalidFields(prev => prev.filter(f => f !== `${i}-url`));
+                      }
+                    }}
                     className="hidden"
                   />
                 </label>
@@ -2926,7 +3169,9 @@ function LifeEditor() {
                     value={it.label}
                     onChange={(e) => updateItem(i, { label: e.target.value })}
                     placeholder="Label"
-                    className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                      invalidFields.includes(`${i}-label`) ? "border-red-500 ring-1 ring-red-500" : "border-gray-200 focus:ring-2 focus:ring-school-green/40"
+                    }`}
                     disabled={saving || loading}
                   />
                 </div>
@@ -2954,6 +3199,7 @@ function GalleryEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [serverSections, setServerSections] = useState<GallerySection[]>([]);
   const [sections, setSections] = useState<GallerySection[]>([]);
@@ -3156,8 +3402,15 @@ function GalleryEditor() {
     if (typeof nextPatch.title === "string") nextPatch.title = capitalizeFirstLetter(nextPatch.title);
     if (typeof nextPatch.subtitle === "string") nextPatch.subtitle = capitalizeFirstLetter(nextPatch.subtitle);
     if (typeof nextPatch.details === "string") nextPatch.details = capitalizeFirstLetter(nextPatch.details);
+    
     setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...nextPatch } : s)));
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev: string[]) => prev.filter((f) => !fieldsToClear.some((field) => f === `${sectionId}-${field}`)));
+    }
   };
+
 
   const removeSection = (sectionId: string) => {
     setSections((prev) => prev.filter((s) => s.id !== sectionId));
@@ -3255,6 +3508,13 @@ function GalleryEditor() {
           : s,
       ),
     );
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev: string[]) =>
+        prev.filter((f) => !fieldsToClear.some((field) => f === `${sectionId}-${imageId}-${field}`))
+      );
+    }
   };
 
   const [savingSections, setSavingSections] = useState<Record<string, boolean>>({});
@@ -3282,6 +3542,35 @@ function GalleryEditor() {
   const saveSection = async (sectionId: string) => {
     const section = sections.find(s => s.id === sectionId);
     if (!section) return;
+
+    const itemsToValidate = section.images.map((img) => ({
+      ...img,
+      url: newFiles[img.id] || img.url,
+    }));
+
+    const vMeta = validateFields(
+      section,
+      { requiredFields: ["title", "subtitle", "details"] },
+      "Gallery Section Meta"
+    );
+    if (!vMeta.isValid) {
+      setMessage({ type: "error", text: vMeta.error });
+      return;
+    }
+
+    const vImages = validateArrayFields(
+      itemsToValidate,
+      { 
+        requiredFields: ["title", "desc"], 
+        requiredImages: ["url"],
+        idKey: "id"
+      },
+      "Gallery Section Images"
+    );
+    if (!vImages.isValid) {
+      setMessage({ type: "error", text: vImages.error });
+      return;
+    }
 
     setSavingSections(prev => ({ ...prev, [sectionId]: true }));
     setMessage(null);
@@ -3843,6 +4132,7 @@ function EventsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [serverCalendar, setServerCalendar] = useState<EventsCalendarItem[]>([]);
   const [serverMoments, setServerMoments] = useState<EventsMomentItem[]>([]);
@@ -4027,6 +4317,11 @@ function EventsEditor() {
     if (typeof nextPatch.cat === "string") nextPatch.cat = capitalizeFirstLetter(nextPatch.cat);
     if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
     setCalendar((prev) => prev.map((e) => (e.id === id ? { ...e, ...nextPatch } : e)));
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev: string[]) => prev.filter((f) => !fieldsToClear.some((field) => f === `${id}-${field}`)));
+    }
   };
 
   const updateMoment = (id: string, patch: Partial<EventsMomentItem>) => {
@@ -4035,6 +4330,11 @@ function EventsEditor() {
     if (typeof nextPatch.year === "string") nextPatch.year = capitalizeFirstLetter(nextPatch.year);
     if (typeof nextPatch.desc === "string") nextPatch.desc = capitalizeFirstLetter(nextPatch.desc);
     setMoments((prev) => prev.map((m) => (m.id === id ? { ...m, ...nextPatch } : m)));
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev: string[]) => prev.filter((f) => !fieldsToClear.some((field) => f === `${id}-${field}`)));
+    }
   };
 
   const addCalendarItem = () => {
@@ -4179,6 +4479,44 @@ function EventsEditor() {
   }, [calendar, fit, moments, newFiles, serverCalendar, serverFit, serverMoments]);
 
   const save = async () => {
+    const calendarToValidate = calendar.map(e => ({ ...e, newFile: newFiles[keyFor("calendar", e.id)] }));
+    const momentsToValidate = moments.map(m => ({ ...m, newFile: newFiles[keyFor("moments", m.id)] }));
+
+    const vCal = validateArrayFields(
+      calendarToValidate,
+      { 
+        requiredFields: ["title", "date", "startTime", "endTime", "venue", "cat", "desc"], 
+        requiredImages: ["img"],
+        imageKey: "img",
+        newImageKey: "newFile",
+        idKey: "id"
+      },
+      "Events Calendar"
+    );
+    if (!vCal.isValid) {
+      setMessage({ type: "error", text: vCal.error });
+      setInvalidFields(vCal.invalidFields);
+      return;
+    }
+
+    const vMom = validateArrayFields(
+      momentsToValidate,
+      { 
+        requiredFields: ["title", "year", "desc"], 
+        requiredImages: ["img"],
+        imageKey: "img",
+        newImageKey: "newFile",
+        idKey: "id"
+      },
+      "Memorable Moments"
+    );
+    if (!vMom.isValid) {
+      setMessage({ type: "error", text: vMom.error });
+      setInvalidFields(vMom.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
     setSaving(true);
     setMessage(null);
@@ -4865,6 +5203,7 @@ function BlogsEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [serverFit, setServerFit] = useState<BlogFit>("cover");
   const [fit, setFit] = useState<BlogFit>("cover");
@@ -5065,15 +5404,20 @@ function BlogsEditor() {
     if (typeof nextPatch.author === "string") nextPatch.author = capitalizeFirstLetter(nextPatch.author);
     if (typeof nextPatch.date === "string") nextPatch.date = capitalizeFirstLetter(nextPatch.date);
     if (typeof nextPatch.cat === "string") nextPatch.cat = capitalizeFirstLetter(nextPatch.cat);
+
     setItems((prev) =>
       prev.map((b) => {
         if (b.id !== id) return b;
-        const next = { ...b, ...nextPatch };
-        return next;
+        return { ...b, ...nextPatch };
       }),
     );
 
     if (patch.featured) setFeatured(id);
+
+    const fieldsToClear = Object.keys(patch);
+    if (fieldsToClear.length > 0) {
+      setInvalidFields((prev: string[]) => prev.filter((f) => !fieldsToClear.some((field) => f === `${id}-${field}`)));
+    }
   };
 
   const pickImage = async (id: string, file: File | null) => {
@@ -5100,11 +5444,11 @@ function BlogsEditor() {
     const compressed = await compressImage(file);
     const preview = URL.createObjectURL(compressed);
     setNewFiles((prev) => ({ ...prev, [id]: compressed }));
-    setPreviews((prev) => {
-      const existing = prev[id];
-      if (existing?.startsWith("blob:")) URL.revokeObjectURL(existing);
-      return { ...prev, [id]: preview };
-    });
+    setPreviews((prev) => ({ ...prev, [id]: preview }));
+
+    if (invalidFields.includes(`${id}-img`)) {
+      setInvalidFields((prev) => prev.filter((f) => f !== `${id}-img`));
+    }
   };
 
   const dirty = useMemo(() => {
@@ -5116,6 +5460,24 @@ function BlogsEditor() {
   }, [fit, items, newFiles, serverFit, serverItems]);
 
   const save = async () => {
+    const v = validateArrayFields(
+      items.map((it) => ({ ...it, newFile: newFiles[it.id] })),
+      { 
+        requiredFields: ["title", "excerpt", "author", "date", "cat"], 
+        requiredImages: ["img"], 
+        imageKey: "img", 
+        newImageKey: "newFile",
+        idKey: "id"
+      },
+      "Blogs"
+    );
+    if (!v.isValid) {
+      setMessage({ type: "error", text: v.error });
+      setInvalidFields(v.invalidFields);
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
     setSaving(true);
     setMessage(null);
@@ -5397,7 +5759,9 @@ function BlogsEditor() {
                       value={blog.title}
                       onChange={(e) => updateItem(blog.id, { title: e.target.value })}
                       placeholder="Title"
-                      className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-school-green/40"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none transition-all ${
+                        invalidFields.includes(`${blog.id}-title`) ? "border-red-500 ring-1 ring-red-500" : "focus:ring-2 focus:ring-school-green/40 border-gray-200"
+                      }`}
                       disabled={saving || loading}
                     />
                   </div>
@@ -5557,6 +5921,7 @@ function LeadersDeskEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useAutoMessage();
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const [desk, setDesk] = useState<DeskValue>(() => defaultValue());
   const [serverDesk, setServerDesk] = useState<DeskValue>(() => defaultValue());
   const [directorFile, setDirectorFile] = useState<File | null>(null);
@@ -5680,6 +6045,9 @@ function LeadersDeskEditor() {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return URL.createObjectURL(compressed);
     });
+    if (invalidFields.includes("director-image")) {
+      setInvalidFields((p) => p.filter((f) => f !== "director-image"));
+    }
   };
 
   const pickPrincipal = async (file: File | null) => {
@@ -5691,6 +6059,9 @@ function LeadersDeskEditor() {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return URL.createObjectURL(compressed);
     });
+    if (invalidFields.includes("principal-image")) {
+      setInvalidFields((p) => p.filter((f) => f !== "principal-image"));
+    }
   };
 
   const removeDirectorImage = () => {
@@ -5712,6 +6083,20 @@ function LeadersDeskEditor() {
   };
 
   const save = async () => {
+    const vDir = validateFields({ name: desk.director.name, image: directorFile || desk.director.image }, { requiredFields: ["name"], requiredImages: ["image"] }, "Director's Info");
+    const vPri = validateFields({ name: desk.principal.name, image: principalFile || desk.principal.image }, { requiredFields: ["name"], requiredImages: ["image"] }, "Principal's Info");
+
+    if (!vDir.isValid || !vPri.isValid) {
+      const errs: string[] = [];
+      if (!vDir.isValid) vDir.invalidFields.forEach(f => errs.push(`director-${f}`));
+      if (!vPri.isValid) vPri.invalidFields.forEach(f => errs.push(`principal-${f}`));
+      
+      setInvalidFields(errs);
+      setMessage({ type: "error", text: vDir.isValid ? vPri.error : vDir.error });
+      return;
+    }
+    setInvalidFields([]);
+
     if (!dirty) return;
     setSaving(true);
     setMessage(null);
@@ -6261,12 +6646,10 @@ export default function AdminDashboardPage() {
   const navItems = useMemo(
     (): AdminNavItem[] => [
       { key: "hero", label: "Hero Section", icon: Star },
-      { key: "about", label: "About", icon: Users },
-      { key: "programs", label: "Programs", icon: Award },
       { key: "memories", label: "Memories", icon: Star },
+      { key: "about", label: "About", icon: Users },
       { key: "desk", label: "Leaders Desk", icon: Users },
       { key: "news", label: "News & Announcements", icon: FileText },
-      { key: "life", label: "Life at School", icon: Users },
       { key: "gallery", label: "Gallery", icon: ImageIcon },
       { key: "events", label: "Events", icon: Calendar },
       { key: "blogs", label: "Blogs", icon: BookOpen },
@@ -6319,16 +6702,12 @@ export default function AdminDashboardPage() {
             </div>
           ) : active === "about" ? (
             <AboutEditor />
-          ) : active === "programs" ? (
-            <ProgramsActivitiesEditor />
           ) : active === "memories" ? (
             <MemoriesEditor />
           ) : active === "desk" ? (
             <LeadersDeskEditor />
           ) : active === "news" ? (
             <HomeNewsEditor />
-          ) : active === "life" ? (
-            <LifeEditor />
           ) : active === "gallery" ? (
             <GalleryEditor />
           ) : active === "events" ? (

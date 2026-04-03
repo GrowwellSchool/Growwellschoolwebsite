@@ -3,11 +3,9 @@ import type { LucideIcon } from "lucide-react";
 export type AdminSectionKey =
     | "hero"
     | "about"
-    | "programs"
     | "memories"
     | "desk"
     | "news"
-    | "life"
     | "gallery"
     | "events"
     | "blogs"
