@@ -1345,8 +1345,8 @@ export default function HomePage() {
       <CircularGalleryDemo />
       <AboutSection />
       <StatsSection />
-      <OurJourneySection />
       <DeskSection />
+      <OurJourneySection />
       <AcademicSection />
       <NewsAnnouncementsSlider />
       <CTABanner />

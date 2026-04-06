@@ -34,9 +34,9 @@ export default function Navbar() {
       <div className="bg-school-dark text-white py-2 px-4 hidden md:block">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
           <div className="flex items-center gap-6">
-            <a href="tel:+918196051999" className="flex items-center gap-2 hover:text-school-yellow transition-colors">
+            <a href="tel:+918360444258" className="flex items-center gap-2 hover:text-school-yellow transition-colors">
               <Phone size={14} />
-              <span>81960-51999</span>
+              <span>83604-44258</span>
             </a>
             <a
               href="mailto:info@growwellschool.in"

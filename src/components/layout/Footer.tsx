@@ -55,7 +55,7 @@ export default function Footer() {
                 <Instagram size={16} />
               </a>
               <a
-                href="https://web.whatsapp.com/send?phone=918196051999&text="
+                href="https://web.whatsapp.com/send?phone=918360444258&text="
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
@@ -111,9 +111,9 @@ export default function Footer() {
                 <span>Growwell School, Kharar, Punjab, India</span>
               </li>
               <li>
-                <a href="tel:+918196051999" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors text-sm">
+                <a href="tel:+918360444258" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors text-sm">
                   <Phone size={16} className="text-school-gold" />
-                  81960-51999
+                  83604-44258
                 </a>
               </li>
               <li>

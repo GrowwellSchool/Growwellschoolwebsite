@@ -189,11 +189,11 @@ function EligibilitySection() {
               <h3 className="font-heading font-bold text-lg mb-2">Have Questions?</h3>
               <p className="text-gray-400 text-sm mb-5">Our admissions team is here to help you through every step.</p>
               <a
-                href="tel:+918196051999"
+                href="tel:+918360444258"
                 className="flex items-center gap-3 bg-school-gold text-school-dark px-5 py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors"
               >
                 <Phone size={18} />
-                Call 81960-51999
+                Call 83604-44258
               </a>
             </div>
           </motion.div>

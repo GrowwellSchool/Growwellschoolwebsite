@@ -171,10 +171,10 @@ function ContactSection() {
                 {
                   icon: <Phone size={22} />,
                   label: "Phone",
-                  value: "81960-51999",
+                  value: "83604-44258",
                   sub: "Monday – Saturday, 8AM – 4PM",
                   color: "bg-school-blue",
-                  href: "tel:+918196051999",
+                  href: "tel:+918360444258",
                 },
                 {
                   icon: <Mail size={22} />,
