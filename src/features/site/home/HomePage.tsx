@@ -453,16 +453,35 @@ function DeskSection() {
   const [directorMotto, setDirectorMotto] = useState("");
   const [directorName, setDirectorName] = useState("");
   const [directorRole, setDirectorRole] = useState("");
+  const [directorImage, setDirectorImage] = useState("");
 
   const [principalQuote, setPrincipalQuote] = useState("");
   const [principalMessage, setPrincipalMessage] = useState("");
   const [principalName, setPrincipalName] = useState("");
   const [principalRole, setPrincipalRole] = useState("");
+  const [principalImage, setPrincipalImage] = useState("");
+
+  const [displayVersion, setDisplayVersion] = useState(() => Date.now());
+  const [fit, setFit] = useState<"cover" | "contain">("cover");
 
   useEffect(() => {
     let cancelled = false;
 
-    const applySetting = (raw: unknown) => {
+    const getBaseUrl = (value: unknown) => {
+      if (typeof value !== "string") return "";
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed.split("?")[0] : "";
+    };
+
+    const applySetting = (raw: unknown, versionFromRow: unknown) => {
+      const versionFromValue = typeof raw === "object" && raw ? (raw as { version?: unknown }).version : undefined;
+      const version =
+        typeof versionFromValue === "string" || typeof versionFromValue === "number"
+          ? String(versionFromValue)
+          : typeof versionFromRow === "string" || typeof versionFromRow === "number"
+            ? String(versionFromRow)
+            : String(Date.now());
+
       const nextDirector =
         typeof raw === "object" && raw && typeof (raw as { director?: unknown }).director === "object"
           ? ((raw as { director?: unknown }).director as Record<string, unknown>)
@@ -472,11 +491,18 @@ function DeskSection() {
           ? ((raw as { principal?: unknown }).principal as Record<string, unknown>)
           : null;
 
+      const rawFit = typeof raw === "object" && raw ? (raw as { fit?: unknown }).fit : undefined;
+      const normalizedFit = typeof rawFit === "string" ? rawFit.toLowerCase().trim() : "";
+      const loadedFit = normalizedFit === "contain" ? "contain" : "cover";
+      setFit(loadedFit);
+
       if (nextDirector) {
         setDirectorMessage(typeof nextDirector.message === "string" ? nextDirector.message.trim() : "");
         setDirectorMotto(typeof nextDirector.motto === "string" ? nextDirector.motto.trim() : "");
         setDirectorName(typeof nextDirector.name === "string" ? nextDirector.name.trim() : "");
         setDirectorRole(typeof nextDirector.role === "string" ? nextDirector.role.trim() : "");
+        const img = getBaseUrl(nextDirector.image);
+        setDirectorImage(img ? `${img}?v=${encodeURIComponent(version)}` : "");
       }
 
       if (nextPrincipal) {
@@ -484,7 +510,11 @@ function DeskSection() {
         setPrincipalMessage(typeof nextPrincipal.message === "string" ? nextPrincipal.message.trim() : "");
         setPrincipalName(typeof nextPrincipal.name === "string" ? nextPrincipal.name.trim() : "");
         setPrincipalRole(typeof nextPrincipal.role === "string" ? nextPrincipal.role.trim() : "");
+        const img = getBaseUrl(nextPrincipal.image);
+        setPrincipalImage(img ? `${img}?v=${encodeURIComponent(version)}` : "");
       }
+
+      setDisplayVersion(Number.isNaN(Number(version)) ? Date.now() : Number(version));
     };
 
     const load = async () => {
@@ -496,7 +526,8 @@ function DeskSection() {
           .eq("key", HOME_DESK_KEY)
           .maybeSingle();
         if (cancelled || error || !data?.value) return;
-        applySetting(data.value as unknown);
+        const version = (data.value as { version?: unknown } | null)?.version ?? data.updated_at ?? Date.now();
+        applySetting(data.value as unknown, version);
       } catch {
         return;
       }
@@ -511,7 +542,10 @@ function DeskSection() {
         (payload) => {
           if (cancelled) return;
           const row = (payload as { new?: { value?: unknown; updated_at?: unknown } }).new;
-          applySetting(row?.value);
+          const commitTimestamp = (payload as { commit_timestamp?: unknown }).commit_timestamp;
+          const version =
+            (row?.value as { version?: unknown } | null)?.version ?? commitTimestamp ?? row?.updated_at ?? Date.now();
+          applySetting(row?.value, version);
         },
       )
       .subscribe();
@@ -550,25 +584,40 @@ function DeskSection() {
             <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-school-green/10 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-16 h-16 md:w-24 md:h-24 bg-school-gold/10 rounded-full translate-y-1/2 -translate-x-1/2" />
             <Quote size={36} className="text-school-gold mb-4" />
+            <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+              <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-white/20 flex-shrink-0 shadow-lg">
+                {directorImage ? (
+                  <Image
+                    src={directorImage}
+                    alt={directorName || "Director"}
+                    fill
+                    className={`${fit === "contain" ? "object-contain" : "object-cover"} object-top`}
+                    key={`${directorImage}-${displayVersion}`}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-school-gold/20 flex items-center justify-center text-school-gold font-heading font-black text-2xl">
+                    {directorName?.[0] || "D"}
+                  </div>
+                )}
+              </div>
+              <div className="text-center sm:text-left">
+                <div className="font-heading font-bold text-white text-xl sm:text-2xl mb-1">{directorName || "Director"}</div>
+                {directorRole.trim().length > 0 ? (
+                  <div className="text-school-gold text-sm sm:text-base font-medium">{directorRole}</div>
+                ) : null}
+              </div>
+            </div>
             {directorMessage.trim().length > 0 ? (
               <p className="text-gray-300 text-base leading-relaxed mb-4 italic">{directorMessage}</p>
             ) : null}
             {directorMotto.trim().length > 0 ? (
-              <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-6">
-                <div className="text-school-gold text-sm md:text-base font-heading font-black tracking-widest uppercase mb-1">
+              <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-4">
+                <div className="text-school-gold text-xs font-heading font-black tracking-widest uppercase mb-1">
                   Our Motto
                 </div>
                 <div className="text-gray-200 text-sm italic">{directorMotto}</div>
               </div>
             ) : null}
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="font-heading font-bold text-white text-lg">{directorName || "Director"}</div>
-                {directorRole.trim().length > 0 ? (
-                  <div className="text-school-gold text-sm font-medium">{directorRole}</div>
-                ) : null}
-              </div>
-            </div>
           </motion.div>
 
           <motion.div
@@ -580,22 +629,37 @@ function DeskSection() {
             <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-school-purple/10 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-16 h-16 md:w-24 md:h-24 bg-school-orange/10 rounded-full translate-y-1/2 -translate-x-1/2" />
             <Quote size={36} className="text-school-orange mb-4" />
+            <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+              <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-white/20 flex-shrink-0 shadow-lg">
+                {principalImage ? (
+                  <Image
+                    src={principalImage}
+                    alt={principalName || "Principal"}
+                    fill
+                    className={fit === "contain" ? "object-contain" : "object-cover"}
+                    key={`${principalImage}-${displayVersion}`}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-school-orange/20 flex items-center justify-center text-school-orange font-heading font-black text-2xl">
+                    {principalName?.[0] || "P"}
+                  </div>
+                )}
+              </div>
+              <div className="text-center sm:text-left">
+                <div className="font-heading font-bold text-white text-xl sm:text-2xl mb-1">{principalName || "Principal"}</div>
+                {principalRole.trim().length > 0 ? (
+                  <div className="text-school-orange text-sm sm:text-base font-medium">{principalRole}</div>
+                ) : null}
+              </div>
+            </div>
             {principalQuote.trim().length > 0 ? (
               <div className="bg-school-gold/10 border-l-4 border-school-gold px-4 py-3 rounded-r-lg mb-4 italic text-school-gold text-sm">
                 {principalQuote}
               </div>
             ) : null}
             {principalMessage.trim().length > 0 ? (
-              <p className="text-gray-300 text-base leading-relaxed mb-6 italic">{principalMessage}</p>
+              <p className="text-gray-300 text-base leading-relaxed mb-4 italic">{principalMessage}</p>
             ) : null}
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="font-heading font-bold text-white text-lg">{principalName || "Principal"}</div>
-                {principalRole.trim().length > 0 ? (
-                  <div className="text-school-orange text-sm font-medium">{principalRole}</div>
-                ) : null}
-              </div>
-            </div>
           </motion.div>
         </div>
       </div>
@@ -1344,8 +1408,8 @@ export default function HomePage() {
       <NewsTicker />
       <CircularGalleryDemo />
       <AboutSection />
-      <StatsSection />
       <DeskSection />
+      <StatsSection />
       <OurJourneySection />
       <AcademicSection />
       <NewsAnnouncementsSlider />
