@@ -79,6 +79,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
       };
 
       const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
         const deltaX = e.clientX - lastXRef.current;
         velocityRef.current = deltaX * 0.6;
         setRotation((prev) => prev + deltaX * 0.6);
@@ -98,6 +99,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
 
       const handleTouchMove = (e: TouchEvent) => {
         if (!isDragging) return;
+        if (e.cancelable) e.preventDefault();
         const deltaX = e.touches[0].clientX - lastXRef.current;
         velocityRef.current = deltaX * 0.6;
         setRotation((prev) => prev + deltaX * 0.6);
@@ -108,12 +110,21 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
         setIsDragging(false);
       };
 
+      const handleWheel = (e: WheelEvent) => {
+        // Prevent page scroll when interacting with the gallery
+        if (e.cancelable) e.preventDefault();
+        const sensitivity = 0.4;
+        setRotation((prev) => prev + e.deltaY * sensitivity);
+        velocityRef.current = e.deltaY * sensitivity;
+      };
+
       container.addEventListener('mousedown', handleMouseDown);
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
-      container.addEventListener('touchstart', handleTouchStart, { passive: true });
-      window.addEventListener('touchmove', handleTouchMove, { passive: true });
+      container.addEventListener('touchstart', handleTouchStart, { passive: false });
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
       window.addEventListener('touchend', handleTouchEnd);
+      container.addEventListener('wheel', handleWheel, { passive: false });
 
       return () => {
         container.removeEventListener('mousedown', handleMouseDown);
@@ -122,6 +133,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
         container.removeEventListener('touchstart', handleTouchStart);
         window.removeEventListener('touchmove', handleTouchMove);
         window.removeEventListener('touchend', handleTouchEnd);
+        container.removeEventListener('wheel', handleWheel);
       };
     }, [isDragging]);
 
