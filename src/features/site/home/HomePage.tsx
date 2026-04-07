@@ -401,7 +401,7 @@ function OurJourneySection() {
   const milestones = [
     { text: "Growwell School established on April 2 2011 by S. Satinder Pal Singh Sohi and Amrit kaur Sohi" },
     {  text: "Recognition as co-educational middle school" },
-    {  text: "Adopted NEP 2020 guidelines, expanding holistic development programs" },
+    {  text: "Adopted NEP 2020 guidelines, expanding holistic development programmes" },
     {  text: "Progressive addition of classes, now serving Play Class through Grade 8" },
     {  text: "Admissions open for Session 2026-27" },
   ];
@@ -1150,7 +1150,7 @@ function CTABanner() {
       <div className="max-w-4xl mx-auto px-4 text-center relative">
         <h2 className="text-3xl lg:text-5xl font-heading font-black text-white mb-4">Admission Open for 2026-27</h2>
         <p className="text-green-100 text-lg mb-8 max-w-2xl mx-auto">
-          Secure your child's future at Growwell School. Limited seats available. Apply today for Play Class through
+          Secure your child's future at Growwell School. Limited seats available. Apply today for Play Class to
           Class II.
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
