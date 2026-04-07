@@ -116,7 +116,10 @@ export default function GalleryPage() {
           }
         }
 
-        const uniqueCats = Array.from(new Set(data.map((d) => d.cat as string))).filter(Boolean);
+        const uniqueCats = Array.from(new Set(data.map((d) => d.cat as string)))
+          .filter(Boolean)
+          .filter((cat) => cat !== "all");
+
         const mapped: GalleryCategory[] = [
           { id: "all", label: "All Activities" },
           ...uniqueCats.map((cat) => ({
@@ -170,11 +173,15 @@ export default function GalleryPage() {
              updatedAt: d.updated_at,
            }));
           if (isAppending) {
-            setGalleryItems((prev) => [...prev, ...mapped]);
+            setGalleryItems((prev) => {
+              const existingIds = new Set(prev.map((item) => item.id));
+              const newItems = mapped.filter((item) => !existingIds.has(item.id));
+              return [...prev, ...newItems];
+            });
           } else {
             setGalleryItems(mapped);
           }
-          setHasMore(count !== null && from + data.length < count);
+          setHasMore(count !== null && from + data.length < (count || 0));
         }
       } finally {
         setLoading(false);
@@ -239,7 +246,7 @@ export default function GalleryPage() {
             ) : (
               categories.map((cat) => (
                 <button
-                  key={cat.id}
+                  key={`cat-${cat.id}`}
                   onClick={() => setActivecat(cat.id)}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-heading font-semibold text-sm transition-all duration-200 border-2
                     ${
@@ -259,7 +266,7 @@ export default function GalleryPage() {
             <AnimatePresence>
               {galleryItems.map((item, i) => (
                 <motion.div
-                  key={item.id}
+                  key={`item-${item.id}`}
                   layout
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
