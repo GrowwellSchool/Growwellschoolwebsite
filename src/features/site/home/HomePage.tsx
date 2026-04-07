@@ -399,11 +399,11 @@ function OurJourneySection() {
   const inView = useInView(ref, { once: true, amount: 0.2 });
 
   const milestones = [
-    { text: "Growwell School established on April 2 by S. Satinder Pal Singh Sohi and Amrit kaur Sohi" },
+    { text: "Growwell School established on April 2 2011 by S. Satinder Pal Singh Sohi and Amrit kaur Sohi" },
     {  text: "Recognition as co-educational middle school" },
     {  text: "Adopted NEP 2020 guidelines, expanding holistic development programs" },
     {  text: "Progressive addition of classes, now serving Play Class through Grade 8" },
-    {  text: "Continuing to grow — admissions open for Session 2026-27" },
+    {  text: "Admissions open for Session 2026-27" },
   ];
 
   return (

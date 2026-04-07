@@ -49,7 +49,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
           // Apply velocity with friction
           if (Math.abs(velocityRef.current) > 0.1) {
             setRotation((prev) => prev + velocityRef.current);
-            velocityRef.current *= 0.95; // Friction
+            velocityRef.current *= 0.98; // Friction
           } else {
             setRotation((prev) => prev + autoRotateSpeed);
           }
@@ -79,10 +79,9 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
       };
 
       const handleMouseMove = (e: MouseEvent) => {
-        if (!isDragging) return;
         const deltaX = e.clientX - lastXRef.current;
-        velocityRef.current = deltaX * 0.3;
-        setRotation((prev) => prev + deltaX * 0.3);
+        velocityRef.current = deltaX * 0.6;
+        setRotation((prev) => prev + deltaX * 0.6);
         lastXRef.current = e.clientX;
       };
 
@@ -100,8 +99,8 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
       const handleTouchMove = (e: TouchEvent) => {
         if (!isDragging) return;
         const deltaX = e.touches[0].clientX - lastXRef.current;
-        velocityRef.current = deltaX * 0.3;
-        setRotation((prev) => prev + deltaX * 0.3);
+        velocityRef.current = deltaX * 0.6;
+        setRotation((prev) => prev + deltaX * 0.6);
         lastXRef.current = e.touches[0].clientX;
       };
 

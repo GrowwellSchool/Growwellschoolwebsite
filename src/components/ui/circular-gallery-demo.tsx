@@ -137,7 +137,7 @@ const CircularGalleryDemo = () => {
       </div>
 
       <div className="w-full h-[350px] md:h-[500px] flex items-center justify-center">
-        <CircularGallery items={items} radius={isMobile ? 280 : 600} fit={fit} autoRotateSpeed={0.06} />
+        <CircularGallery items={items} radius={isMobile ? 280 : 600} fit={fit} autoRotateSpeed={0.18} />
       </div>
     </section>
   )
