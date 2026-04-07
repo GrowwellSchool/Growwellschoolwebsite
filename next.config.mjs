@@ -17,18 +17,26 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
-  images: supabaseHostname
-    ? {
-        remotePatterns: [
-          {
-            protocol: "https",
-            hostname: supabaseHostname,
-            pathname: "/**",
-          },
-        ],
-        qualities: [75, 100],
-      }
-    : undefined,
+  images: {
+    remotePatterns: [
+      ...(supabaseHostname
+        ? [
+            {
+              protocol: "https",
+              hostname: supabaseHostname,
+              pathname: "/**",
+            },
+          ]
+        : []),
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+    qualities: [75, 100],
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
